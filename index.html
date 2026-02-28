@@ -4,12 +4,58 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luke / Float64 Home</title>
+    <style>
+        .container {
+            width: 33.33%;
+            margin: 0 auto;
+            padding: 15px;
+            text-align: left;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .site-header {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        #float64 {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        #welcome {
+            font-size: 1.2em;
+            margin-left: 10px;
+        }
+        nav {
+            background-color: #555;
+            padding: 10px;
+            text-align: center;
+        }
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+            font-size: 1.1em;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to Luke's Float64 Home Page</h1>
-    <nav>
-        <a href="uk-pathogen-sensor-deployment-report.html">UK Pathogen Sensor Deployment Report</a><br />
-        <a href="engineering-retention-playbook.html">Engineering Retention Playbook</a>
-    </nav>
+    <div class="container">
+        <div class="site-header">
+            <span id="float64">Float64</span><span id="welcome"> Welcome</span>
+        </div>
+        <nav>
+            <a href="uk-pathogen-sensor-deployment-report.html">UK Pathogen Sensor Deployment Report</a><br />
+            <a href="engineering-retention-playbook.html">Engineering Retention Playbook</a>
+        </nav>
+    </div>
 </body>
 </html>
