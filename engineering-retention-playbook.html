@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Retaining Elite Engineers in Salaryman Culture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Shippori+Mincho:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0e0c;
+    --paper: #f5f0e8;
+    --paper-dark: #ede7d9;
+    --red: #c0392b;
+    --red-dim: #8b2a1f;
+    --gold: #b8963e;
+    --mid: #5a5248;
+    --light: #9a9088;
+    --rule: rgba(15,14,12,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.75;
+    font-weight: 300;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 3rem;
+    height: 56px;
+    background: var(--ink);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .nav-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: rgba(255,255,255,0.45);
+    text-transform: uppercase;
+  }
+
+  .nav-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #0281e3;
+    flex-shrink: 0;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
+  }
+
+  .nav-links a {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: rgba(255,255,255,0.8); }
+
+  /* ─── HERO ─── */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-top: 56px;
+    overflow: hidden;
+  }
+
+  .hero-left {
+    background: var(--ink);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 5rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-left::after {
+    content: '忠誠';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-family: 'Shippori Mincho', serif;
+    font-size: 22vw;
+    font-weight: 800;
+    color: rgba(255,255,255,0.025);
+    pointer-events: none;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .hero-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .hero-label::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 1px;
+    background: var(--red);
+  }
+
+  .hero-h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.4rem, 4vw, 3.6rem);
+    font-weight: 300;
+    line-height: 1.15;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+
+  .hero-h1 em {
+    font-style: italic;
+    color: var(--gold);
+  }
+
+  .hero-sub {
+    margin-top: 2rem;
+    font-size: 1rem;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.4);
+    max-width: 36ch;
+    font-weight: 300;
+  }
+
+  .hero-meta {
+    margin-top: 3.5rem;
+    display: flex;
+    gap: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .hero-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .hero-meta-item span:first-child {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+  }
+
+  .hero-meta-item span:last-child {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.6);
+  }
+
+  .hero-right {
+    background: var(--paper-dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 5rem 4rem;
+    border-left: 1px solid var(--rule);
+    position: relative;
+  }
+
+  .toc-heading {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--light);
+    margin-bottom: 2rem;
+  }
+
+  .toc {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .toc li {
+    border-top: 1px solid var(--rule);
+  }
+
+  .toc li:last-child { border-bottom: 1px solid var(--rule); }
+
+  .toc a {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.9rem 0;
+    text-decoration: none;
+    color: var(--ink);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.3;
+    transition: color 0.2s;
+  }
+
+  .toc a:hover { color: var(--red); }
+
+  .toc-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--light);
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  /* ─── LAYOUT ─── */
+  .content {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 7rem 2rem;
+  }
+
+  /* ─── LEAD ─── */
+  .lead {
+    font-size: 1.3rem;
+    line-height: 1.8;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--mid);
+    padding: 3rem 0;
+    border-top: 3px solid var(--ink);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 5rem;
+  }
+
+  /* ─── SECTIONS ─── */
+  .section {
+    margin-bottom: 5rem;
+    padding-top: 1rem;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .section.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .section-marker {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .section-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  .section-rule {
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+
+  h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(1.6rem, 2.5vw, 2.2rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.5rem;
+    color: var(--ink);
+  }
+
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: 2.5rem 0 0.75rem;
+    color: var(--ink);
+  }
+
+  p { margin-bottom: 1.25rem; }
+
+  p:last-child { margin-bottom: 0; }
+
+  strong {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ─── CALLOUTS ─── */
+  .callout {
+    margin: 2.5rem 0;
+    padding: 1.5rem 2rem;
+    background: var(--ink);
+    color: #fff;
+    position: relative;
+  }
+
+  .callout::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--red);
+  }
+
+  .callout p {
+    font-size: 1.1rem;
+    font-style: italic;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.85);
+    margin: 0;
+  }
+
+  /* ─── STAT PILLS ─── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px;
+    margin: 2.5rem 0;
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+
+  .stat {
+    padding: 1.5rem;
+    background: var(--paper-dark);
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    transition: background 0.2s;
+  }
+
+  .stat:hover { background: var(--ink); }
+  .stat:hover .stat-num, .stat:hover .stat-label { color: rgba(255,255,255,0.8); }
+  .stat:hover .stat-num { color: #fff; }
+
+  .stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: var(--red);
+    line-height: 1;
+    transition: color 0.2s;
+  }
+
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--light);
+    line-height: 1.4;
+    transition: color 0.2s;
+  }
+
+  /* ─── CASE STUDIES ─── */
+  .case-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    margin: 2.5rem 0;
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+
+  .case {
+    padding: 2rem;
+    background: var(--paper-dark);
+    transition: background 0.25s;
+  }
+
+  .case:hover { background: #e8e1d4; }
+
+  .case-co {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 0.5rem;
+  }
+
+  .case h4 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    line-height: 1.3;
+  }
+
+  .case p {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    color: var(--mid);
+    margin: 0;
+  }
+
+  /* ─── LADDER ─── */
+  .ladder {
+    margin: 2.5rem 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+
+  .ladder-col {
+    background: var(--paper-dark);
+    padding: 2rem;
+  }
+
+  .ladder-col-head {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--light);
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .ladder-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.55rem 0;
+    font-size: 0.95rem;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+
+  .ladder-item:last-child { border-bottom: none; }
+
+  .ladder-arrow {
+    font-size: 0.7rem;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  /* ─── COMP ARCH ─── */
+  .comp-arch {
+    margin: 2.5rem 0;
+    border: 1px solid var(--rule);
+    overflow: hidden;
+  }
+
+  .comp-row {
+    display: grid;
+    grid-template-columns: 2fr 3fr 1fr;
+    border-bottom: 1px solid var(--rule);
+    transition: background 0.2s;
+  }
+
+  .comp-row:last-child { border-bottom: none; }
+  .comp-row:hover { background: var(--paper-dark); }
+
+  .comp-row.header {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .comp-cell {
+    padding: 0.9rem 1.25rem;
+    font-size: 0.92rem;
+    border-right: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+  }
+
+  .comp-row.header .comp-cell {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    border-color: rgba(255,255,255,0.08);
+  }
+
+  .comp-cell:last-child { border-right: none; }
+
+  .comp-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 0.2rem 0.6rem;
+    border-radius: 2px;
+    background: rgba(192,57,43,0.12);
+    color: var(--red-dim);
+    white-space: nowrap;
+  }
+
+  /* ─── FOOTER ─── */
+  footer {
+    background: var(--ink);
+    color: rgba(255,255,255,0.35);
+    padding: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4rem;
+  }
+
+  footer p {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .footer-mark {
+    font-family: 'Shippori Mincho', serif;
+    font-size: 1.4rem;
+    color: rgba(255,255,255,0.15);
+  }
+
+  /* ─── SCROLL ANIMATIONS ─── */
+  @media (prefers-reduced-motion: no-preference) {
+    .section { transition-delay: 0.05s; }
+  }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-right { display: none; }
+    .case-grid { grid-template-columns: 1fr; }
+    .ladder { grid-template-columns: 1fr; }
+    .comp-row { grid-template-columns: 1fr 1fr; }
+    .comp-row .comp-cell:nth-child(3) { display: none; }
+    nav { padding: 0 1.5rem; }
+    .nav-links { display: none; }
+    .content { padding: 4rem 1.25rem; }
+    .hero-left { padding: 3rem 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-mark">
+    <div class="nav-dot"></div>
+    FLOAT64
+  </div>
+  <ul class="nav-links">
+    <li><a href="#tension">The Tension</a></li>
+    <li><a href="#models">Case Models</a></li>
+    <li><a href="#structure">Structure</a></li>
+    <li><a href="#compensation">Compensation</a></li>
+    <li><a href="#stagnation">Anti-Stagnation</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="hero-label">Director-level strategy</div>
+    <h1 class="hero-h1">Retaining <em>elite engineers</em> inside a salaryman culture</h1>
+    <p class="hero-sub">The tension between Japanese corporate values and world-class engineering talent is not irreconcilable — it is a design problem with proven solutions.</p>
+    <div class="hero-meta">
+      <div class="hero-meta-item">
+        <span>Scope</span>
+        <span>Org design, compensation, career ladders</span>
+      </div>
+      <div class="hero-meta-item">
+        <span>Models</span>
+        <span>Toyota · Sony · Nintendo · Lincoln Electric · Gore</span>
+      </div>
+    </div>
+  </div>
+  <div class="hero-right">
+    <p class="toc-heading">Contents</p>
+    <ol class="toc">
+      <li><a href="#tension"><span class="toc-num">01</span>Understanding the real conflict</a></li>
+      <li><a href="#models"><span class="toc-num">02</span>Toyota, Sony &amp; Nintendo: proof points</a></li>
+      <li><a href="#western"><span class="toc-num">03</span>Western blueprints for loyalty</a></li>
+      <li><a href="#structure"><span class="toc-num">04</span>Org design: squads, chapters, tribes</a></li>
+      <li><a href="#compensation"><span class="toc-num">05</span>Compensation architecture</a></li>
+      <li><a href="#ladder"><span class="toc-num">06</span>The dual career ladder</a></li>
+      <li><a href="#mobility"><span class="toc-num">07</span>Internal mobility system</a></li>
+      <li><a href="#stagnation"><span class="toc-num">08</span>Preventing stagnation &amp; quiet quitting</a></li>
+      <li><a href="#hardest"><span class="toc-num">09</span>The hardest conversation</a></li>
+    </ol>
+  </div>
+</section>
+
+<!-- CONTENT -->
+<main class="content">
+
+  <p class="lead">Companies like Toyota, Sony, Nintendo, Lincoln Electric, and W.L. Gore demonstrate that stability, belonging, and long-term orientation can coexist with autonomy, meritocracy, and technical challenge — when directors deliberately architect hybrid systems. You don't choose between these value systems. You layer engineering-specific structures <em>on top of</em> the salaryman foundation.</p>
+
+  <!-- 01 -->
+  <div class="section" id="tension">
+    <div class="section-marker">
+      <span class="section-num">01</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Understanding the real conflict</h2>
+    <p>Before building hybrid structures, directors must understand the precise nature of the tension. Research consistently identifies <strong>autonomy, mastery, and purpose</strong> as the primary drivers of engineering satisfaction. Stack Overflow's 2024 survey of 65,000+ developers shows technologies and technical challenge rank among the top deciding factors when comparing equivalent job offers. Gallup data reveals well-recognized employees are 45% less likely to quit, and engineers who feel their work matters show nearly 40% higher motivation.</p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-num">45%</span>
+        <span class="stat-label">Less likely to quit when well-recognized (Gallup)</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">41%</span>
+        <span class="stat-label">Longer stay at high internal mobility companies (LinkedIn)</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">13.2%</span>
+        <span class="stat-label">Annual engineering turnover, average tech company</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">2–3 yr</span>
+        <span class="stat-label">Average tech industry tenure — evidence of systemic failure</span>
+      </div>
+    </div>
+
+    <p>The conflict with salaryman culture is specific and addressable. Engineers bristle at four things: seniority-based pay that ignores performance, consensus processes (nemawashi) that slow decisions, forced job rotation (jinji idō) that destroys specialization, and hierarchy that blocks autonomy. They do <em>not</em> object to job security, belonging, long-term investment, or group identity. The problem isn't the values — it's the specific mechanisms traditional Japanese companies use to implement those values. Swap the mechanisms while keeping the values, and you resolve the tension.</p>
+
+    <div class="callout">
+      <p>The tech industry's 2–3 year average tenure is not evidence that engineers are inherently disloyal. It is evidence that most companies fail to provide growth, challenge, and recognition past the initial honeymoon period.</p>
+    </div>
+  </div>
+
+  <!-- 02 -->
+  <div class="section" id="models">
+    <div class="section-marker">
+      <span class="section-num">02</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Toyota, Sony &amp; Nintendo: the hybrid model in practice</h2>
+    <p>The most instructive examples come from Japanese companies that have already cracked this problem, each in a distinctive way.</p>
+
+    <div class="case-grid">
+      <div class="case">
+        <div class="case-co">Toyota</div>
+        <h4>The Chief Engineer (Shusa) System</h4>
+        <p>Dating to 1953, the CE has total ownership of a vehicle program end-to-end — Eiji Toyoda described them as "the president of their product." Despite thousands of associates, the CE has only ~6 direct reports. Authority comes not from rank but from expertise. Toyota's research subsidiary Woven pays median ¥14.4M in Japan, up to $773K in the US, blending Silicon Valley innovation with Japanese quality craftsmanship.</p>
+      </div>
+      <div class="case">
+        <div class="case-co">Sony</div>
+        <h4>Startup Acceleration Program (SSAP)</h4>
+        <p>Launched 2014, the SSAP has reviewed 750+ business proposals, incubated 34, and launched 14 businesses — including wena smartwatches and toio robots. PlayStation itself originated from an intrapreneur's initiative. Engineers pitch ideas; if selected, Sony covers all risk while the engineer gets ownership and creative freedom, while retaining job security. The salaryman bargain perfected.</p>
+      </div>
+      <div class="case">
+        <div class="case-co">Nintendo</div>
+        <h4>Creative Prestige Over Financial Incentive</h4>
+        <p>Shigeru Miyamoto's progression to "Executive Fellow" — a position immediately below the president — represents a genuine IC track at the highest org level. Nintendo raised all base salaries 10% in 2023 rather than selective retention bonuses. CEO Satoru Iwata famously halved his own salary rather than laying off a single employee. Creative autonomy plus visible leadership sacrifice builds loyalty money cannot buy.</p>
+      </div>
+      <div class="case">
+        <div class="case-co">Japan tech, broadly</div>
+        <h4>The Seniority Wall Is Already Crumbling</h4>
+        <p>NEC now offers new graduates over ¥10M for AI talent — from a uniform ¥3–4M base. Fujitsu's CEO in January 2026: "compensation doesn't change in accordance with the amount of time spent at the company," with reports of ¥30–40M for top AI engineers. Hitachi is scrapping seniority pay across its 310,000-person workforce. The blueprint is being written in real-time.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 -->
+  <div class="section" id="western">
+    <div class="section-marker">
+      <span class="section-num">03</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Western blueprints for the loyalty–autonomy balance</h2>
+
+    <h3>Lincoln Electric — guaranteed employment + uncapped merit</h3>
+    <p>Since the 1940s, Lincoln Electric has guaranteed continuous employment for all workers with 3+ years of service, through every recession including 2008. The compensation architecture does the heavy lifting: production employees earn piece-rate pay with no caps, plus an annual merit-based bonus averaging <strong>~67% of base pay</strong> (~$37,500 in 2022), distributed through forced-curve ratings on output, quality, dependability, and cooperation. Workers embrace automation because they can't be fired for improving their own productivity — they get promoted to higher-skill roles instead. Lincoln Electric stock is up <strong>3,834% since 1995</strong> versus 740% for the S&P 500.</p>
+
+    <h3>W.L. Gore &amp; Associates — lattice organization, >97% retention</h3>
+    <p>No formal hierarchy. Peer-ranked compensation. Individual factories capped at ~150 people to maintain direct relationships. All employees part-own via ESOP. New associates receive a dedicated "sponsor" committed to their development. Glassdoor reviews reveal the pitfall to avoid: pure flatness without explicit technical career tracks fails to retain deep specialists. Take the autonomy model, but add an IC ladder on top.</p>
+
+    <h3>German Codetermination — structural voice</h3>
+    <p>At Bosch, Siemens, and Continental, workers elect up to half of the supervisory board at firms with 2,000+ employees. This creates Japanese-style loyalty through institutional mechanisms — workers have genuine voice in strategy, forcing management to explain plans to a "skeptical audience." Germany maintains the world's highest manufacturing wages while running an 8% GDP current account surplus. Giving engineers formal voice in technical and strategic decisions builds belonging without requiring cultural homogeneity.</p>
+  </div>
+
+  <!-- 04 -->
+  <div class="section" id="structure">
+    <div class="section-marker">
+      <span class="section-num">04</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Org design: squads, chapters, tribes</h2>
+    <p>Organizational design should follow the <strong>"squad autonomy, chapter mentorship"</strong> principle. Adopt a modified Spotify model: cross-functional squads of 6–12 engineers own features end-to-end with full method autonomy, while Chapters — groups of specialists across squads — provide the senpai–kōhai mentorship relationships and engineering standards that Japanese culture values.</p>
+    <p>The <strong>Chapter Lead role</strong> handles career development, technical standards, and mentoring across teams — this is the structural bridge between hierarchy and autonomy. Cap Tribes at ~100 people (Dunbar's number, also used by Gore) to maintain direct relationships. Layer a guild system for voluntary, company-wide communities of practice on top.</p>
+    <p>For consensus vs. speed, adopt Amazon's "disagree and commit" principle adapted for group-oriented culture: designate explicit decision phases where technical dissent is an <em>obligation</em>, not disrespect. For engineers uncomfortable with direct verbal confrontation, create formal written channels — Design Documents with explicit "Alternatives Considered" and "Dissenting Opinions" sections. Time-box decisions: discuss for 48 hours, then the tech lead decides and everyone commits. Run blame-free post-mortems to maintain group harmony while still learning.</p>
+  </div>
+
+  <!-- 05 -->
+  <div class="section" id="compensation">
+    <div class="section-marker">
+      <span class="section-num">05</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Compensation architecture</h2>
+    <p>Compensation must blend market-rate base salaries with merit-based variable pay and tenure-based rewards. The optimal structure pairs guaranteed stability with upside tied to impact — not time served.</p>
+
+    <div class="comp-arch">
+      <div class="comp-row header">
+        <div class="comp-cell">Component</div>
+        <div class="comp-cell">Design principle</div>
+        <div class="comp-cell">Weight</div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-cell"><strong>Base salary</strong></div>
+        <div class="comp-cell">At or above market. Table stakes — prevents dissatisfaction. Reviewed more frequently than annually.</div>
+        <div class="comp-cell"><span class="comp-badge">60–65%</span></div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-cell"><strong>Merit bonus</strong></div>
+        <div class="comp-cell">Tied to individual and team impact — not seniority. Transparent criteria. Lincoln Electric model: 50–67% of base for top performers.</div>
+        <div class="comp-cell"><span class="comp-badge">20–30%</span></div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-cell"><strong>Equity / profit share</strong></div>
+        <div class="comp-cell">4+ year vest. Creates the long-term ownership stake that salaryman culture values. ESOP or phantom equity valid alternatives to public equity.</div>
+        <div class="comp-cell"><span class="comp-badge">10–15%</span></div>
+      </div>
+      <div class="comp-row">
+        <div class="comp-cell"><strong>Tenure milestones</strong></div>
+        <div class="comp-cell">Lump-sum bonuses at years 3, 5, and 7. Directly rewards loyalty. Reinforces the salaryman narrative without distorting ongoing pay.</div>
+        <div class="comp-cell"><span class="comp-badge">Separate</span></div>
+      </div>
+    </div>
+
+    <p>Critical: ensure IC compensation matches management compensation at equivalent levels. Google's Staff Engineer (L6) earns ~$500K+, comparable to an Engineering Manager at the same level. Companies that fail to do this lose their best technical talent to management tracks — or to competitors.</p>
+  </div>
+
+  <!-- 06 -->
+  <div class="section" id="ladder">
+    <div class="section-marker">
+      <span class="section-num">06</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>The dual career ladder</h2>
+    <p>The ladder forks at Senior Engineer into two parallel tracks with <strong>equivalent compensation and organizational authority</strong> at each level. Senior ICs must have real organizational authority: architectural decision rights, executive access, cross-team design review, and external representation.</p>
+
+    <div class="ladder">
+      <div class="ladder-col">
+        <div class="ladder-col-head">IC Track — The Craftsperson Path</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Engineer I</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Engineer II</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Senior Engineer</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Staff Engineer</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Principal Engineer</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Distinguished Engineer</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Fellow (≈ VP level)</div>
+      </div>
+      <div class="ladder-col">
+        <div class="ladder-col-head">Management Track — The Multiplier Path</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Engineer I</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Engineer II</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Senior Engineer</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Engineering Manager</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Senior Manager</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> Director</div>
+        <div class="ladder-item"><span class="ladder-arrow">▲</span> VP Engineering</div>
+      </div>
+    </div>
+
+    <p>Frame the senior IC as the <em>senpai</em> of the organization — the master craftsperson whose role is honored, not the person who "couldn't become a manager." Toyota's Chief Engineer system proves this works: authority through expertise, not hierarchy. Nintendo's "Executive Fellow" role sits directly below the president. When engineers understand the IC track is a genuine destination rather than a consolation prize, the management track stops being the only visible path.</p>
+  </div>
+
+  <!-- 07 -->
+  <div class="section" id="mobility">
+    <div class="section-marker">
+      <span class="section-num">07</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Internal mobility: opt-in, technically bounded, proactively offered</h2>
+    <p>The single most damaging practice directors can import from traditional Japanese culture is <strong>forced job rotation across unrelated functions</strong>. Build an internal mobility marketplace instead. Schneider Electric's AI-powered system reduced departures after learning that 47% of leaving employees couldn't find their next opportunity internally.</p>
+    <p>Offer 3–6 month opt-in rotations to <em>adjacent technical teams</em> — backend to infrastructure, not engineer to HR. Create an internal gig marketplace where engineers can commit 15% of their time to cross-team projects. Proactively offer new challenges before the <strong>18-month stagnation point</strong> — don't wait for the exit interview. Sony's SSAP model is the ideal: let engineers pitch internal startup ideas, fund the best ones, and let the engineer own the project while retaining their safety net.</p>
+  </div>
+
+  <!-- 08 -->
+  <div class="section" id="stagnation">
+    <div class="section-marker">
+      <span class="section-num">08</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>Anti-stagnation: preventing the slow death of comfort</h2>
+    <p>Stable employment's greatest risk is not that engineers leave — it's that they stay but stop caring. Harvard Business Review data shows nearly 50% of employees retained primarily by financial incentives feel disengaged, and Gallup finds these employees are 2.5x more likely to suffer burnout. In a no-layoff culture, the "dead wood" problem is existential.</p>
+
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-num">50%</span>
+        <span class="stat-label">Financially retained employees who feel disengaged (HBR)</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">2.5×</span>
+        <span class="stat-label">Higher burnout risk for those retained by money alone (Gallup)</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">4–5 yr</span>
+        <span class="stat-label">Optimal sabbatical cadence — not 7–10, which is too distant</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">20%</span>
+        <span class="stat-label">Innovation time (Google model) — produced Gmail, AdSense</span>
+      </div>
+    </div>
+
+    <p>Build multiple countermeasures simultaneously. <strong>Sabbaticals</strong> every 4–5 years (Epic Systems: 4 weeks plus international travel funding) produce lasting improvements in well-being and engagement. <strong>Innovation time</strong> (Google's 20% model) gives engineers a pressure valve for creative energy. <strong>Skunkworks projects</strong> — 3–6 month protected innovation initiatives with direct director reporting and no bureaucratic overhead — channel the startup itch without losing the engineer.</p>
+    <p><strong>Technical brand building</strong> — engineering blogs, open source contributions, conference speaking budgets of $3–5K per engineer per year, paper publication — gives engineers external visibility and professional pride that makes staying feel like career advancement rather than stagnation.</p>
+
+    <div class="callout">
+      <p>The most powerful anti-stagnation tool is craftsmanship culture — the engineering equivalent of Japanese <em>monozukuri</em>. Frame engineering standards not as bureaucracy but as professional pride. When engineers take pride in <em>how</em> they build, not just <em>what</em> they build, the work itself becomes the retention mechanism.</p>
+    </div>
+
+    <p>When engineers want to leave for a startup, counter with intrapreneurship rather than money. The primary driver is not compensation — it's autonomy, speed, and ownership. Reduce bureaucracy selectively, offer Sony SSAP-style internal venture opportunities, and create founder-like ownership: let engineers name internal products, present at conferences, write blog posts, and file patents under their own name.</p>
+  </div>
+
+  <!-- 09 -->
+  <div class="section" id="hardest">
+    <div class="section-marker">
+      <span class="section-num">09</span>
+      <div class="section-rule"></div>
+    </div>
+    <h2>The hardest conversation: young star vs. veteran</h2>
+    <p>The most politically dangerous moment in a salaryman-hybrid culture arrives when a 25-year-old engineer demonstrably outperforms a 15-year veteran. Pure seniority culture would suppress the young star; pure meritocracy would embarrass the veteran. Both outcomes are destructive.</p>
+    <p>The solution is <strong>role differentiation, not rank competition</strong>. The young star gets visible technical leadership on key projects, fast-track progression on the IC ladder, and stretch responsibilities — through the established framework, not around it. The veteran's role explicitly shifts to multiplier contributions: mentorship, institutional knowledge transfer, organizational navigation, risk identification, and architecture stewardship.</p>
+    <p>Frame this using the <em>senpai</em> concept — the veteran's job is to develop the prodigy, which is a position of honor. Create explicit recognition and compensation for mentorship impact. The dual career ladder makes this work structurally: both the young technical star and the experienced architectural mentor can reach equivalent compensation and status through different paths.</p>
+  </div>
+
+  <!-- CLOSING -->
+  <div class="section">
+    <div class="section-marker">
+      <div class="section-rule"></div>
+    </div>
+    <h2>The formula</h2>
+    <p>The salaryman–engineer hybrid is not a compromise — it is a competitive advantage. Companies that master it build engineering organizations with deep institutional knowledge, compounding technical capability, and the psychological safety to take bold risks — advantages that churn-heavy organizations can never develop.</p>
+    <p><strong>Salaryman values at the cultural layer</strong> — security, belonging, long-term investment, group identity. <strong>Engineering-specific mechanisms at the structural layer</strong> — dual career ladders, merit-based variable compensation, opt-in mobility, protected autonomy, craftsmanship culture. <strong>Servant leadership at the management layer</strong> — unblock, mentor, challenge, protect.</p>
+    <p>Toyota's Chief Engineer system, Sony's SSAP, Lincoln Electric's employment guarantee plus merit bonuses, and Nintendo's Executive Fellow track are not theoretical — they are battle-tested over decades. The director's job is not to choose between loyalty and meritocracy. It is to build the architecture that makes both possible simultaneously.</p>
+  </div>
+
+</main>
+
+<footer>
+  <p>Director's Playbook — Engineering Retention</p>
+  <div class="footer-mark">忠義</div>
+  <p>Hybrid model · Org design · Compensation</p>
+</footer>
+
+<script>
+  // Intersection observer for scroll reveals
+  const sections = document.querySelectorAll('.section');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.08 });
+
+  sections.forEach(s => observer.observe(s));
+
+  // Smooth scroll for nav links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+</script>
+</body>
+</html>
