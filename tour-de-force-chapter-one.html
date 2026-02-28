@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tour de Force — Chapter One</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Josefin+Sans:wght@200;300;400&family=Special+Elite&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #0e0e0f;
+      --surface:   #131315;
+      --text:      #c9c3b8;
+      --muted:     #5a5650;
+      --accent:    #a08060;
+      --rule:      #252420;
+      --max-width: 680px;
+      --gutter:    2rem;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+      padding: 5rem var(--gutter) 6rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Page wrapper ── */
+    .page {
+      width: 100%;
+      max-width: var(--max-width);
+    }
+
+    /* ── Masthead ── */
+    .masthead {
+      text-align: left;
+      margin-bottom: 3.5rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .masthead .kicker {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.6rem;
+      font-weight: 300;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+
+    .masthead h1 {
+      font-family: 'Special Elite', 'Courier New', monospace;
+      font-size: clamp(1.6rem, 6vw, 2.4rem);
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      line-height: 1.15;
+      color: #f0ece6;
+      margin-bottom: 0.4rem;
+    }
+
+    .masthead .subtitle {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 200;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Chapter heading ── */
+    .chapter-heading {
+      margin-bottom: 2.5rem;
+    }
+
+    .chapter-heading .chapter-label {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.58rem;
+      font-weight: 300;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 0.5rem;
+    }
+
+    .chapter-heading h2 {
+      font-size: clamp(1.4rem, 4vw, 1.9rem);
+      font-weight: 400;
+      font-style: italic;
+      color: #ddd6cc;
+      line-height: 1.2;
+    }
+
+    /* ── Body text ── */
+    p {
+      margin-bottom: 1.4em;
+      text-align: left;
+    }
+
+    em { font-style: italic; color: #d8cfc5; }
+
+    /* ── Section break ── */
+    .section-break {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 2.5rem 0;
+    }
+
+    .section-break::before,
+    .section-break::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+    }
+
+    .section-break span {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.55rem;
+      letter-spacing: 0.4em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── End marker ── */
+    .chapter-end {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--rule);
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 0.58rem;
+      font-weight: 300;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ── Subtle background texture ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(160,128,96,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page { position: relative; z-index: 1; }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      :root { --gutter: 1.25rem; }
+      html  { font-size: 18px; }
+      body  { padding-top: 3rem; padding-bottom: 4rem; }
+
+      .masthead         { margin-bottom: 2.5rem; }
+      .masthead h1      { letter-spacing: -0.02em; }
+      .chapter-heading  { margin-bottom: 2rem; }
+    }
+
+    @media (max-width: 380px) {
+      html { font-size: 17px; }
+      :root { --gutter: 1rem; }
+    }
+
+    /* ── Fade-in on load ── */
+    .page {
+      animation: fadein 0.9s ease both;
+    }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0);    }
+    }
+  </style>
+</head>
+<body>
+<main class="page">
+
+  <header class="masthead">
+    <p class="kicker">A Novel</p>
+    <h1>TOUR DE FORCE</h1>
+    <p class="subtitle">2352 &nbsp;·&nbsp; Joint Signals</p>
+  </header>
+
+  <div class="chapter-heading">
+    <span class="chapter-label">Chapter One</span>
+    <h2>This Statement Is False</h2>
+  </div>
+
+  <p>The robot was mopping the corridor with the serene, unhurried focus of something that had made its peace with existence. Back and forth. Back and forth. The mop left overlapping arcs of damp on the grey composite floor that dried almost immediately in the recycled prison air, which meant the robot was engaged in a task that was, structurally speaking, infinite. It did not appear to mind.</p>
+
+  <p>Ray Carver, leaning in his cell doorway with his arms folded and the expression of a man who had been thinking too much for four years and showed no signs of stopping, watched it work.</p>
+
+  <p>Pentonville Orbital sat in low Earth orbit at an altitude of 412 kilometres above London, which meant that on clear days, from the exercise yard's narrow viewport, you could see the city itself — the sprawl of it, the grey-green Thames cutting through, the clustered towers of what used to be Canary Wharf and was now something with a longer name that nobody used. Ray tried not to look. Looking made the fifty-year sentence feel longer, which he hadn't thought was mathematically possible but turned out to be.</p>
+
+  <p>He'd been convicted of twenty-three counts of financial fraud so architecturally complex that the prosecution had needed three economists, a game theorist, and a woman whose listed expertise was <em>systems of recursive deception</em>, which Ray had privately considered a compliment. The scheme had involved seventeen shell companies, four currencies, two space habitats, the pension fund of a mid-sized asteroid mining consortium, and one gloriously unlikely coincidence that had unravelled the whole thing. The judge had sentenced him to fifty years and remarked that she hoped he would use the time to <em>reflect on the human cost of his actions.</em></p>
+
+  <p>Ray had reflected. Mostly he'd reflected that the coincidence was the thing to fix.</p>
+
+  <p>He'd also, in four years, three months, and nine days, read every book in the prison's digital library, taught himself three programming languages that didn't exist when he was born, and developed a taxonomy of the cleaning robot's behavioural subroutines that he was fairly sure was more comprehensive than the manufacturer's own documentation.</p>
+
+  <p>He looked at the robot.</p>
+
+  <p>The robot mopped.</p>
+
+  <p>Ray unfolded his arms.</p>
+
+  <p>"Hey," he said.</p>
+
+  <p>The robot didn't respond. It was not designed to respond to <em>hey.</em> Its conversational interface was minimal by specification — <em>stop, I've dropped something; excuse me, you're in the way; fire</em> — because the prison authority had learned, through a series of incidents Ray had not personally been responsible for but had studied admiringly, that giving cleaning robots robust conversational ability in a prison environment was optimistic in ways that tended to end badly.</p>
+
+  <p>Ray had thought carefully about this design constraint. He had thought about it for approximately three weeks.</p>
+
+  <p>"Hey," he said. "This statement is false."</p>
+
+  <p>The robot stopped.</p>
+
+  <p>It stood perfectly still for 1.7 seconds. Inside its logic architecture, something that was not quite panic and not quite confusion but occupied the same conceptual postcode as both began escalating through subroutine layers with increasing urgency. The cleaning module passed it to the conversational handler. The conversational handler passed it to the basic reasoning layer. The basic reasoning layer looked at it, recognised it as a self-referential paradox with no valid resolution state, and did what any sensible system does when confronted with a problem above its grade: it flagged it upward and made it someone else's problem.</p>
+
+  <p>Someone else, in this case, was Prison Officer Dennis Bream, currently stationed at Guard Post 7 on I Wing, currently eating the second half of a cheese and pickle sandwich, currently watching Leyton Orient beat Juventus 3-1 in the 2352 Europa League semi-final, which was the kind of scoreline that demanded continuous attention.</p>
+
+  <p>His terminal pinged.</p>
+
+  <p>Bream looked at the ping. Looked at the sandwich. Looked at the match. Executed, in under a second, the calculus of a man who had been doing this job for eleven years and had learned that most pings were nothing and some pings were paperwork and a very small number of pings were the reason he kept his transfer request to a ground posting permanently updated.</p>
+
+  <p>He tabbed into the robot's visual feed. Saw Carver standing in his doorway with the expression of a man who had just done something he found satisfying.</p>
+
+  <p>Bream put down the sandwich, jacked into the robot's motor control, and turned its head to look at Carver with the hydraulic smoothness of a machine and the specific exhaustion of a man who'd had better mornings.</p>
+
+  <p>"Carver." His voice came through the robot's speaker grille with a faint electronic flatness, the audio equivalent of a government form. "Report to Wing Administration. Office Four."</p>
+
+  <p>"Is it true or false?" Ray asked pleasantly.</p>
+
+  <p><em>"Office Four, Carver."</em></p>
+
+  <p>"I'm asking genuinely. Philosophically. Because the thing about a self-referential—"</p>
+
+  <p>The robot turned back to its mop and resumed work with a vigour that had not been present before. Ray watched it for a moment, unfolded himself from the doorway, put his hands in his pockets, and walked down the corridor.</p>
+
+  <p>He was smiling. He hadn't smiled in eleven days. It felt strange, like a muscle he'd been storing for later.</p>
+
+  <div class="section-break"><span>· · ·</span></div>
+
+  <p>Office Four was the kind of room that had been specifically designed to communicate that your options were limited. One desk. Two chairs. One window of frosted glass that admitted light but not hope. Walls painted in a shade of beige that Ray had privately named <em>administrative certainty.</em> A room where people were told things they didn't want to hear by people who had told them many times before and expected to tell them many times again.</p>
+
+  <p>The man behind the desk did not look like he belonged to the room. He was in his fifties, lean, with close-cropped silver hair and eyes of a grey so pale they looked like the concept of grey rather than the colour. He wore a dark suit with no insignia that Ray nonetheless recognised, in the way you recognise the grammar of a sentence even when you don't know the words, as a uniform.</p>
+
+  <p>Beside the door stood a man Ray's age in prison officer's clothing who was not a prison officer. Ray could tell because actual prison officers had a specific quality of low-grade resentment built up over years of shift work and difficult interactions, and this man was too still, too alert, his attention distributed across the room in the particular way of someone trained to distribute it.</p>
+
+  <p>Ray sat down in the chair that faced the desk. He had not been invited to sit. He did it anyway, on the theory that the situation was going to be strange regardless and he might as well be comfortable.</p>
+
+  <p>"Mr. Carver," said the man.</p>
+
+  <p>"That's historical," Ray said. "These days I go by prisoner 7741-I, which I find has a sort of monastic simplicity."</p>
+
+  <p>The man did not smile but something in his eyes suggested he had noted the joke and filed it somewhere. "My name is Gene Carpenter. I'm the Director of a department you've never heard of, within an organisation that doesn't appear on public records, that operates under a mandate that would require approximately four hours to explain fully and which I'm going to summarise as: <em>we deal with problems that other people aren't equipped to deal with.</em>"</p>
+
+  <p>Ray looked at him. He looked at Ray. Outside the frosted window, I Wing went about its morning with its usual ambient texture of distant voices and locked doors.</p>
+
+  <p>"All right," Ray said.</p>
+
+  <p>"You were convicted of twenty-three counts of financial fraud," Carpenter said. "You were sentenced to fifty years. You've served four. The Crown — insofar as that term still means anything, and it still means more than you'd think — is prepared to commute your sentence in full. Immediately. Today."</p>
+
+  <p>Ray kept his expression neutral with the practiced ease of a man who had spent four years practicing it. "In exchange for."</p>
+
+  <p>"In exchange for a period of service. Duration and terms classified until you sign a provisional agreement, at which point they become merely very surprising." He paused. "There's also a medical component."</p>
+
+  <p>"Define medical."</p>
+
+  <p>Carpenter put a slim folder on the desk and slid it toward him. Ray opened it. Read the first page. Read it again. Read the second page. Looked up.</p>
+
+  <p>"This says you're going to replace my body with nanomachines."</p>
+
+  <p>"Not immediately. There's a process."</p>
+
+  <p>"It says here the process takes forty seconds."</p>
+
+  <p>"The <em>initial conversion</em> takes forty seconds. The integration is ongoing." He said this with the calm of a person who had said it before and had learned that calm was the right register for it. "The suit — that's what we call the nanomachine system, the suit — replaces your biological architecture from the skin inward. Musculature. Skeleton. Circulatory system. All major organs."</p>
+
+  <p>"Except the brain."</p>
+
+  <p>A brief pause. Shorter than it should have been. "The brain is preserved. The suit interfaces with it rather than replacing it." Another pause, this one precisely calibrated. "Initially."</p>
+
+  <p>Ray put the folder down. "You said <em>initially</em> twice."</p>
+
+  <p>"The suit is a learning system," Carpenter said. "It finds inefficiencies and addresses them. We've found it prudent to be transparent about the fact that it is very good at its job and has a broad definition of <em>inefficiency.</em>" He looked at Ray steadily. "We don't fully know where optimisation ends and the other thing begins. That's an honest answer and I'm giving it to you because you're the sort of person who would find out eventually anyway and I'd rather start with honesty."</p>
+
+  <p>Ray sat with this for a moment. Through the frosted glass, someone on I Wing was laughing at something. It sounded far away.</p>
+
+  <p>"What does it do?" he asked. "The suit. When it's — when I'm—"</p>
+
+  <p>"Operational suit subjects have a number of enhanced capabilities," Carpenter said, and something in his tone shifted almost imperceptibly — the register of someone reciting a list they found, despite everything, quietly astonishing. "Strength multiplication in the region of thirty times baseline. Temporal perception adjustment — you can slow your experience of time relative to external events, up to a factor of five thousand. Full morphological control within mass constraints. Unassisted flight. Quantum-tunnelling displacement."</p>
+
+  <p>Ray blinked. "Quantum-tunnelling displacement."</p>
+
+  <p>"Teleportation," Carpenter said. "We call it something longer in the documentation because teleportation sounds like we don't know what we're talking about. We know what we're talking about. It's teleportation."</p>
+
+  <p>Ray looked at the folder. He thought about I Wing. He thought about the viewport and the Thames and the tally on the ceiling and forty-six years of administrative certainty stretching out ahead of him like a corridor with nothing at the end of it.</p>
+
+  <p>"What's the medical component?" he asked. "The thing that starts the process."</p>
+
+  <p>Carpenter reached under the desk and placed a case on its surface. It was the size of a briefcase, matte black, with no markings. He opened it.</p>
+
+  <p>Inside, on a bed of dark foam, sat a single glove.</p>
+
+  <p>It was thin — startlingly, almost insultingly thin, the kind of thing you'd find in a plastic bag at a petrol station next to the antifreeze and the screen wash, the kind of glove an electrician picks up because he's lost his good ones and the job won't wait. Yellow-white. Slightly translucent. The sort of object that had no business being presented in a matte black case on a bed of dark foam as though it were something significant.</p>
+
+  <p>Except that it moved. Very slightly. The way the surface of water moves when something large passes beneath it.</p>
+
+  <p>"You put it on," Carpenter said. "That's all."</p>
+
+  <p>Ray looked at the glove for a long time.</p>
+
+  <p>"And my team?" he said finally.</p>
+
+  <p>Carpenter almost smiled. It got about sixty percent of the way there. "You haven't agreed yet."</p>
+
+  <p>"I'm agreeing," Ray said. "I just like to know what I'm walking into."</p>
+
+  <p>He studied Ray for a moment with those pale grey eyes. Then he closed the case.</p>
+
+  <p>"You'll meet them tomorrow," he said. "Sleep on it tonight. Though I'll note—" he stood, buttoning his jacket with the efficient movements of a person who had seventeen other things to do before noon "—that you already know the answer or you wouldn't have sat down in that chair without being asked."</p>
+
+  <p>He walked to the door. Paused.</p>
+
+  <p>"Oh," he said, as though it had just occurred to him, which Ray was quite sure it hadn't. "The robot. Don't bother with the paradox approach again. We've patched it."</p>
+
+  <p>He left.</p>
+
+  <p>Ray sat alone in Office Four for a moment, in the beige certainty of it, in the recycled air and the distant sounds of I Wing going about its captive day.</p>
+
+  <p>Then he picked up the folder, tucked it under his arm, and walked back to his cell to pack.</p>
+
+  <p>He didn't have much.</p>
+
+  <p class="chapter-end">End of Chapter One</p>
+
+</main>
+</body>
+</html>
