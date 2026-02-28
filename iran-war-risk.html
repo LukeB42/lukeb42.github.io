@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Float64 — How Bad Can the Iran War Get?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #f7f4ef;
+      --bg2:       #efe9e0;
+      --bg3:       #e5ddd2;
+      --ink:       #1c1a17;
+      --ink2:      #3d3930;
+      --ink3:      #6b6558;
+      --ink4:      #9a9186;
+      --rule:      #d5cdc2;
+      --float64:   #0098ed;
+      --float64l:  rgba(0,152,237,0.10);
+      --red:       #c0392b;
+      --redl:      rgba(192,57,43,0.10);
+      --orange:    #c06a1a;
+      --orangel:   rgba(192,106,26,0.10);
+      --amber:     #a07c10;
+      --amberl:    rgba(160,124,16,0.10);
+      --green:     #1a7a40;
+      --greenl:    rgba(26,122,64,0.08);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    /* ── FLOAT64 BRAND HEADER ── */
+    .brand-bar {
+      background: #0098ed;
+      padding: 0 40px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+    }
+    .brand-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 400;
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── ARTICLE HEADER ── */
+    .article-header {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 64px 40px 40px;
+    }
+    .kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--float64);
+      margin-bottom: 18px;
+    }
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(30px, 5.5vw, 54px);
+      font-weight: 900;
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 20px;
+    }
+    h1 em { font-style: italic; color: var(--red); }
+    .deck {
+      font-size: 19px;
+      font-weight: 400;
+      color: var(--ink2);
+      line-height: 1.6;
+      border-left: 3px solid var(--float64);
+      padding-left: 18px;
+      margin-bottom: 28px;
+    }
+    .byline {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--ink4);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding-top: 18px;
+      border-top: 1px solid var(--rule);
+    }
+    .byline span { color: var(--ink3); }
+
+    /* ── STATUS STRIP ── */
+    .status-strip {
+      background: var(--bg2);
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+    .status-inner {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 20px 40px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 18px;
+    }
+    .stat-item { border-left: 2px solid var(--rule); padding-left: 12px; }
+    .stat-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink4);
+      margin-bottom: 3px;
+    }
+    .stat-val {
+      font-family: 'Playfair Display', serif;
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .stat-note {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--ink4);
+      margin-top: 2px;
+      line-height: 1.4;
+    }
+    .c-red    { color: var(--red); }
+    .c-orange { color: var(--orange); }
+    .c-amber  { color: var(--amber); }
+    .c-blue   { color: var(--float64); }
+    .c-green  { color: var(--green); }
+
+    /* ── MAIN BODY ── */
+    .article-body {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 0 40px 80px;
+    }
+
+    @media (max-width: 620px) {
+      .article-header, .article-body, .status-inner { padding-left: 22px; padding-right: 22px; }
+      .brand-bar { padding-left: 22px; padding-right: 22px; }
+    }
+
+    /* ── TYPOGRAPHY ── */
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(22px, 3.5vw, 32px);
+      font-weight: 700;
+      line-height: 1.18;
+      color: var(--ink);
+      margin: 60px 0 16px;
+    }
+    h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1.3;
+      color: var(--ink);
+      margin: 32px 0 10px;
+    }
+    p { color: var(--ink2); margin-bottom: 18px; }
+    p strong { color: var(--ink); font-weight: 600; }
+    p:last-child { margin-bottom: 0; }
+
+    /* Section rule */
+    .section-rule {
+      border: none;
+      border-top: 1px solid var(--rule);
+      margin: 56px 0 0;
+    }
+    .section-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink4);
+      margin-top: 12px;
+      margin-bottom: -40px;
+    }
+
+    /* ── PULL QUOTES ── */
+    blockquote {
+      margin: 28px 0;
+      padding: 20px 24px;
+      background: var(--bg2);
+      border-left: 4px solid var(--float64);
+      border-radius: 0 6px 6px 0;
+    }
+    blockquote p {
+      font-size: 17px;
+      font-style: italic;
+      color: var(--ink2);
+      margin: 0;
+    }
+    blockquote cite {
+      display: block;
+      margin-top: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--ink4);
+      font-style: normal;
+    }
+
+    /* ── CALLOUT BOXES ── */
+    .callout {
+      margin: 28px 0;
+      padding: 18px 22px;
+      border-radius: 6px;
+      border: 1px solid;
+    }
+    .callout-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    .callout p { font-size: 15px; line-height: 1.6; margin: 0; }
+    .callout-info  { background: var(--float64l); border-color: rgba(0,152,237,0.3); }
+    .callout-info .callout-label { color: var(--float64); }
+    .callout-warn  { background: var(--orangel); border-color: rgba(192,106,26,0.3); }
+    .callout-warn .callout-label { color: var(--orange); }
+    .callout-alert { background: var(--redl); border-color: rgba(192,57,43,0.3); }
+    .callout-alert .callout-label { color: var(--red); }
+    .callout-good  { background: var(--greenl); border-color: rgba(26,122,64,0.25); }
+    .callout-good .callout-label { color: var(--green); }
+
+    /* ── TIMELINE ── */
+    .timeline {
+      margin: 28px 0;
+      border-left: 2px solid var(--rule);
+      padding-left: 26px;
+    }
+    .tl-item {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .tl-item::before {
+      content: '';
+      position: absolute;
+      left: -32px;
+      top: 6px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--bg);
+      border: 2px solid var(--rule);
+    }
+    .tl-item.now::before { background: var(--red); border-color: var(--red); }
+    .tl-date {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink4);
+      margin-bottom: 3px;
+    }
+    .tl-title { font-weight: 600; font-size: 15.5px; color: var(--ink); margin-bottom: 3px; }
+    .tl-body  { font-size: 14.5px; color: var(--ink3); line-height: 1.58; }
+
+    /* ── SCENARIOS ── */
+    .scenario {
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      margin: 20px 0;
+      overflow: hidden;
+      background: #fff;
+    }
+    .scenario-head {
+      padding: 18px 20px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      transition: background 0.15s;
+    }
+    .scenario-head:hover { background: var(--bg2); }
+    .sc-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--ink4);
+      min-width: 22px;
+      margin-top: 3px;
+    }
+    .sc-meta { flex: 1; }
+    .sc-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 6px;
+    }
+    .sc-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+    .tag-r  { background: var(--redl);    color: var(--red);    border-color: rgba(192,57,43,0.3); }
+    .tag-o  { background: var(--orangel); color: var(--orange); border-color: rgba(192,106,26,0.3); }
+    .tag-a  { background: var(--amberl);  color: var(--amber);  border-color: rgba(160,124,16,0.3); }
+    .tag-b  { background: var(--float64l);color: var(--float64);border-color: rgba(0,152,237,0.3); }
+    .tag-g  { background: var(--greenl);  color: var(--green);  border-color: rgba(26,122,64,0.3); }
+    .tag-n  { background: var(--bg2); color: var(--ink4); border-color: var(--rule); }
+
+    .sc-prob {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+      min-width: 80px;
+    }
+    .sc-prob-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink3);
+    }
+    .prob-bar { width: 80px; height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 2px; }
+
+    .scenario-body {
+      display: none;
+      padding: 4px 20px 20px 56px;
+      border-top: 1px solid var(--rule);
+    }
+    .scenario-body.open { display: block; }
+    .scenario-body p { font-size: 15.5px; color: var(--ink3); }
+    .scenario-body p strong { color: var(--ink2); }
+
+    .uk-flag-box {
+      background: var(--float64l);
+      border: 1px solid rgba(0,152,237,0.25);
+      border-radius: 5px;
+      padding: 14px 16px;
+      margin-top: 14px;
+    }
+    .uk-flag-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: var(--float64);
+      margin-bottom: 6px;
+    }
+    .uk-flag-box p { font-size: 14px; color: var(--ink3); }
+
+    /* ── RISK TABLE ── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      margin: 28px 0;
+      background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead tr { background: var(--bg2); border-bottom: 1px solid var(--rule); }
+    thead th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink4);
+      padding: 13px 16px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid var(--rule); transition: background 0.15s; }
+    tbody tr:last-child { border: none; }
+    tbody tr:hover { background: var(--bg2); }
+    tbody td { padding: 13px 16px; vertical-align: top; line-height: 1.5; }
+    .td-s { font-weight: 500; color: var(--ink2); font-family: 'Source Serif 4', serif; }
+    .td-p { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500; }
+    .td-n { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink4); }
+
+    /* ── WILDCARD GRID ── */
+    .wildcard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin: 24px 0;
+    }
+    .wc-card {
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      padding: 18px;
+    }
+    .wc-icon { font-size: 22px; margin-bottom: 10px; }
+    .wc-card h4 {
+      font-family: 'Playfair Display', serif;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+    .wc-card p { font-size: 13.5px; color: var(--ink4); line-height: 1.55; margin: 0; }
+
+    /* ── POLICY GRID ── */
+    .policy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+    .policy-card {
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-radius: 7px;
+      padding: 20px;
+    }
+    .policy-head {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink4);
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .policy-item { display: flex; gap: 10px; margin-bottom: 12px; font-size: 14px; }
+    .pol-arr { color: var(--float64); font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-top: 2px; }
+    .pol-txt { color: var(--ink3); line-height: 1.55; }
+    .pol-txt strong { color: var(--ink2); font-weight: 600; }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--bg2);
+      border-top: 1px solid var(--rule);
+      padding: 28px 40px;
+    }
+    .footer-inner {
+      max-width: 780px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--ink4);
+      line-height: 1.6;
+    }
+    .footer-text strong { color: var(--ink3); }
+
+    /* ── SCROLL REVEAL ── */
+    .reveal { opacity: 0; transform: translateY(12px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .reveal.on { opacity: 1; transform: none; }
+
+    /* ── NAV DOTS ── */
+    .nav-dots {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      z-index: 200;
+    }
+    .nd {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--rule);
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .nd.active, .nd:hover { background: var(--float64); transform: scale(1.5); }
+    @media (max-width: 768px) { .nav-dots { display: none; } }
+
+    /* ── DOOMSDAY CLOCK ── */
+    .doomsday-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--redl);
+      border: 1px solid rgba(192,57,43,0.25);
+      border-radius: 6px;
+      padding: 10px 16px;
+      margin: 20px 0;
+    }
+    .dc-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: var(--red);
+    }
+    .dc-lab {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--ink4);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Float64 brand bar -->
+<div class="brand-bar">
+  <span class="brand-name">Float64</span>
+</div>
+
+<!-- Navigation dots -->
+<nav class="nav-dots">
+  <div class="nd active" onclick="window.scrollTo(0,0)" title="Top"></div>
+  <div class="nd" onclick="document.getElementById('uk-wwii').scrollIntoView({behavior:'smooth'})" title="Britain's WWII Question"></div>
+  <div class="nd" onclick="document.getElementById('nuclear-essay').scrollIntoView({behavior:'smooth'})" title="Nuclear Exchange"></div>
+  <div class="nd" onclick="document.getElementById('timeline').scrollIntoView({behavior:'smooth'})" title="Timeline"></div>
+  <div class="nd" onclick="document.getElementById('scenarios').scrollIntoView({behavior:'smooth'})" title="Scenarios"></div>
+  <div class="nd" onclick="document.getElementById('matrix').scrollIntoView({behavior:'smooth'})" title="Risk Matrix"></div>
+  <div class="nd" onclick="document.getElementById('policy').scrollIntoView({behavior:'smooth'})" title="What To Do"></div>
+</nav>
+
+<!-- Article header -->
+<header class="article-header">
+  <div class="kicker">Float64 · Global Risk · 28 February 2026</div>
+  <h1>How Bad Can the <em>Iran War</em> Get?</h1>
+  <p class="deck">Operation Epic Fury launched hours ago. Here's a clear-eyed look at the full decision tree — from a ceasefire in two weeks to the scenarios that keep historians and strategists up at night.</p>
+  <div class="byline">Analysis compiled <span>28 Feb 2026, 14:00 UTC</span> · Open-source intelligence synthesis · For concerned, engaged global citizens</div>
+</header>
+
+<!-- Status strip -->
+<div class="status-strip">
+  <div class="status-inner">
+    <div class="stat-item">
+      <div class="stat-label">Khamenei Status</div>
+      <div class="stat-val c-amber">Unknown</div>
+      <div class="stat-note">Compound destroyed · FM: "alive as far as I know"</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Iran's Retaliation</div>
+      <div class="stat-val c-red">Active</div>
+      <div class="stat-note">Missiles striking Israel, Qatar, UAE, Bahrain, Kuwait</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Operation Duration</div>
+      <div class="stat-val c-orange">Multi-Day</div>
+      <div class="stat-note">US planning weeks-long sustained campaign</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">UK Involvement</div>
+      <div class="stat-val c-blue">Defensive</div>
+      <div class="stat-note">RAF "active in the sky" · No offensive role confirmed</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">New START Treaty</div>
+      <div class="stat-val c-red">Expired</div>
+      <div class="stat-note">Lapsed 5 Feb 2026 · No nuclear arms control in force</div>
+    </div>
+  </div>
+</div>
+
+<!-- Body -->
+<div class="article-body">
+
+  <!-- Opening essay -->
+  <p style="margin-top:44px;">Today — Saturday, 28 February 2026 — the United States and Israel launched what Trump called "major combat operations" against Iran. Two hundred Israeli Air Force jets struck 500 targets in a single sortie. US Navy forces attacked ballistic missile sites and naval infrastructure by air and sea. In the hours since, Iran has fired retaliatory barrages across the Gulf region, hitting US bases in Bahrain, Qatar, Kuwait, and the UAE, with missiles raining toward Israel. At the time of writing, Iran's internet has been cut to 4% of normal capacity and the fate of Supreme Leader Khamenei — whose compound satellite images show as smoldering rubble — is unknown.</p>
+
+  <p>This is, by any measure, the most significant military escalation in the Middle East since the 2003 Iraq invasion. It is also unfolding in an environment structurally more dangerous than any moment in the post-Cold War era. The last US-Russia nuclear arms control treaty expired 23 days ago. The Doomsday Clock stands at 89 seconds to midnight. Iran holds enough enriched uranium to build multiple nuclear weapons — and no IAEA inspectors have had access to its sites since June 2025.</p>
+
+  <p>Below, we work through the full decision tree. But first, two questions that deserve proper essays of their own: Is Britain about to experience something like a Second World War-scale emergency? And how seriously should we take the threat of a nuclear exchange?</p>
+
+  <!-- SECTION: UK/WWII -->
+  <hr class="section-rule" id="uk-wwii" />
+  <p class="section-tag">Essay I</p>
+  <h2>Could Britain Face a WWII-Scale Emergency?</h2>
+
+  <p>Let's be precise about what this comparison means, because it's easy to reach for historical analogies loosely. When people ask whether Britain might face a "WWII moment," they're usually imagining bombs falling on British cities, mass conscription, and national survival at stake. That specific scenario — Iran directly striking the British mainland — is essentially impossible. Iran has no meaningful power-projection capability against the UK directly, and no interest in starting a war it would lose instantaneously.</p>
+
+  <p>The WWII comparison is more structural and more interesting than that. It asks: could Britain find itself obligated to fight a major, potentially existential conflict — largely without American backing — at the same time as facing economic emergency at home? And the honest answer, examined carefully, is: there is a non-trivial path to something in that territory, though it remains a low-probability outcome today.</p>
+
+  <h3>What Britain Is Actually Exposed To Right Now</h3>
+
+  <p>First, the immediate picture. Keir Starmer confirmed this morning that "UK forces are active and British planes are in the sky today as part of coordinated regional defensive operations." That's significant: the RAF is operationally involved in a conflict with Iran. The legal basis for any further escalation is contested — the Attorney General has reportedly questioned the legality of Israel's preemptive action, and a senior Labour MP on the Foreign Affairs Committee told the BBC this morning "I don't think there's a legal basis for this action."</p>
+
+  <p>Britain has a substantial physical presence across the Gulf. There are hundreds of military personnel at HMS Juffair in Bahrain, intelligence stations in Oman, airbases in Qatar and the UAE, and intelligence personnel dotted through US carrier battle groups. Iran is already targeting these countries with missiles. UK nationals are effectively in the blast radius of a conflict Britain officially isn't fighting.</p>
+
+  <div class="callout callout-warn">
+    <div class="callout-label">⚠ The Diego Garcia Problem</div>
+    <p>Trump has publicly named both Diego Garcia — the British Indian Ocean Territory — and RAF Fairford in Gloucestershire as bases he may want to use for Iran strikes. The UK government would have to authorise this. Refusing damages the "special relationship." Agreeing makes British territory a party to an operation that the UK's own Attorney General considers legally doubtful. This is not a hypothetical — it is the question on Downing Street's desk today.</p>
+  </div>
+
+  <h3>The Three Paths to Something Worse</h3>
+
+  <p>The path from "defensive RAF operations" to WWII-scale crisis requires a specific cascade, and none of the branches is the most likely outcome. But they're worth understanding clearly.</p>
+
+  <p><strong>Path 1 — British service personnel are killed.</strong> If Iranian missiles or proxies kill British service members in Bahrain or Qatar, parliamentary pressure to respond becomes enormous regardless of the legal questions. The precedent from the Falklands shows that even a left-wing Labour opposition can be swept into war by a casualty event on a scale the public finds intolerable. The Conservatives and Reform are already calling for full UK participation — Farage tweeted this morning that Starmer "needs to change his mind."</p>
+
+  <p><strong>Path 2 — Trump makes NATO conditional.</strong> This is perhaps the most structurally important scenario. A report commissioned by Civitas and prefaced by Lord Robertson — a former NATO Secretary-General — concluded in January 2026 that the US security guarantee "is no longer valid" because Trump has made it transactional. The UK's own Strategic Defence Review explicitly noted that Britain must plan for a world in which American commitment to collective defence is uncertain. If Trump tells Starmer that the intelligence-sharing relationship (Five Eyes, GCHQ-NSA cooperation) depends on UK participation in Iran operations, that is a genuine existential dilemma. Britain's security architecture is built on American intelligence. You cannot simply switch it off.</p>
+
+  <p><strong>Path 3 — Russia moves while America is distracted.</strong> This is the most historically resonant of the three, and the one with the clearest WWII structural parallel. NATO's Secretary-General warned in December 2025 that member states should prepare for a Russian attack within five years. Russia has spent three years testing NATO's resolve with drone incursions, undersea cable cutting, and covert sabotage operations across Europe. The Iran conflict gives Russia a historically unusual window: the US is militarily committed in the Gulf, politically divided, and led by a president whose NATO commitment is explicitly transactional. If Russia tests Estonia or Latvia — even in a limited, ambiguous way — Britain faces the worst dilemma in its post-war history: honour Article 5 largely alone, or allow NATO to effectively collapse.</p>
+
+  <blockquote>
+    <p>"The UK is under-prepared and under attack. Direct threats to its security, prosperity and democracy are growing increasingly troublesome."</p>
+    <cite>— Lord Robertson, former NATO Secretary-General, January 2026</cite>
+  </blockquote>
+
+  <h3>So What's the Actual Probability?</h3>
+
+  <p>Today — taking the full cascade including the Russia scenario — we'd put a genuine WWII-scale emergency for Britain at somewhere between 5% and 10%. That sounds small, and on any given day it is. But consider: Britain's Strategic Defence Review, completed just months ago, now treats it as a <em>planning scenario</em> rather than a hypothetical. The fact that the UK government is publicly hedging against a future without American backing is itself unprecedented in the post-war period.</p>
+
+  <p>The more immediate and realistic risk isn't Blitz-style bombing but something quieter: economic emergency from Strait of Hormuz disruption, a political constitutional crisis over war powers and parliamentary oversight, the gradual erosion of British influence through being squeezed between an America that treats allies as transactional and a Russia that views Western democratic hesitation as weakness. That is a kind of national emergency, even without a single bomb falling on British soil.</p>
+
+  <div class="callout callout-good">
+    <div class="callout-label">✓ What Makes This Different from 1939</div>
+    <p>Britain in 2026 has two advantages its 1939 counterpart lacked: nuclear deterrence (which makes direct great-power attack on the UK homeland essentially unthinkable), and the post-Cold War institutional architecture of NATO, the EU, and the UN — battered as it is — which provides frameworks for collective response. The worst WWII-style outcomes require those frameworks to collapse entirely, which is still far more unlikely than likely.</p>
+  </div>
+
+  <!-- SECTION: Nuclear -->
+  <hr class="section-rule" id="nuclear-essay" />
+  <p class="section-tag">Essay II</p>
+  <h2>How Seriously Should We Take the Risk of a Nuclear Exchange?</h2>
+
+  <p>Seriously — but not catastrophically. That framing matters. The two failure modes around nuclear risk are complacency ("it's unthinkable, it'll never happen") and paralysis ("we're all going to die"). Neither is useful, and both are wrong. The actual picture is: the structural conditions for nuclear risk are objectively worse right now than at any point since the early 1980s, but the specific paths to an exchange still require multiple deliberate human choices that have very strong countervailing pressures.</p>
+
+  <div class="doomsday-chip">
+    <div class="dc-num">89 sec</div>
+    <div style="width:1px;height:36px;background:rgba(192,57,43,0.2)"></div>
+    <div class="dc-lab">Doomsday Clock · Bulletin of Atomic Scientists<br/>Set January 2026 — closest to midnight in the clock's 79-year history</div>
+  </div>
+
+  <h3>The Structural Problem</h3>
+
+  <p>On February 5, 2026 — exactly 23 days ago — the New START treaty between the US and Russia expired. This was the last binding nuclear arms control agreement between the world's two largest nuclear arsenals. With it went inspection regimes, verification mechanisms, and data-sharing protocols that have constrained both sides' worst-case assumptions since the early 1970s. The UN Secretary-General called the lapse "a grave moment for international peace and security." When verification disappears, worst-case assumptions fill the vacuum, and worst-case assumptions are exactly what lead to miscalculation.</p>
+
+  <p>Layer on top of this: Russia has spent three years making lightly veiled nuclear threats over Ukraine, and has developed and deployed new short-range "non-strategic" tactical nuclear weapons specifically designed for battlefield use at a scale below the threshold that would trigger full mutual retaliation. The US has responded by developing its own short-range nuclear cruise missiles. Both sides are simultaneously modernising all three legs of their nuclear triads. China will have 1,000 warheads by 2030. North Korea tested a new ICBM with a hypersonic delivery vehicle in 2025. The Bulletin of Atomic Scientists moved the Doomsday Clock to 89 seconds to midnight this January — the closest it has ever been.</p>
+
+  <p>The Iran conflict adds a specific new dimension to this background radiation of nuclear risk: <strong>uncertainty about fissile material</strong>. The Bulletin of Atomic Scientists noted that after the June 2025 US-Israel strikes, the fate of more than 400 kilograms of uranium enriched to 60% — enough for several nuclear weapons — became unclear. No IAEA inspector has visited Iranian nuclear sites since June. Today's strikes have struck additional nuclear-adjacent infrastructure. The material is there. Its location is not confirmed.</p>
+
+  <h3>The Two Specific Nuclear Pathways Worth Taking Seriously</h3>
+
+  <p><strong>The Iran pathway</strong> is the less likely of the two but the most emotionally vivid. As of mid-February 2026, the Institute for Science and International Security estimated the probability of Iran building nuclear weapons at around 50%, or "even a little lower." That was before today's strikes further damaged its leadership and military infrastructure. A cornered regime with no leadership coherence, abundant enriched material, and a survival imperative is the highest-risk scenario for Iranian nuclear breakout — not because decision-making becomes easier, but because it becomes less predictable. If Iran builds a bomb, the target would almost certainly be Israel, not Western Europe or the US. Israel's Samson Option doctrine — believed to involve several hundred nuclear warheads — means a nuclear exchange in the Levant rather than a global conflagration, which is catastrophic for those affected but not an extinction-level event for the rest of the world.</p>
+
+  <p><strong>The superpower pathway</strong> is lower probability but has much wider blast radius. It requires the following cascade: the Iran conflict drags on; Russia judges the moment optimal to escalate in Ukraine or the Baltics; a NATO conventional defence fails or proves insufficient; Russia uses a tactical nuclear weapon to break NATO's will, as Putin has explicitly threatened; and then the question of NATO's nuclear response falls to leadership that has never faced this decision. Every step in this chain has strong countervailing pressures. But every step has also moved measurably closer in the past 24 months.</p>
+
+  <blockquote>
+    <p>"The boundary between managed escalation and uncontrolled war is perilously thin — and often discernible only in hindsight."</p>
+    <cite>— International Crisis Group, February 2026</cite>
+  </blockquote>
+
+  <h3>What the Numbers Actually Mean</h3>
+
+  <p>We estimate nuclear use by any actor in the next 12 months at 2–5%. That sounds tiny. But consider: this is not the risk of rain. This is a risk with no recovery. Applied to civilisation-level consequences, a 3% annual risk compounds to roughly a 26% chance over a decade — which is why the Doomsday Clock scientists are alarmed, why the Bulletin called 89 seconds "unprecedented," and why arms control renewal is the single most important policy priority that isn't being discussed in today's news cycle.</p>
+
+  <p>The good news — and there is good news — is that both the US and Russia retain leaderships that have, at least historically, understood the terminal nature of a nuclear exchange. MAD (Mutually Assured Destruction) is not elegant, but 70 years of Cold War history suggest it works as a constraint on rational actors. The unknown is whether the current environment still produces rational actors at the key decision moments. That's what keeps nuclear strategists working late on a Saturday night.</p>
+
+  <div class="callout callout-info">
+    <div class="callout-label">📌 The Most Actionable Nuclear Fact</div>
+    <p>The Bulletin of Atomic Scientists recommends that the US and Russia agree immediately to adhere voluntarily to New START limits, conduct a data exchange as a confidence measure, and open negotiations for a successor treaty. This costs nothing relative to the alternative. The fact that it is not happening is a policy failure, not an inevitability.</p>
+  </div>
+
+  <!-- Timeline section -->
+  <hr class="section-rule" id="timeline" />
+  <p class="section-tag">How We Got Here</p>
+  <h2>A Year and a Half on a Tightrope</h2>
+  <p>Today's strikes didn't come from nowhere. Here is the escalation ladder from June 2025 to this morning.</p>
+
+  <div class="timeline reveal">
+    <div class="tl-item">
+      <div class="tl-date">June 13–24, 2025</div>
+      <div class="tl-title">The Twelve-Day War</div>
+      <div class="tl-body">Israel strikes Iranian nuclear and military sites; Iran retaliates with 550+ ballistic missiles. The US intervenes June 22, bombing Natanz, Fordow, and Isfahan. Ceasefire brokered June 24 under US pressure. Iran's nuclear program is damaged but not destroyed — and IAEA confirms enough enriched uranium for nine warheads.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Aug–Nov 2025</div>
+      <div class="tl-title">Snapback Sanctions Restored</div>
+      <div class="tl-body">UK, France, and Germany trigger the UN snapback mechanism. Sanctions return. Russia and China reject their legality. Iran begins turning to both for missile components, drone production partnerships, and financial circumvention of SWIFT.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Dec 28, 2025</div>
+      <div class="tl-title">Iran's Economy Collapses</div>
+      <div class="tl-body">The rial hits 1.42 million per US dollar — its lowest ever. Protests erupt across 100+ cities, the largest since the 1979 revolution. The regime kills thousands of protesters. Internet is cut nationwide in January.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 5, 2026</div>
+      <div class="tl-title">New START Expires</div>
+      <div class="tl-body">The last US-Russia nuclear arms control treaty lapses with no successor. No binding limits or verification mechanisms now constrain either arsenal.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 6 – Feb 17, 2026</div>
+      <div class="tl-title">Nuclear Talks in Oman and Geneva</div>
+      <div class="tl-body">Indirect US-Iran talks held in Muscat, then Geneva. Both sides report progress but no breakthrough. A second US carrier strike group deploys to the region. Iran closes the Strait of Hormuz temporarily during a live-fire drill.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 27, 2026</div>
+      <div class="tl-title">"Peace Within Reach" — Then War</div>
+      <div class="tl-body">Oman's FM announces Iran has agreed to degrade enriched uranium to "the lowest level possible" and accept full IAEA verification, calling peace "within reach." Within 24 hours, the strikes begin.</div>
+    </div>
+    <div class="tl-item now">
+      <div class="tl-date">Feb 28, 2026 — Today</div>
+      <div class="tl-title">Operation Epic Fury</div>
+      <div class="tl-body">200 Israeli Air Force jets strike 500 Iranian military targets in the IAF's largest-ever sortie. The US attacks by air and sea. Iran retaliates across the Gulf. Khamenei's compound is destroyed; his fate is unknown. Defense Minister Nasirzadeh and IRGC commander Pakpour are reported killed. Iran's internet is at 4% capacity.</div>
+    </div>
+  </div>
+
+  <!-- Scenarios section -->
+  <hr class="section-rule" id="scenarios" />
+  <p class="section-tag">Decision Tree</p>
+  <h2>Six Scenarios, Ranked by Likelihood</h2>
+  <p>These are probability-weighted scenario analyses, not predictions. The single most important unknown variable as of this afternoon: whether Khamenei has been killed. A confirmed death shifts virtually every branch of this tree.</p>
+
+  <div class="callout callout-alert">
+    <div class="callout-label">🔴 Critical Unknown — Khamenei's Fate</div>
+    <p>If the Supreme Leader has been killed, the IRGC — Iran's most powerful military institution — fills the leadership vacuum. US intelligence has assessed it likely would do so in the short term. An IRGC-led Iran has less diplomatic flexibility, more incentive to demonstrate strength, and less institutional coherence around the "calibrated response" doctrine that has prevented escalation in every previous crisis. It does not make nuclear use likely, but it makes all the harder scenarios meaningfully more probable.</p>
+  </div>
+
+  <!-- S1 -->
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">01</div>
+      <div class="sc-meta">
+        <div class="sc-title">Contained Air Campaign → Ceasefire</div>
+        <div class="sc-tags">
+          <span class="tag tag-a">Risk: Moderate</span>
+          <span class="tag tag-n">~30%</span>
+        </div>
+      </div>
+      <div class="sc-prob">
+        <div class="sc-prob-num">30%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:30%;background:var(--amber)"></div></div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p>The June 2025 Twelve-Day War sets the precedent. Both sides absorb strikes, Iran fires its retaliatory salvo, and a Gulf mediator — most likely Oman, which was brokering a deal literally yesterday — engineers a ceasefire within one to three weeks. Iran has historically preferred symbolic attacks calibrated to allow face-saving de-escalation. Their performative strike on Al Udeid last June was designed precisely to match the number of US bombs, not to maximise damage.</p>
+      <p>The problem is that this conflict is materially different from June 2025. <strong>The US is explicitly calling for regime change</strong> — Trump's 2am statement said so plainly. Israel targeted Khamenei himself. Iran's statement that "there are no red lines after this aggression" suggests the calibrated-response doctrine is under enormous internal pressure. This scenario requires the IRGC command to remain coherent and rational even after suffering its largest leadership decapitation in modern history.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>Primarily economic. Oil price spike, shipping insurance costs, potential energy price emergency for consumers. RAF defensive operations continue. No significant military expansion required. Parliament stays uninvolved in combat decisions.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- S2 -->
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">02</div>
+      <div class="sc-meta">
+        <div class="sc-title">Extended Regional War — The Escalation Loop</div>
+        <div class="sc-tags">
+          <span class="tag tag-o">Risk: High</span>
+          <span class="tag tag-n">~35%</span>
+        </div>
+      </div>
+      <div class="sc-prob">
+        <div class="sc-prob-num">35%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:35%;background:var(--orange)"></div></div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p>This is actually the most likely single scenario as of today. Iran scores serious hits on US assets — Israeli Channel 9 has already reported an attack on the carrier Abraham Lincoln — and the domestic US pressure to escalate becomes overwhelming. The US military has been planning for a weeks-long campaign, not a one-off strike. Iranian proxy networks activate: Houthis resume Red Sea attacks (already announced), Iraqi militias target US bases, reconstituted Hezbollah cells engage Israel.</p>
+      <p>The Strait of Hormuz becomes critical. Analysts at Kpler assess that a full closure is unlikely — Iran's own oil revenues depend on the waterway — but <strong>even a partial disruption drives oil toward $120-150 per barrel</strong>, triggering global inflation cascades. Gulf states that have been struck by Iranian missiles today (Qatar, UAE, Bahrain, Saudi Arabia) face existential choices about their relationships with both the US and Iran.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>Moderate-to-significant. Trump may condition NATO reliability or intelligence-sharing on UK offensive participation. British bases in Cyprus and Diego Garcia face increased proxy targeting risk. A UK service member killed by Iranian action makes parliamentary restraint politically untenable. Energy prices hit UK consumers hard.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- S3 -->
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">03</div>
+      <div class="sc-meta">
+        <div class="sc-title">Iranian Regime Collapse — The Power Vacuum</div>
+        <div class="sc-tags">
+          <span class="tag tag-o">Risk: Very High</span>
+          <span class="tag tag-n">~20%</span>
+        </div>
+      </div>
+      <div class="sc-prob">
+        <div class="sc-prob-num">20%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:20%;background:var(--orange)"></div></div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p>Trump has been explicit: the goal is regime change. The strikes targeted Khamenei directly, killed senior IRGC commanders, and struck the Supreme National Security Council. Iranian citizens inside Tehran are reportedly shouting "Death to the dictator" from windows and celebrating the strikes. The protests that began in December were the largest since 1979. The conditions for a regime collapse are present in a way they simply weren't in June 2025.</p>
+      <p>If the regime fractures, the dangers emerge immediately. <strong>Iran's enriched uranium — IAEA-assessed at enough for nine warheads — sits in a state with no functioning political authority.</strong> Proxy networks across Lebanon, Iraq, Syria, and Yemen lose central command and become autonomous actors. IRGC factions may fight each other for control. The US has explicitly said it has no plan for what comes next — Secretary Rubio's admission that "no one knows who would take over" is a chilling parallel to the Iraq War's post-invasion chaos, at three times the population and with nuclear material involved.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>High. SAS/SBS could be deployed under executive authority without parliamentary approval to help secure nuclear material. British intelligence faces massive new demands. UK nationals throughout the Gulf face acute physical risk from proxy retaliation. A prolonged regional ungoverned-space crisis is worse for UK interests than even a stable adversarial Iranian government.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- S4 -->
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">04</div>
+      <div class="sc-meta">
+        <div class="sc-title">CRINK Opportunistic Escalation</div>
+        <div class="sc-tags">
+          <span class="tag tag-r">Risk: Critical</span>
+          <span class="tag tag-n">~10%</span>
+        </div>
+      </div>
+      <div class="sc-prob">
+        <div class="sc-prob-num">10%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:10%;background:var(--red)"></div></div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p>Russia has condemned today's strikes as an "unprovoked act of armed aggression." China has called for an "immediate stop" and is near completion of a deal to supply Iran with CM-302 supersonic anti-ship missiles — specifically designed to defeat carrier battle group defenses. Neither is expected to directly intervene militarily. But the CRINK axis doesn't need to formally coordinate to achieve strategic disruption of Western capacity: opportunistic parallel escalation in Ukraine, the Baltics, or the Taiwan Strait achieves the same effect.</p>
+      <p>China has reportedly been sharing satellite intelligence on US base movements with Iran. Russia and Iran have a 2025 strategic partnership treaty. North Korea has been building new delivery systems for a nuclear triad. The four-actor alignment that NATO's SDR called "CRINK" has never had an opportunity like a US military commitment in the Gulf with a domestically divided American leadership. <strong>This is the scenario that most directly echoes the conditions that produced WWII — not in its violence but in its structure of collapsing deterrence and opportunistic simultaneous aggression.</strong></p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>Severe. Russia escalating in Europe while the US is committed in the Gulf means Britain faces Article 5 obligations with uncertain American backing — exactly the scenario its Strategic Defence Review now treats as a planning reality. Britain could be fighting or being asked to fight on two fronts with armed forces described as "under-prepared."</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- S5 -->
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">05</div>
+      <div class="sc-meta">
+        <div class="sc-title">Britain's WWII Moment</div>
+        <div class="sc-tags">
+          <span class="tag tag-r">Risk: Critical</span>
+          <span class="tag tag-n">~5–8%</span>
+        </div>
+      </div>
+      <div class="sc-prob">
+        <div class="sc-prob-num">7%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:7%;background:var(--red)"></div></div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p>As argued in Essay I above, this scenario is not about bombs falling on London. It's about the structural collapse of the post-war security architecture that Britain has relied upon — and having to respond to a major security challenge largely without American support. The probability is low today but has shifted upward meaningfully compared to any prior assessment. Britain's own government is now planning for it as a contingency.</p>
+      <p>The three triggers: British assets directly struck at scale; NATO Article 5 invoked over Russian Baltic aggression without US leadership; or Trump's explicit conditioning of intelligence-sharing on UK offensive participation in Iran. Any one of these creates a constitutional and national security crisis without precedent in post-war British history.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p><em>This is the scenario.</em> Full parliamentary emergency, potential conscription debate, economic emergency legislation, coordination with European allies rather than the US as primary security partner. The UK has nuclear deterrence — which prevents a direct existential attack on the homeland — but not the conventional forces, the industrial base, or the political culture for sustained major-power conflict.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- S6 -->
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">06</div>
+      <div class="sc-meta">
+        <div class="sc-title">Nuclear Use by Any Actor</div>
+        <div class="sc-tags">
+          <span class="tag tag-r">Risk: Existential</span>
+          <span class="tag tag-n">~2–5%</span>
+        </div>
+      </div>
+      <div class="sc-prob">
+        <div class="sc-prob-num">3%</div>
+        <div class="prob-bar"><div class="prob-fill" style="width:3%;background:var(--red)"></div></div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p>As argued in Essay II above, 3% sounds reassuring until you think about what that probability is attached to. The structural preconditions are the worst since 1983's Able Archer exercise. The specific pathways are: an Iranian nuclear breakout targeting Israel (triggering the Samson Option); or a Russian tactical nuclear weapon in Eastern Europe as NATO conventional defence proves insufficient during a Gulf-distracted American leadership. The second pathway is far more dangerous for Britain and Western Europe specifically.</p>
+      <p>The single most important mitigating factor remains MAD — both the US and Russia retain leadership that has, historically, understood the terminal nature of an exchange. The single most important destabilising factor is the expiry of New START and the verification vacuum it creates. When you can't verify what the other side is doing with its arsenal, worst-case assumptions drive planning, and worst-case planning assumptions are one miscommunication away from operational decisions.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>British nuclear doctrine — Continuous At-Sea Deterrent — exists precisely for this scenario. The UK's Trident submarines provide a second-strike guarantee. But deterrence only works if the threat is credible and if decision-making remains rational on both sides. Neither can be fully guaranteed right now.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Risk Matrix -->
+  <hr class="section-rule" id="matrix" />
+  <p class="section-tag">Summary</p>
+  <h2>Risk Matrix — 28 February 2026</h2>
+
+  <div class="table-wrap reveal">
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Probability</th>
+          <th>UK Peak Risk</th>
+          <th>Key Trigger</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-s">Contained air campaign → ceasefire</td>
+          <td class="td-p c-amber">25–35%</td>
+          <td class="td-n">Economic / oil prices</td>
+          <td class="td-n">Iran issues calibrated response; IRGC stays coherent</td>
+        </tr>
+        <tr>
+          <td class="td-s">Extended regional war</td>
+          <td class="td-p c-orange">30–40%</td>
+          <td class="td-n">Political / NATO leverage</td>
+          <td class="td-n">US casualties mount; proxy activation</td>
+        </tr>
+        <tr>
+          <td class="td-s">Iranian regime collapse</td>
+          <td class="td-p c-orange">15–25%</td>
+          <td class="td-n">Intelligence / special forces</td>
+          <td class="td-n">Khamenei confirmed dead; IRGC fractures</td>
+        </tr>
+        <tr>
+          <td class="td-s">CRINK opportunistic escalation</td>
+          <td class="td-p c-red">8–15%</td>
+          <td class="td-n">Military / two-front war</td>
+          <td class="td-n">Russia moves in Europe during Gulf distraction</td>
+        </tr>
+        <tr>
+          <td class="td-s">Britain's WWII-scale emergency</td>
+          <td class="td-p c-red">5–10%</td>
+          <td class="td-n">Constitutional / existential</td>
+          <td class="td-n">UK assets struck; NATO invoked without US; intelligence extortion</td>
+        </tr>
+        <tr>
+          <td class="td-s">Nuclear use (any actor)</td>
+          <td class="td-p c-red">2–5%</td>
+          <td class="td-n">Civilisational</td>
+          <td class="td-n">Iran breakout + Israeli response; or Russian tactical use in Europe</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Wildcards -->
+  <h3>Four Wildcards to Watch</h3>
+  <div class="wildcard-grid reveal">
+    <div class="wc-card">
+      <div class="wc-icon">🌊</div>
+      <h4>Strait of Hormuz</h4>
+      <p>20 million barrels/day flow through this waterway. Even partial disruption drives energy prices to levels that cascade into inflation globally. Iran has threatened closure repeatedly. Watch tanker tracking data in real time.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">💻</div>
+      <h4>Cyber Operations</h4>
+      <p>Iran has previously hit Saudi Aramco and US financial institutions. A cyber-physical attack on Western critical infrastructure is within its established capability and would escalate the conflict into civilian territory without a single missile being fired at a Western country.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">📡</div>
+      <h4>Information Vacuum</h4>
+      <p>Iran is at 4% internet connectivity. Nobody has reliable ground truth from inside the country. Khamenei's fate is unconfirmed. In this environment, deliberate disinformation from multiple state actors is near-certain. Verify everything before sharing.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">☢</div>
+      <h4>Nuclear Material</h4>
+      <p>400+ kg of 60%-enriched uranium has had no IAEA oversight since June 2025. If the regime collapses, securing this material becomes the single most urgent non-proliferation priority on the planet. No plan for this appears to exist publicly.</p>
+    </div>
+  </div>
+
+  <!-- Policy -->
+  <hr class="section-rule" id="policy" />
+  <p class="section-tag">What Should Happen</p>
+  <h2>Recommendations: For Policymakers and for You</h2>
+  <p>What a rational, evidence-based policy response looks like — not what is currently happening. And what you as a concerned citizen actually have leverage to do.</p>
+
+  <div class="policy-grid reveal">
+    <div class="policy-card">
+      <div class="policy-head">🇬🇧 UK Government</div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Parliamentary debate within 48 hours.</strong> Starmer has confirmed RAF involvement. Post-Iraq convention requires a parliamentary vote. This isn't optional.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Publish the Attorney General's advice.</strong> The legal basis for UK operational involvement must be transparent. Chilcot established this principle.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Activate strategic petroleum reserves.</strong> Coordinate with the IEA. Hormuz disruption is plausible; energy price emergency preparation is not alarmism, it's prudence.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Protect UK nationals.</strong> Escalate travel advisories across the Gulf. Emergency consular planning for Bahrain, UAE, Qatar, and Lebanon now.</div></div>
+    </div>
+    <div class="policy-card">
+      <div class="policy-head">🌍 Western Alliance</div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Keep the Omani deal alive.</strong> The deal announced yesterday — Iran agreeing to degrade enriched uranium — must not die with last night's strikes. Europe needs a back-channel to Araghchi immediately.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>IAEA emergency protocol.</strong> Securing and accounting for Iran's enriched uranium is the most urgent non-proliferation task in the world right now. This needs international consensus immediately.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Open a Russia channel.</strong> Back-channel communication with Moscow must prevent opportunistic escalation in Ukraine or the Baltics during the Gulf distraction window.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Restart New START talks.</strong> The arms control vacuum is a compounding background risk factor. A voluntary data exchange costs nothing and reduces miscalculation risk immediately.</div></div>
+    </div>
+    <div class="policy-card">
+      <div class="policy-head">🧑‍🎓 For You</div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Verify before sharing.</strong> Iran's internet is at 4%. All parties have propaganda incentives. Multiple reports — including claims about Khamenei — are unconfirmed. Use primary sources.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Watch energy markets.</strong> The most immediate global impact is economic. Know where your energy supplier stands on price-fixing contracts before a supply shock hits.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Contact your MP or representative.</strong> Parliamentary pressure for ceasefire diplomacy and war-powers oversight is a real lever. Use it now, not after escalation becomes irreversible.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Take the long view.</strong> This crisis has roots in failed diplomacy going back years. Demanding long-term thinking from leaders — not just crisis management — is the most durable contribution a citizen can make.</div></div>
+    </div>
+  </div>
+
+  <blockquote style="margin-top:36px;">
+    <p>"No one wants an increase in tension. Everyone understands this is playing with fire."</p>
+    <cite>— Sergei Lavrov, Russian Foreign Minister, February 2026</cite>
+  </blockquote>
+
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-text">
+      <strong>Sources:</strong> Al Jazeera, CNN, Reuters, AP, The Times of Israel, Axios, NPR, PBS NewsHour, Stars &amp; Stripes,<br/>
+      House of Commons Library, Wikipedia (live), Atlantic Council, CSIS, Stimson Center, Chatham House,<br/>
+      Crisis Group, Bulletin of Atomic Scientists, ISIS (Institute for Science &amp; International Security),<br/>
+      Middle East Eye, Modern Diplomacy, NCRI, DEFCON Warning System, Britain's World
+    </div>
+    <div class="footer-text" style="text-align:right;">
+      <strong>Float64</strong> · Analysis compiled 28 Feb 2026<br/>
+      Open-source synthesis only.<br/>
+      Not affiliated with any government or agency.
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Accordion
+  function toggle(head) {
+    const body = head.nextElementSibling;
+    const isOpen = body.classList.contains('open');
+    document.querySelectorAll('.scenario-body').forEach(b => b.classList.remove('open'));
+    if (!isOpen) body.classList.add('open');
+  }
+  // Open first by default
+  document.querySelector('.scenario-body').classList.add('open');
+
+  // Scroll reveal
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Nav dots
+  const ids = ['uk-wwii','nuclear-essay','timeline','scenarios','matrix','policy'];
+  const dots = document.querySelectorAll('.nd');
+  window.addEventListener('scroll', () => {
+    let cur = -1;
+    ids.forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.45) cur = i + 1;
+    });
+    dots.forEach((d, i) => d.classList.toggle('active', i === Math.max(0, cur)));
+  });
+</script>
+</body>
+</html>
