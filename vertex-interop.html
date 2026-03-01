@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Vertex — Reconciler ↔ Template Interop</title>
+  <script src="vertex.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0a0a;--panel:#111;--border:#1e1e1e;
+      --acc:#c8ff00;--body:#b0b0b0;--head:#e8e8e8;--muted:#555;
+      --red:#ff6b6b;--blue:#4eb2ff;--font:"Courier New",monospace
+    }
+    html{background:var(--bg);color:var(--body);font-family:var(--font);font-size:14px}
+    body{padding:32px 28px 60px;max-width:960px;margin:0 auto}
+    h1{font-size:1.4rem;font-weight:normal;color:var(--head);margin-bottom:.4rem}
+    h2{font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;
+       color:var(--muted);font-weight:normal;margin-bottom:1rem}
+    p{line-height:1.8;margin-bottom:.8rem}
+    code{font-family:var(--font);color:var(--acc);font-size:.88em}
+    .section{border:1px solid var(--border);margin-bottom:28px;padding:20px 22px}
+    .section-label{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;
+                   color:var(--muted);border-bottom:1px solid var(--border);
+                   padding-bottom:10px;margin-bottom:16px}
+    .safe{border-color:#1a2a00}
+    .unsafe{border-color:#2a0a0a}
+    .tag{display:inline-block;font-size:.64rem;letter-spacing:.14em;
+         padding:2px 7px;margin-left:8px;vertical-align:middle}
+    .tag.safe{background:#1a2a00;color:var(--acc);border:none}
+    .tag.unsafe{background:#2a0a0a;color:var(--red);border:none}
+
+    /* demo widgets */
+    button{
+      font-family:var(--font);font-size:.78rem;padding:7px 14px;cursor:pointer;
+      background:none;border:1px solid var(--border);color:var(--body);
+      transition:border-color .12s,color .12s
+    }
+    button:hover{border-color:var(--acc);color:var(--acc)}
+    input[type=range]{accent-color:var(--acc);width:180px;vertical-align:middle}
+    input[type=text]{
+      font-family:var(--font);font-size:.82rem;background:var(--panel);
+      border:1px solid var(--border);color:var(--head);padding:6px 10px;width:220px
+    }
+    input[type=text]:focus{outline:none;border-color:var(--acc)}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+    .val{font-size:.88rem;color:var(--head)}
+    .muted{color:var(--muted);font-size:.78rem}
+
+    /* template output zones */
+    .tmpl-out{border:1px solid var(--border);padding:12px 14px;background:var(--panel);
+              margin-top:10px;font-size:.82rem;line-height:1.8}
+    .tmpl-out .bar{
+      display:inline-block;height:10px;background:var(--acc);
+      transition:width .15s;border-radius:2px
+    }
+    .tmpl-out .track-row{padding:3px 0;border-bottom:1px solid var(--border)}
+    .tmpl-out .track-row:last-child{border:none}
+    .tmpl-out .active-row{color:var(--acc)}
+  </style>
+</head>
+<body>
+
+<h1>Reconciler ↔ Template interop</h1>
+<p style="margin-bottom:24px;color:var(--muted);font-size:.82rem">
+  Three patterns — which ones work and why.
+</p>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     SAFE PATTERN 1 — Reconciler component owns a template as a leaf
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div class="section safe">
+  <div class="section-label">
+    Pattern 1 — Reconciler component hosts a template
+    <span class="tag safe">SAFE</span>
+  </div>
+  <p>
+    The reconciler renders a <code>&lt;div&gt;</code> and holds a <code>useRef</code> to it.
+    A <code>useEffect</code> mounts a <code>Vertex.template</code> into that div.
+    The reconciler owns the wrapper node; the template owns only the <code>innerHTML</code>
+    inside it. They never touch each other's DOM.
+  </p>
+  <p>
+    Data flows <strong>reconciler → template</strong> by calling <code>tmpl.update()</code>
+    inside an effect whenever state changes. Data flows <strong>template → reconciler</strong>
+    via the template's <code>on('change', …)</code> event, which calls a <code>setState</code>
+    dispatcher. Fully bidirectional.
+  </p>
+  <div id="p1-root"></div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     SAFE PATTERN 2 — Side by side, shared JS state object
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div class="section safe">
+  <div class="section-label">
+    Pattern 2 — Side-by-side, shared JS state
+    <span class="tag safe">SAFE</span>
+  </div>
+  <p>
+    The reconciler and template live in completely separate DOM regions.
+    A plain JS object acts as the shared store. When either side mutates it,
+    the other is notified via a tiny event emitter — no framework coupling at all.
+    The template calls <code>tmpl.update(store)</code>; the reconciler calls
+    its <code>setState</code> dispatcher.
+  </p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px">
+    <div>
+      <div class="muted" style="margin-bottom:6px">Reconciler side</div>
+      <div id="p2-reconciler"></div>
+    </div>
+    <div>
+      <div class="muted" style="margin-bottom:6px">Template side (reads same store)</div>
+      <div id="p2-template" class="tmpl-out"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     UNSAFE PATTERN — Template hosts a reconciler mount point
+     ═════════════════════════════════════════════════════════════════════════ -->
+<div class="section unsafe">
+  <div class="section-label">
+    Pattern 3 — Template hosts a reconciler mount point
+    <span class="tag unsafe">UNSAFE — do not use</span>
+  </div>
+  <p>
+    If a template renders a <code>&lt;div id="sub"&gt;</code> and you call
+    <code>Vertex.render(component, subDiv)</code> into it, the next time the
+    template calls <code>this._el.innerHTML = …</code> it <strong>destroys every DOM node
+    the reconciler placed inside it</strong>. The reconciler's <code>fiber.dom</code>
+    references now point to detached, garbage-collected nodes.
+    The reconciler doesn't know this happened — it will continue patching ghost nodes
+    that are no longer in the document, silently producing no visible output.
+  </p>
+  <p style="color:var(--red);font-size:.82rem">
+    The template's <code>innerHTML =</code> is a full DOM nuke. Any foreign state
+    (reconciler fiber tree, third-party widgets, canvas contexts) inside that element
+    is irrecoverably lost.
+  </p>
+</div>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     PATTERN 1 DEMO CODE
+     ═════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  var h = Vertex.createElement;
+
+  // ── The template that will live inside the reconciler component ──────────
+  var TRACK_TMPL = [
+    '<div>',
+    '  {{#each tracks}}',
+    '    <div class="track-row{{#if active}} active-row{{/if}}">',
+    '    {{@index}}. {{name}} <span class="muted">— {{bpm}} bpm</span>',
+    '    </div>',
+    '  {{/each}}',
+    '  <div style="margin-top:8px">',
+    '    <span class="bar" style="width:{{progress}}%"></span>',
+    '    <span class="muted" style="margin-left:8px">{{progress}}%</span>',
+    '  </div>',
+    '</div>'
+  ].join('\n');
+
+  // ── Reconciler component ─────────────────────────────────────────────────
+  function TrackListComponent() {
+    var mountRef   = Vertex.useRef(null);   // wrapper div
+    var tmplRef    = Vertex.useRef(null);   // Vertex.template instance
+
+    var pair1     = Vertex.useState(0);
+    var progress  = pair1[0];
+    var setProgress = pair1[1];
+
+    var pair2     = Vertex.useState(1);    // active track index
+    var active    = pair2[0];
+    var setActive = pair2[1];
+
+    var TRACKS = [
+      { name: 'Jungle Pressure',  bpm: 170 },
+      { name: 'Dark Matter DnB',  bpm: 174 },
+      { name: 'Halftime Drift',   bpm: 85  },
+    ];
+
+    // ── Mount the template once ─────────────────────────────────────────────
+    Vertex.useEffect(function () {
+      if (!mountRef.current) return;
+
+      var tmpl = new Vertex.template({
+        el:       mountRef.current,
+        template: TRACK_TMPL,
+        data: {
+          tracks:   TRACKS.map(function (t, i) {
+            return { name: t.name, bpm: t.bpm, active: i === 0 };
+          }),
+          progress: 0
+        }
+      });
+      tmplRef.current = tmpl;
+
+      // Template → reconciler: if template ever emits 'change' (e.g. via
+      // data-bind input) we could lift the value back up here.
+      tmpl.on('change', function (ev) {
+        // example: if template had a bpm input we'd call setActive() here
+      });
+
+      return function () { tmpl.teardown(); };  // cleanup on unmount
+    }, []);
+
+    // ── Sync reconciler state → template whenever it changes ────────────────
+    Vertex.useEffect(function () {
+      if (!tmplRef.current) return;
+      tmplRef.current.update({
+        progress: progress,
+        tracks: TRACKS.map(function (t, i) {
+          return { name: t.name, bpm: t.bpm, active: i === active };
+        })
+      });
+    }, [progress, active]);
+
+    // ── Reconciler UI (controls) ────────────────────────────────────────────
+    return h('div', null,
+      h('div', { className: 'row' },
+        h('span', { className: 'muted' }, 'Progress'),
+        h('input', {
+          type: 'range', min: 0, max: 100, value: progress,
+          onInput: function (e) { setProgress(parseInt(e.target.value)); }
+        }),
+        h('span', { className: 'val' }, progress + '%')
+      ),
+      h('div', { className: 'row' },
+        h('span', { className: 'muted' }, 'Active track'),
+        TRACKS.map(function (t, i) {
+          return h('button', {
+            key: i,
+            onClick: function () { setActive(i); },
+            style: i === active ? { borderColor: 'var(--acc)', color: 'var(--acc)' } : {}
+          }, String(i));
+        })
+      ),
+      // This div is owned by the reconciler; the template renders inside it
+      h('div', { ref: mountRef, className: 'tmpl-out' })
+    );
+  }
+
+  Vertex.render(h(TrackListComponent, null), document.getElementById('p1-root'));
+}());
+</script>
+
+<!-- ═════════════════════════════════════════════════════════════════════════
+     PATTERN 2 DEMO CODE
+     ═════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  var h = Vertex.createElement;
+
+  // ── Shared store ──────────────────────────────────────────────────────────
+  var store = {
+    bpm:    128,
+    key:    'Am',
+    label:  'Bass Line 1',
+    _listeners: [],
+    set: function (patch) {
+      Object.assign(this, patch);
+      this._listeners.forEach(function (fn) { fn(); });
+    },
+    subscribe: function (fn) { this._listeners.push(fn); }
+  };
+
+  // ── Template side ─────────────────────────────────────────────────────────
+  var TMPL = [
+    '<div>',
+    '  <div class="track-row">Label: <strong>{{label}}</strong></div>',
+    '  <div class="track-row">Key: <strong>{{key}}</strong></div>',
+    '  <div class="track-row">BPM: <strong>{{bpm}}</strong></div>',
+    '  <div style="margin-top:8px">',
+    '    <span class="bar" style="width:{{barW}}%"></span>',
+    '  </div>',
+    '</div>'
+  ].join('\n');
+
+  var tmpl = new Vertex.template({
+    el:       document.getElementById('p2-template'),
+    template: TMPL,
+    data: { label: store.label, key: store.key, bpm: store.bpm, barW: 0 }
+  });
+
+  store.subscribe(function () {
+    tmpl.update({ label: store.label, key: store.key, bpm: store.bpm, barW: (store.bpm - 60) / 1.4 });
+  });
+
+  // ── Reconciler side ───────────────────────────────────────────────────────
+  var KEYS = ['Am', 'Dm', 'Em', 'Gm', 'Cm'];
+
+  function ControlPanel() {
+    var pair1    = Vertex.useState(store.bpm);
+    var bpm      = pair1[0];
+    var setBpm   = pair1[1];
+
+    var pair2    = Vertex.useState(store.key);
+    var key      = pair2[0];
+    var setKey   = pair2[1];
+
+    var pair3    = Vertex.useState(store.label);
+    var label    = pair3[0];
+    var setLabel = pair3[1];
+
+    function updateBpm(v) {
+      setBpm(v);
+      store.set({ bpm: v });
+    }
+    function updateKey(v) {
+      setKey(v);
+      store.set({ key: v });
+    }
+    function updateLabel(v) {
+      setLabel(v);
+      store.set({ label: v });
+    }
+
+    return h('div', null,
+      h('div', { className: 'row' },
+        h('span', { className: 'muted' }, 'BPM'),
+        h('input', {
+          type: 'range', min: 60, max: 200, value: bpm,
+          onInput: function (e) { updateBpm(parseInt(e.target.value)); }
+        }),
+        h('span', { className: 'val' }, bpm)
+      ),
+      h('div', { className: 'row' },
+        h('span', { className: 'muted' }, 'Key'),
+        KEYS.map(function (k) {
+          return h('button', {
+            key: k,
+            onClick: function () { updateKey(k); },
+            style: k === key ? { borderColor: 'var(--acc)', color: 'var(--acc)' } : {}
+          }, k);
+        })
+      ),
+      h('div', { className: 'row' },
+        h('span', { className: 'muted' }, 'Label'),
+        h('input', {
+          type: 'text', value: label,
+          onInput: function (e) { updateLabel(e.target.value); }
+        })
+      )
+    );
+  }
+
+  Vertex.render(h(ControlPanel, null), document.getElementById('p2-reconciler'));
+}());
+</script>
+
+</body>
+</html>
