@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Float64 / Vertex</title>
+  <style>
+    /* ── Reset & base ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --bg-panel:  #111111;
+      --border:    #222222;
+      --accent:    #0091ff;       /* sharp chartreuse — the one colour on the page */
+      --dim:       #444444;
+      --muted:     #666666;
+      --body:      #b0b0b0;
+      --heading:   #e8e8e8;
+      --code-bg:   #161616;
+      --code-border:#1e1e1e;
+      --link:      #006aff;
+      --link-vis:  #0065b8;
+      --font-mono: "Courier New", Courier, monospace;
+      --font-sans: Georgia, "Times New Roman", serif;   /* deliberate retro choice */
+      --max-w:     860px;
+      --pad:       2.4rem;
+    }
+
+    html { font-size: 15px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--body);
+      font-family: var(--font-mono);
+      line-height: 1.75;
+      min-height: 100vh;
+    }
+
+    ::selection { background: var(--accent); color: #000; }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar              { width: 6px; }
+    ::-webkit-scrollbar-track        { background: var(--bg); }
+    ::-webkit-scrollbar-thumb        { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover  { background: var(--dim); }
+
+    /* ── Layout shell ──────────────────────────────────────────────────── */
+    .shell {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 var(--pad);
+    }
+
+    /* ── Header ────────────────────────────────────────────────────────── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 2rem 0 1.6rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .site-name {
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+
+    .site-name a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .site-name a:hover { color: var(--body); }
+
+    h1.brand {
+      font-family: var(--font-mono);
+      font-size: 2.6rem;
+      font-weight: normal;
+      color: var(--heading);
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+
+    h1.brand span.accent { color: var(--accent); }
+
+    /* ── TOC / nav ─────────────────────────────────────────────────────── */
+    nav.toc {
+      border: 1px solid var(--border);
+      padding: 1.4rem 1.6rem;
+      margin-bottom: 3.5rem;
+      background: var(--bg-panel);
+    }
+
+    nav.toc h2 {
+      font-size: 0.72rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      font-weight: normal;
+    }
+
+    nav.toc ol {
+      list-style: none;
+      counter-reset: toc;
+    }
+
+    nav.toc ol li {
+      counter-increment: toc;
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      padding: 0.18rem 0;
+    }
+
+    nav.toc ol li::before {
+      content: counter(toc, decimal-leading-zero) ".";
+      font-size: 0.72rem;
+      color: var(--dim);
+      min-width: 2.2rem;
+      flex-shrink: 0;
+    }
+
+    nav.toc a {
+      color: var(--body);
+      text-decoration: none;
+      font-size: 0.88rem;
+    }
+    nav.toc a:hover { color: var(--accent); }
+
+    /* ── Sections ──────────────────────────────────────────────────────── */
+    section {
+      margin-bottom: 4rem;
+    }
+
+    section + section {
+      border-top: 1px solid var(--border);
+      padding-top: 3.5rem;
+    }
+
+    /* ── Typography ────────────────────────────────────────────────────── */
+    h2.sec {
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: normal;
+      color: var(--heading);
+      margin-bottom: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    h2.sec .sec-num {
+      font-size: 0.7rem;
+      color: var(--accent);
+      letter-spacing: 0.12em;
+    }
+
+    h3 {
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      font-weight: normal;
+      color: var(--heading);
+      margin: 2rem 0 0.8rem;
+    }
+
+    h3::before {
+      content: "── ";
+      color: var(--dim);
+    }
+
+    p {
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    a {
+      color: var(--link);
+      text-decoration: none;
+    }
+    a:visited { color: var(--link-vis); }
+    a:hover   { text-decoration: underline; }
+
+    strong, b {
+      color: var(--heading);
+      font-weight: bold;
+    }
+
+    em { color: var(--body); font-style: italic; }
+
+    /* ── Inline code ───────────────────────────────────────────────────── */
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.84em;
+      color: var(--accent);
+      background: var(--code-bg);
+      padding: 0.08em 0.35em;
+      border: 1px solid var(--code-border);
+    }
+
+    /* ── Code blocks ───────────────────────────────────────────────────── */
+    pre {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      line-height: 1.65;
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-left: 3px solid var(--accent);
+      padding: 1.2rem 1.4rem;
+      overflow-x: auto;
+      margin: 1.2rem 0 1.6rem;
+      color: #c8c8c8;
+    }
+
+    pre .c  { color: var(--muted); }         /* comments */
+    pre .k  { color: #81aeff; }              /* keywords */
+    pre .s  { color: #f1c06b; }              /* strings  */
+    pre .fn { color: #b8d7a3; }              /* function names */
+    pre .n  { color: var(--accent); }        /* special names/consts */
+
+    /* ── Note / callout ────────────────────────────────────────────────── */
+    .note {
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--dim);
+      background: var(--bg-panel);
+      padding: 0.9rem 1.2rem;
+      margin: 1.2rem 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .note strong { color: var(--body); }
+
+    /* ── API table ─────────────────────────────────────────────────────── */
+    .api-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin: 1.2rem 0 1.8rem;
+    }
+
+    .api-table th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: normal;
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 0.8rem 0.5rem 0;
+    }
+
+    .api-table td {
+      border-bottom: 1px solid var(--code-border);
+      padding: 0.55rem 0.8rem 0.55rem 0;
+      vertical-align: top;
+    }
+
+    .api-table td:first-child code {
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+
+    .api-table td:last-child {
+      color: #888;
+      font-size: 0.82rem;
+    }
+
+    /* ── Download badge ────────────────────────────────────────────────── */
+    .dl-block {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      margin: 1.4rem 0 2rem;
+      overflow: hidden;
+    }
+
+    .dl-block .dl-label {
+      background: var(--accent);
+      color: #000;
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: bold;
+      padding: 0.9rem 1rem;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .dl-block .dl-url {
+      padding: 0.9rem 1rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .dl-block .dl-url a {
+      color: var(--body);
+      font-size: 0.78rem;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 0;
+      margin-top: 4rem;
+      font-size: 0.76rem;
+      color: var(--dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+    }
+
+    footer a { color: var(--dim); }
+    footer a:hover { color: var(--muted); }
+
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      :root { --pad: 1.2rem; }
+      h1.brand { font-size: 2rem; }
+      pre { font-size: 0.75rem; padding: 0.9rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <header>
+    <span class="site-name"><a href="#">Float64</a></span>
+    <h1 class="brand">Vertex<span class="accent">.</span></h1>
+  </header>
+
+  <!-- ── Table of Contents ──────────────────────────────────────────── -->
+  <nav class="toc" aria-label="Table of contents">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#obtaining">Obtaining vertex.js</a></li>
+      <li><a href="#loading">Loading in the &lt;head&gt;</a></li>
+      <li><a href="#templates-dir">Setting a templates directory</a></li>
+      <li><a href="#dom">DOM layer — V$ / VQuery</a></li>
+      <li><a href="#ajax">AJAX</a></li>
+      <li><a href="#reconciler">Fiber reconciler — createElement &amp; render</a></li>
+      <li><a href="#hooks">Hooks — useState, useEffect, useRef, useMemo, useContext</a></li>
+      <li><a href="#ractive">Template engine — Ractive / Mustache</a></li>
+      <li><a href="#router">Hash router — Backbone style</a></li>
+      <li><a href="#usehash">useHash — router meets reconciler</a></li>
+      <li><a href="#jquery-compat">jQuery compatibility</a></li>
+      <li><a href="#api-ref">Quick API reference</a></li>
+    </ol>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 1  OBTAINING
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="obtaining">
+    <h2 class="sec"><span class="sec-num">01.</span> Obtaining vertex.js</h2>
+
+    <p>
+      vertex.js is a single, self-contained file with no build step and no
+      dependencies. Download it from the Gist below and drop it wherever
+      your project serves static assets.
+    </p>
+
+    <div class="dl-block">
+      <div class="dl-label">gist</div>
+      <div class="dl-url">
+        <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/0880e7f04fb9b2d717f06c05ae2d026dfb579c57/vertex.js"
+           target="_blank" rel="noopener">
+          gist.githubusercontent.com/LukeB42/…/vertex.js
+        </a>
+      </div>
+    </div>
+
+    <p>Or fetch it from the command line:</p>
+
+<pre><span class="c"># save to your project's static directory</span>
+curl -o static/vertex.js \
+  https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/0880e7f04fb9b2d717f06c05ae2d026dfb579c57/vertex.js</pre>
+
+    <p>
+      It ships as a UMD module, so it works equally as a plain
+      <code>&lt;script&gt;</code> tag, a CommonJS <code>require()</code>,
+      or an AMD <code>define()</code>.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 2  LOADING
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="loading">
+    <h2 class="sec"><span class="sec-num">02.</span> Loading in the &lt;head&gt;</h2>
+
+    <p>
+      Add a single <code>&lt;script&gt;</code> tag. Place it before any
+      code that references <code>Vertex</code> or <code>V$</code>.
+    </p>
+
+<pre>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;title&gt;My App&lt;/title&gt;
+
+  &lt;<span class="fn">script</span> src=<span class="s">"/static/vertex.js"</span>&gt;&lt;/<span class="fn">script</span>&gt;
+
+  <span class="c">&lt;!-- If you also use jQuery, load it BEFORE vertex.js.
+       vertex.js detects $ and leaves it untouched. --&gt;</span>
+  <span class="c">&lt;!-- &lt;script src="/static/jquery.min.js"&gt;&lt;/script&gt; --&gt;</span>
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;div id=<span class="s">"root"</span>&gt;&lt;/div&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+    <p>
+      After loading, the following globals are available:
+    </p>
+
+    <table class="api-table">
+      <thead>
+        <tr>
+          <th>Global</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Vertex</code></td>
+          <td>Full namespace — all features live here</td>
+        </tr>
+        <tr>
+          <td><code>V$</code></td>
+          <td>Shorthand DOM wrapper — always available</td>
+        </tr>
+        <tr>
+          <td><code>$</code></td>
+          <td>Also set to the DOM wrapper <em>only</em> when jQuery is absent</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 3  TEMPLATES DIRECTORY
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="templates-dir">
+    <h2 class="sec"><span class="sec-num">03.</span> Setting a templates directory</h2>
+
+    <p>
+      Vertex does not impose a global config object — the templates path is
+      passed directly to <code>Ractive.load()</code>. The cleanest pattern
+      is to create a small wrapper once and reuse it:
+    </p>
+
+<pre><span class="c">// config.js  (or inline in your main script)</span>
+<span class="k">const</span> TEMPLATES = <span class="s">"/static/templates/"</span>;
+
+<span class="c">/**
+ * loadTemplate(name)
+ * Fetches /static/templates/{name}.html, parses it,
+ * and returns a mounted Ractive instance.
+ */</span>
+<span class="k">function</span> <span class="fn">loadTemplate</span>(name, options) {
+  <span class="k">return</span> Vertex.Ractive.<span class="fn">load</span>(TEMPLATES + name + <span class="s">".html"</span>, options);
+}
+
+<span class="c">// Usage</span>
+<span class="fn">loadTemplate</span>(<span class="s">"user-card"</span>, {
+  el:   <span class="s">"#sidebar"</span>,
+  data: { name: <span class="s">"Alice"</span>, role: <span class="s">"Engineer"</span> }
+}).<span class="fn">then</span>(instance => {
+  instance.<span class="fn">on</span>(<span class="s">"change"</span>, e => <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"changed:"</span>, e));
+});</pre>
+
+    <p>
+      A template file at <code>/static/templates/user-card.html</code>
+      is just a regular HTML fragment wrapped in a
+      <code>&lt;template&gt;</code> tag:
+    </p>
+
+<pre><span class="c">&lt;!-- /static/templates/user-card.html --&gt;</span>
+&lt;<span class="fn">template</span>&gt;
+  &lt;div class=<span class="s">"card"</span>&gt;
+    &lt;h2&gt;{{name}}&lt;/h2&gt;
+    &lt;p&gt;{{role}}&lt;/p&gt;
+    {{<span class="n">#if</span> email}}&lt;a href=<span class="s">"mailto:{{email}}"</span>&gt;{{email}}&lt;/a&gt;{{<span class="n">/if</span>}}
+  &lt;/div&gt;
+&lt;/<span class="fn">template</span>&gt;</pre>
+
+    <div class="note">
+      <strong>Note:</strong> If the file has no <code>&lt;template&gt;</code>
+      tag, <code>Ractive.load()</code> uses the entire response body as
+      the template string. Both forms work.
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 4  DOM LAYER
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="dom">
+    <h2 class="sec"><span class="sec-num">04.</span> DOM layer — V$ / VQuery</h2>
+
+    <p>
+      <code>V$(selector)</code> returns a chainable wrapper around a set of
+      matched elements — identical in spirit to hn.js with a fuller jQuery
+      surface. Every method returns <code>this</code> for chaining.
+    </p>
+
+    <h3>Selecting &amp; creating elements</h3>
+
+<pre><span class="c">// CSS selector</span>
+<span class="fn">V$</span>(<span class="s">".card"</span>).<span class="fn">addClass</span>(<span class="s">"active"</span>);
+
+<span class="c">// HTML creation</span>
+<span class="k">const</span> el = <span class="fn">V$</span>(<span class="s">'&lt;li class="item"&gt;Hello&lt;/li&gt;'</span>);
+
+<span class="c">// Scoped query (2nd arg = context)</span>
+<span class="fn">V$</span>(<span class="s">"li"</span>, <span class="s">"#my-list"</span>).<span class="fn">each</span>(<span class="k">function</span>() {
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="k">this</span>.textContent);
+});
+
+<span class="c">// Document ready</span>
+<span class="fn">V$</span>(<span class="k">function</span>() {
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"DOM ready"</span>);
+});</pre>
+
+    <h3>Events — .on() / .off() / .trigger()</h3>
+
+<pre><span class="c">// Direct event binding</span>
+<span class="fn">V$</span>(<span class="s">"button"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, <span class="k">function</span>(e) {
+  <span class="fn">V$</span>(<span class="k">this</span>).<span class="fn">toggleClass</span>(<span class="s">"pressed"</span>);
+});
+
+<span class="c">// Multiple events at once</span>
+<span class="fn">V$</span>(<span class="s">"input"</span>).<span class="fn">on</span>(<span class="s">"focus blur"</span>, <span class="k">function</span>() {
+  <span class="fn">V$</span>(<span class="k">this</span>).<span class="fn">toggleClass</span>(<span class="s">"active"</span>);
+});
+
+<span class="c">// Event delegation (bubbles up from ".row" to "#table")</span>
+<span class="fn">V$</span>(<span class="s">"#table"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, <span class="s">".row"</span>, <span class="k">function</span>(e) {
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"row clicked:"</span>, <span class="k">this</span>.dataset.id);
+});
+
+<span class="c">// Remove handler</span>
+<span class="k">const</span> <span class="fn">handler</span> = e => <span class="fn">doSomething</span>(e);
+<span class="fn">V$</span>(<span class="s">"#btn"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, handler);
+<span class="fn">V$</span>(<span class="s">"#btn"</span>).<span class="fn">off</span>(<span class="s">"click"</span>, handler);
+
+<span class="c">// Custom event dispatch</span>
+<span class="fn">V$</span>(<span class="s">"#root"</span>).<span class="fn">trigger</span>(<span class="s">"app:ready"</span>, { version: <span class="s">"1.0"</span> });</pre>
+
+    <h3>Attributes, styles &amp; values</h3>
+
+<pre><span class="c">// .attr(name)           → get
+// .attr(name, val)      → set (chainable)
+// .css(prop)            → get computed value
+// .css(prop, val)       → set style property
+// .css({ prop: val })   → set multiple
+// .val()                → get input value
+// .val(v)               → set input value</span>
+
+<span class="fn">V$</span>(<span class="s">"img"</span>)
+  .<span class="fn">attr</span>(<span class="s">"alt"</span>, <span class="s">"A scenic photo"</span>)
+  .<span class="fn">css</span>({ borderRadius: <span class="s">"4px"</span>, opacity: <span class="s">"0.9"</span> });
+
+<span class="k">const</span> username = <span class="fn">V$</span>(<span class="s">"#name-input"</span>).<span class="fn">val</span>();
+<span class="fn">V$</span>(<span class="s">"#name-input"</span>).<span class="fn">val</span>(<span class="s">""</span>).<span class="fn">attr</span>(<span class="s">"placeholder"</span>, <span class="s">"Enter name…"</span>);</pre>
+
+    <h3>Content &amp; traversal</h3>
+
+<pre><span class="c">// Content</span>
+<span class="fn">V$</span>(<span class="s">"#output"</span>).<span class="fn">html</span>(<span class="s">"&lt;strong&gt;Done.&lt;/strong&gt;"</span>);
+<span class="fn">V$</span>(<span class="s">"#label"</span>).<span class="fn">text</span>(<span class="s">"Status: OK"</span>);
+<span class="fn">V$</span>(<span class="s">"ul"</span>).<span class="fn">append</span>(<span class="s">"&lt;li&gt;New item&lt;/li&gt;"</span>);
+<span class="fn">V$</span>(<span class="s">"ul"</span>).<span class="fn">prepend</span>(<span class="s">"&lt;li&gt;First item&lt;/li&gt;"</span>);
+
+<span class="c">// Traversal</span>
+<span class="fn">V$</span>(<span class="s">".panel"</span>).<span class="fn">find</span>(<span class="s">"input"</span>).<span class="fn">val</span>(<span class="s">""</span>);   <span class="c">// clear all inputs inside .panel</span>
+<span class="fn">V$</span>(<span class="s">"li.active"</span>).<span class="fn">parent</span>().<span class="fn">addClass</span>(<span class="s">"has-active"</span>);
+<span class="fn">V$</span>(<span class="s">"li"</span>).<span class="fn">first</span>().<span class="fn">addClass</span>(<span class="s">"leader"</span>);
+<span class="fn">V$</span>(<span class="s">"li"</span>).<span class="fn">eq</span>(2).<span class="fn">remove</span>();
+<span class="fn">V$</span>(<span class="s">"li"</span>).<span class="fn">filter</span>(<span class="k">function</span>(el, i) { <span class="k">return</span> i % 2 === 0; }).<span class="fn">addClass</span>(<span class="s">"even"</span>);
+<span class="fn">V$</span>(<span class="s">".item"</span>).<span class="fn">not</span>(<span class="s">".disabled"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, <span class="fn">handleClick</span>);</pre>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 5  AJAX
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="ajax">
+    <h2 class="sec"><span class="sec-num">05.</span> AJAX</h2>
+
+    <p>
+      <code>Vertex.ajax()</code> wraps the Fetch API with a jQuery-shaped
+      surface: success/error callbacks, dataType, content-type handling,
+      and <code>.done()</code>/<code>.fail()</code> on the returned Promise.
+    </p>
+
+<pre><span class="c">// Full options form</span>
+Vertex.<span class="fn">ajax</span>({
+  url:         <span class="s">"/api/tracks"</span>,
+  method:      <span class="s">"GET"</span>,
+  data:        { genre: <span class="s">"bass"</span>, limit: 20 },
+  dataType:    <span class="s">"json"</span>,
+  success: tracks => <span class="fn">renderTracks</span>(tracks),
+  error:   err    => <span class="fn">console</span>.<span class="fn">error</span>(err)
+});
+
+<span class="c">// POST with JSON body</span>
+Vertex.<span class="fn">ajax</span>({
+  url:         <span class="s">"/api/session"</span>,
+  method:      <span class="s">"POST"</span>,
+  contentType: <span class="s">"application/json"</span>,
+  data:        { token: myToken },
+  success: session => <span class="fn">startSession</span>(session)
+});
+
+<span class="c">// Promise style</span>
+Vertex.<span class="fn">ajax</span>({ url: <span class="s">"/api/ping"</span> })
+  .<span class="fn">done</span>(res  => <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"ok"</span>, res))
+  .<span class="fn">fail</span>(err  => <span class="fn">console</span>.<span class="fn">warn</span>(<span class="s">"failed"</span>, err));
+
+<span class="c">// Shorthand GET / POST</span>
+Vertex.<span class="fn">get</span>(<span class="s">"/api/user"</span>, data => <span class="fn">console</span>.<span class="fn">log</span>(data));
+Vertex.<span class="fn">post</span>(<span class="s">"/api/save"</span>, { title: <span class="s">"Mix A"</span> }, res => <span class="fn">console</span>.<span class="fn">log</span>(res));</pre>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 6  RECONCILER
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="reconciler">
+    <h2 class="sec"><span class="sec-num">06.</span> Fiber reconciler — createElement &amp; render</h2>
+
+    <p>
+      Vertex's reconciler follows the same fiber architecture described at
+      <a href="https://pomb.us/build-your-own-react/" target="_blank" rel="noopener">pomb.us</a>.
+      The public API is intentionally React-compatible.
+    </p>
+
+    <h3>createElement</h3>
+
+<pre><span class="k">const</span> { createElement: h, render, Fragment } = Vertex;
+
+<span class="c">// Host element</span>
+<span class="fn">h</span>(<span class="s">"div"</span>, { className: <span class="s">"card"</span> },
+  <span class="fn">h</span>(<span class="s">"h2"</span>, <span class="k">null</span>, <span class="s">"Hello"</span>),
+  <span class="fn">h</span>(<span class="s">"p"</span>,  <span class="k">null</span>, <span class="s">"World"</span>)
+)
+
+<span class="c">// Function component</span>
+<span class="k">function</span> <span class="fn">Badge</span>({ label, colour }) {
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"span"</span>, { style: { background: colour } }, label);
+}
+<span class="fn">h</span>(Badge, { label: <span class="s">"Bass"</span>, colour: <span class="s">"#c8ff00"</span> })
+
+<span class="c">// Fragment — renders children with no wrapper element</span>
+<span class="fn">h</span>(Fragment, <span class="k">null</span>,
+  <span class="fn">h</span>(<span class="s">"dt"</span>, <span class="k">null</span>, <span class="s">"BPM"</span>),
+  <span class="fn">h</span>(<span class="s">"dd"</span>, <span class="k">null</span>, <span class="s">"174"</span>)
+)</pre>
+
+    <h3>render</h3>
+
+<pre><span class="c">// Mount your root component once — Vertex handles all subsequent updates</span>
+<span class="k">function</span> <span class="fn">App</span>() {
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"div"</span>, { className: <span class="s">"app"</span> },
+    <span class="fn">h</span>(<span class="s">"h1"</span>, <span class="k">null</span>, <span class="s">"Vertex"</span>)
+  );
+}
+
+Vertex.<span class="fn">render</span>(
+  <span class="fn">h</span>(App, <span class="k">null</span>),
+  document.<span class="fn">getElementById</span>(<span class="s">"root"</span>)
+);</pre>
+
+    <h3>Lazy / async components</h3>
+
+<pre><span class="c">// Vertex.lazy() follows the React.lazy Suspense protocol.
+// The component is fetched once; Vertex re-renders automatically.</span>
+<span class="k">const</span> HeavyChart = Vertex.<span class="fn">lazy</span>(() => <span class="fn">import</span>(<span class="s">"/static/js/chart.js"</span>));
+
+<span class="k">function</span> <span class="fn">Dashboard</span>() {
+  <span class="k">return</span> <span class="fn">h</span>(HeavyChart, { data: chartData });
+}</pre>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 7  HOOKS
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="hooks">
+    <h2 class="sec"><span class="sec-num">07.</span> Hooks</h2>
+
+    <p>
+      All hooks follow React's rules: call them only at the top level of a
+      function component, never inside conditionals or loops.
+    </p>
+
+    <h3>useState</h3>
+
+<pre><span class="k">function</span> <span class="fn">Counter</span>() {
+  <span class="k">const</span> [count, setCount] = Vertex.<span class="fn">useState</span>(0);
+
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"div"</span>, <span class="k">null</span>,
+    <span class="fn">h</span>(<span class="s">"span"</span>, <span class="k">null</span>, String(count)),
+    <span class="fn">h</span>(<span class="s">"button"</span>, { onClick: () => <span class="fn">setCount</span>(c => c + 1) }, <span class="s">"+"</span>),
+    <span class="fn">h</span>(<span class="s">"button"</span>, { onClick: () => <span class="fn">setCount</span>(0) }, <span class="s">"reset"</span>)
+  );
+}</pre>
+
+    <h3>useReducer</h3>
+
+<pre><span class="k">function</span> <span class="fn">reducer</span>(state, action) {
+  <span class="k">switch</span> (action.type) {
+    <span class="k">case</span> <span class="s">"add"</span>:    <span class="k">return</span> { ...state, items: [...state.items, action.item] };
+    <span class="k">case</span> <span class="s">"clear"</span>:  <span class="k">return</span> { ...state, items: [] };
+    <span class="k">default</span>:        <span class="k">return</span> state;
+  }
+}
+
+<span class="k">function</span> <span class="fn">Playlist</span>() {
+  <span class="k">const</span> [state, dispatch] = Vertex.<span class="fn">useReducer</span>(reducer, { items: [] });
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"ul"</span>, <span class="k">null</span>,
+    ...state.items.<span class="fn">map</span>(t => <span class="fn">h</span>(<span class="s">"li"</span>, { key: t.id }, t.title))
+  );
+}</pre>
+
+    <h3>useEffect</h3>
+
+<pre><span class="k">function</span> <span class="fn">AudioPlayer</span>({ src }) {
+  <span class="k">const</span> audioRef = Vertex.<span class="fn">useRef</span>(<span class="k">null</span>);
+
+  <span class="c">// Run once on mount — teardown on unmount</span>
+  Vertex.<span class="fn">useEffect</span>(<span class="k">function</span>() {
+    <span class="k">const</span> ctx = <span class="k">new</span> <span class="fn">AudioContext</span>();
+    audioRef.current = ctx;
+    <span class="k">return</span> () => ctx.<span class="fn">close</span>();   <span class="c">// cleanup</span>
+  }, []);
+
+  <span class="c">// Re-run when src changes</span>
+  Vertex.<span class="fn">useEffect</span>(<span class="k">function</span>() {
+    <span class="k">if</span> (audioRef.current) <span class="fn">loadTrack</span>(audioRef.current, src);
+  }, [src]);
+
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"div"</span>, { className: <span class="s">"player"</span> }, <span class="s">"Playing: "</span> + src);
+}</pre>
+
+    <h3>useMemo &amp; useCallback</h3>
+
+<pre><span class="k">function</span> <span class="fn">TrackList</span>({ tracks, filter }) {
+  <span class="c">// Only re-computed when tracks or filter changes</span>
+  <span class="k">const</span> filtered = Vertex.<span class="fn">useMemo</span>(
+    () => tracks.<span class="fn">filter</span>(t => t.genre === filter),
+    [tracks, filter]
+  );
+
+  <span class="c">// Stable function reference — safe to pass to child components</span>
+  <span class="k">const</span> handleClick = Vertex.<span class="fn">useCallback</span>(
+    t => <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"selected:"</span>, t.title),
+    []
+  );
+
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"ul"</span>, <span class="k">null</span>,
+    ...filtered.<span class="fn">map</span>(t =>
+      <span class="fn">h</span>(<span class="s">"li"</span>, { onClick: () => <span class="fn">handleClick</span>(t) }, t.title)
+    )
+  );
+}</pre>
+
+    <h3>useRef</h3>
+
+<pre><span class="k">function</span> <span class="fn">FocusInput</span>() {
+  <span class="k">const</span> inputRef = Vertex.<span class="fn">useRef</span>(<span class="k">null</span>);
+
+  Vertex.<span class="fn">useEffect</span>(() => {
+    <span class="k">if</span> (inputRef.current) inputRef.current.<span class="fn">focus</span>();
+  }, []);
+
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"input"</span>, {
+    ref: inputRef,         <span class="c">// Vertex will write the DOM node here</span>
+    placeholder: <span class="s">"Type…"</span>
+  });
+}</pre>
+
+    <h3>createContext &amp; useContext</h3>
+
+<pre><span class="k">const</span> ThemeCtx = Vertex.<span class="fn">createContext</span>(<span class="s">"dark"</span>);
+
+<span class="k">function</span> <span class="fn">App</span>() {
+  <span class="k">return</span> <span class="fn">h</span>(ThemeCtx.Provider, { value: <span class="s">"dark"</span> },
+    <span class="fn">h</span>(Toolbar, <span class="k">null</span>)
+  );
+}
+
+<span class="k">function</span> <span class="fn">Toolbar</span>() {
+  <span class="k">const</span> theme = Vertex.<span class="fn">useContext</span>(ThemeCtx);
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"nav"</span>, { className: <span class="s">"toolbar theme-"</span> + theme });
+}</pre>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 8  RACTIVE
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="ractive">
+    <h2 class="sec"><span class="sec-num">08.</span> Template engine — Ractive / Mustache</h2>
+
+    <p>
+      The <code>Ractive</code> constructor takes an element target, a
+      mustache template string, and a data object. It renders immediately
+      and re-renders on every <code>.set()</code> or <code>.update()</code>.
+    </p>
+
+    <h3>Basic usage</h3>
+
+<pre><span class="k">const</span> r = <span class="k">new</span> Vertex.<span class="fn">Ractive</span>({
+  el:       <span class="s">"#app"</span>,
+  template: <span class="s">`
+    &lt;h1&gt;{{title}}&lt;/h1&gt;
+    &lt;ul&gt;
+      {{#each tracks}}
+        &lt;li&gt;{{@index}}. {{name}} — {{bpm}} BPM&lt;/li&gt;
+      {{/each}}
+    &lt;/ul&gt;
+  `</span>,
+  data: {
+    title:  <span class="s">"My Set"</span>,
+    tracks: [
+      { name: <span class="s">"Vortex"</span>,    bpm: 174 },
+      { name: <span class="s">"Subsonic"</span>,  bpm: 140 },
+    ]
+  }
+});
+
+<span class="c">// Update a single key — triggers re-render</span>
+r.<span class="fn">set</span>(<span class="s">"title"</span>, <span class="s">"Night Set"</span>);
+
+<span class="c">// Merge multiple keys at once</span>
+r.<span class="fn">update</span>({ title: <span class="s">"Morning Set"</span>, tracks: [] });
+
+<span class="c">// Listen for data changes</span>
+r.<span class="fn">on</span>(<span class="s">"change"</span>, ({ keypath, value }) => {
+  <span class="fn">console</span>.<span class="fn">log</span>(keypath, <span class="s">"→"</span>, value);
+});</pre>
+
+    <h3>Mustache syntax reference</h3>
+
+    <table class="api-table">
+      <thead>
+        <tr><th>Syntax</th><th>Behaviour</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&#123;&#123;key&#125;&#125;</code></td>
+          <td>HTML-escaped interpolation</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;&#123;key&#125;&#125;&#125;</code></td>
+          <td>Raw / unescaped HTML</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;user.name&#125;&#125;</code></td>
+          <td>Nested dot-path resolution</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;#each items&#125;&#125; … &#123;&#123;/each&#125;&#125;</code></td>
+          <td>Loop — keys from each item available directly; <code>@index</code> for position</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;#if flag&#125;&#125; … &#123;&#123;/if&#125;&#125;</code></td>
+          <td>Conditional block</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;#if flag&#125;&#125; … &#123;&#123;else&#125;&#125; … &#123;&#123;/if&#125;&#125;</code></td>
+          <td>Conditional with fallback</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Two-way binding</h3>
+
+    <p>
+      Add <code>data-bind="keypath"</code> to any <code>&lt;input&gt;</code>
+      inside a Ractive template and Vertex will keep the input and the data
+      object in sync automatically:
+    </p>
+
+<pre><span class="k">new</span> Vertex.<span class="fn">Ractive</span>({
+  el:       <span class="s">"#form"</span>,
+  template: <span class="s">'&lt;input data-bind="username" placeholder="Username"&gt;'</span>,
+  data:     { username: <span class="s">""</span> },
+  oncomplete() {
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"mounted, username ="</span>, <span class="k">this</span>.<span class="fn">get</span>(<span class="s">"username"</span>));
+  }
+});</pre>
+
+    <h3>Ractive.load() — remote templates</h3>
+
+<pre><span class="c">// Fetches a .html file, finds the &lt;template&gt; tag, mounts it</span>
+Vertex.Ractive.<span class="fn">load</span>(<span class="s">"/static/templates/player.html"</span>, {
+  el:   <span class="s">"#player-container"</span>,
+  data: { track: <span class="s">"Vortex.wav"</span>, playing: <span class="k">false</span> }
+}).<span class="fn">then</span>(instance => {
+  instance.<span class="fn">on</span>(<span class="s">"change"</span>, e => <span class="fn">syncBackend</span>(e));
+});</pre>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 9  ROUTER
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="router">
+    <h2 class="sec"><span class="sec-num">09.</span> Hash router — Backbone style</h2>
+
+    <p>
+      <code>Vertex.Router</code> is a singleton. Routes are matched against
+      the URL fragment (<code>#/…</code>) using named parameters
+      (<code>:name</code>) and splats (<code>*rest</code>).
+    </p>
+
+    <h3>Singleton API</h3>
+
+<pre><span class="k">const</span> { Router } = Vertex;
+
+Router
+  .<span class="fn">add</span>(<span class="s">""</span>,                params => <span class="fn">showHome</span>())
+  .<span class="fn">add</span>(<span class="s">"projects"</span>,        params => <span class="fn">showProjects</span>())
+  .<span class="fn">add</span>(<span class="s">"projects/:id"</span>,    params => <span class="fn">showProject</span>(params.id))
+  .<span class="fn">add</span>(<span class="s">"files/*path"</span>,     params => <span class="fn">showFile</span>(params.path))
+  .<span class="fn">start</span>();               <span class="c">// begins listening; dispatches current fragment</span>
+
+<span class="c">// Navigate programmatically</span>
+Router.<span class="fn">navigate</span>(<span class="s">"projects/42"</span>);           <span class="c">// sets #/projects/42</span>
+Router.<span class="fn">navigate</span>(<span class="s">"projects/42"</span>, { trigger: <span class="k">true</span> }); <span class="c">// + fire handler</span>
+
+<span class="c">// Remove a route</span>
+Router.<span class="fn">remove</span>(<span class="s">"files/*path"</span>);
+
+<span class="c">// Stop / reset</span>
+Router.<span class="fn">stop</span>();
+Router.<span class="fn">reset</span>();</pre>
+
+    <h3>Class-based router (Backbone.Router syntax)</h3>
+
+<pre><span class="k">const</span> AppRouter = Vertex.RouterClass.<span class="fn">extend</span>({
+  routes: {
+    <span class="s">""</span>:              <span class="s">"home"</span>,
+    <span class="s">"projects"</span>:      <span class="s">"projects"</span>,
+    <span class="s">"projects/:id"</span>:  <span class="s">"project"</span>,
+    <span class="s">"files/*path"</span>:   <span class="s">"file"</span>
+  },
+
+  home()            { <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"home"</span>); },
+  projects()        { <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"projects"</span>); },
+  project({ id })   { <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"project"</span>, id); },
+  file({ path })    { <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"file"</span>, path); }
+});
+
+<span class="k">const</span> router = <span class="k">new</span> <span class="fn">AppRouter</span>();
+Vertex.Router.<span class="fn">start</span>();</pre>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 10  USEHASH
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="usehash">
+    <h2 class="sec"><span class="sec-num">10.</span> useHash — router meets reconciler</h2>
+
+    <p>
+      <code>useHash()</code> is a hook that returns the current
+      <code>location.hash</code> fragment and automatically re-renders
+      the component on every <code>hashchange</code> event. It's the
+      idiomatic way to drive the fiber reconciler from URL state.
+    </p>
+
+<pre><span class="k">const</span> { createElement: h, render, useHash } = Vertex;
+
+<span class="k">const</span> ROUTES = {
+  <span class="s">""</span>:         Home,
+  <span class="s">"projects"</span>: Projects,
+  <span class="s">"about"</span>:    About
+};
+
+<span class="k">function</span> <span class="fn">App</span>() {
+  <span class="k">const</span> hash = <span class="fn">useHash</span>();             <span class="c">// e.g. "#/projects"</span>
+  <span class="k">const</span> key  = hash.<span class="fn">replace</span>(/^#\//, <span class="s">""</span>);
+  <span class="k">const</span> Page = ROUTES[key] || NotFound;
+
+  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"main"</span>, <span class="k">null</span>,
+    <span class="fn">h</span>(<span class="s">"nav"</span>, <span class="k">null</span>,
+      <span class="fn">h</span>(<span class="s">"a"</span>, { href: <span class="s">"#/"</span>          }, <span class="s">"Home"</span>),
+      <span class="fn">h</span>(<span class="s">"a"</span>, { href: <span class="s">"#/projects"</span>  }, <span class="s">"Projects"</span>),
+      <span class="fn">h</span>(<span class="s">"a"</span>, { href: <span class="s">"#/about"</span>     }, <span class="s">"About"</span>)
+    ),
+    <span class="fn">h</span>(Page, <span class="k">null</span>)
+  );
+}
+
+<span class="fn">render</span>(<span class="fn">h</span>(App, <span class="k">null</span>), document.<span class="fn">getElementById</span>(<span class="s">"root"</span>));</pre>
+
+    <p>
+      Combine with <code>Vertex.Router</code> when you also need pattern
+      matching on dynamic segments — <code>useHash</code> handles the
+      re-render cycle while the Router extracts params.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 11  JQUERY COMPAT
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="jquery-compat">
+    <h2 class="sec"><span class="sec-num">11.</span> jQuery compatibility</h2>
+
+    <p>
+      Vertex is explicitly designed to coexist with jQuery on the same
+      page. The rule is simple: load jQuery first, then vertex.js.
+    </p>
+
+<pre><span class="c">&lt;!-- jQuery loaded first --&gt;</span>
+&lt;<span class="fn">script</span> src=<span class="s">"/static/jquery.min.js"</span>&gt;&lt;/<span class="fn">script</span>&gt;
+&lt;<span class="fn">script</span> src=<span class="s">"/static/vertex.js"</span>&gt;&lt;/<span class="fn">script</span>&gt;</pre>
+
+    <p>
+      vertex.js checks <code>window.jQuery</code> and <code>window.$</code>
+      before assigning anything. If they exist it leaves them completely
+      alone. Use <code>V$</code> or <code>Vertex.$v()</code> for the
+      Vertex DOM wrapper in that scenario:
+    </p>
+
+<pre><span class="c">// jQuery and Vertex DOM layer side by side — no conflict</span>
+$(<span class="s">"#jq-widget"</span>).<span class="fn">datepicker</span>();      <span class="c">// ← jQuery</span>
+<span class="fn">V$</span>(<span class="s">"#vx-card"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, fn);  <span class="c">// ← Vertex</span>
+
+<span class="c">// Or explicitly via the namespace</span>
+Vertex.<span class="fn">$v</span>(<span class="s">"#vx-card"</span>).<span class="fn">css</span>(<span class="s">"color"</span>, <span class="s">"#c8ff00"</span>);</pre>
+
+    <p>
+      jQuery static utilities are mirrored on <code>Vertex.VQuery</code>:
+      <code>VQuery.extend()</code>, <code>VQuery.each()</code>,
+      <code>VQuery.isArray()</code>, <code>VQuery.isFunction()</code>,
+      <code>VQuery.trim()</code>, <code>VQuery.noop()</code>,
+      <code>VQuery.parseJSON()</code>, and <code>VQuery.now()</code>.
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       § 12  API REFERENCE
+  ════════════════════════════════════════════════════════════════════ -->
+  <section id="api-ref">
+    <h2 class="sec"><span class="sec-num">12.</span> Quick API reference</h2>
+
+    <h3>Vertex namespace</h3>
+    <table class="api-table">
+      <thead><tr><th>Symbol</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>Vertex.createElement(type, props, …children)</code></td><td>Create a virtual element descriptor</td></tr>
+        <tr><td><code>Vertex.render(element, container)</code></td><td>Mount or update the component tree</td></tr>
+        <tr><td><code>Vertex.Fragment</code></td><td>Wrapper-free grouping element</td></tr>
+        <tr><td><code>Vertex.lazy(factory)</code></td><td>Async component loader</td></tr>
+        <tr><td><code>Vertex.createContext(default)</code></td><td>Create a context object</td></tr>
+        <tr><td><code>Vertex.useState(initial)</code></td><td>Hook: local state</td></tr>
+        <tr><td><code>Vertex.useReducer(reducer, initial)</code></td><td>Hook: reducer-based state</td></tr>
+        <tr><td><code>Vertex.useEffect(fn, deps)</code></td><td>Hook: side effects &amp; cleanup</td></tr>
+        <tr><td><code>Vertex.useMemo(fn, deps)</code></td><td>Hook: memoised value</td></tr>
+        <tr><td><code>Vertex.useCallback(fn, deps)</code></td><td>Hook: memoised callback</td></tr>
+        <tr><td><code>Vertex.useRef(initial)</code></td><td>Hook: mutable ref</td></tr>
+        <tr><td><code>Vertex.useContext(ctx)</code></td><td>Hook: read context value</td></tr>
+        <tr><td><code>Vertex.useHash()</code></td><td>Hook: reactive URL hash</td></tr>
+        <tr><td><code>Vertex.Ractive</code></td><td>Mustache template constructor</td></tr>
+        <tr><td><code>Vertex.Ractive.load(url, options)</code></td><td>Load remote template</td></tr>
+        <tr><td><code>Vertex.Router</code></td><td>Singleton hash router</td></tr>
+        <tr><td><code>Vertex.RouterClass</code></td><td>Backbone-style base class</td></tr>
+        <tr><td><code>Vertex.$v(selector)</code></td><td>VQuery DOM wrapper</td></tr>
+        <tr><td><code>Vertex.ajax(options)</code></td><td>Fetch wrapper</td></tr>
+        <tr><td><code>Vertex.get(url, …)</code></td><td>Shorthand GET</td></tr>
+        <tr><td><code>Vertex.post(url, …)</code></td><td>Shorthand POST</td></tr>
+      </tbody>
+    </table>
+
+    <h3>VQuery instance methods</h3>
+    <table class="api-table">
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>.on(events, [sel], fn)</code></td><td>Bind event (delegation if sel given)</td></tr>
+        <tr><td><code>.off(events, [fn])</code></td><td>Remove event handler(s)</td></tr>
+        <tr><td><code>.trigger(event, [detail])</code></td><td>Dispatch CustomEvent</td></tr>
+        <tr><td><code>.attr(name, [val])</code></td><td>Get / set attribute</td></tr>
+        <tr><td><code>.css(prop, [val])</code></td><td>Get computed / set inline style</td></tr>
+        <tr><td><code>.val([v])</code></td><td>Get / set input value</td></tr>
+        <tr><td><code>.html([content])</code></td><td>Get / set innerHTML</td></tr>
+        <tr><td><code>.text([content])</code></td><td>Get / set textContent</td></tr>
+        <tr><td><code>.addClass / .removeClass / .toggleClass / .hasClass</code></td><td>Class manipulation</td></tr>
+        <tr><td><code>.append / .prepend / .after / .before</code></td><td>DOM insertion</td></tr>
+        <tr><td><code>.find / .parent / .children / .closest / .siblings</code></td><td>Traversal</td></tr>
+        <tr><td><code>.first / .last / .eq(i) / .get(i)</code></td><td>Subset selection</td></tr>
+        <tr><td><code>.filter / .not / .is / .add</code></td><td>Filtering</td></tr>
+        <tr><td><code>.remove / .empty / .clone</code></td><td>DOM mutation</td></tr>
+        <tr><td><code>.each(fn)</code></td><td>Iterate matched elements</td></tr>
+        <tr><td><code>.data(key, [val])</code></td><td>Get / set data-* attribute</td></tr>
+        <tr><td><code>.hide / .show / .toggle</code></td><td>Visibility shortcuts</td></tr>
+        <tr><td><code>.width / .height / .offset</code></td><td>Dimension helpers</td></tr>
+        <tr><td><code>.serialize()</code></td><td>Serialise form to query string</td></tr>
+        <tr><td><code>.prop(name, [val])</code></td><td>Get / set DOM property</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────────────────────────────── -->
+  <footer>
+    <span>vertex.js — Float64 / LukeB42</span>
+    <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/0880e7f04fb9b2d717f06c05ae2d026dfb579c57/vertex.js"
+       target="_blank" rel="noopener">download source</a>
+  </footer>
+
+</div><!-- /.shell -->
+
+</body>
+</html>
