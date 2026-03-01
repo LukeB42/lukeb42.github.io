@@ -384,7 +384,7 @@
       <li><a href="#ajax">AJAX</a></li>
       <li><a href="#reconciler">Fiber reconciler — createElement &amp; render</a></li>
       <li><a href="#hooks">Hooks — useState, useEffect, useRef, useMemo, useContext</a></li>
-      <li><a href="#ractive">Template engine — Ractive / Mustache</a></li>
+      <li><a href="#template">Template engine — Vertex.template / Mustache</a></li>
       <li><a href="#router">Hash router — Backbone style</a></li>
       <li><a href="#usehash">useHash — router meets reconciler</a></li>
       <li><a href="#jquery-compat">jQuery compatibility</a></li>
@@ -409,7 +409,7 @@
     <div class="dl-block">
       <div class="dl-label">gist</div>
       <div class="dl-url">
-        <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/0880e7f04fb9b2d717f06c05ae2d026dfb579c57/vertex.js"
+        <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/867cf609e8ec6bcb6700eda7f81c7c60e9ee01c9/vertex.js"
            target="_blank" rel="noopener">
           gist.githubusercontent.com/LukeB42/…/vertex.js
         </a>
@@ -420,7 +420,7 @@
 
 <pre><span class="c"># save to your project's static directory</span>
 curl -o static/vertex.js \
-  https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/0880e7f04fb9b2d717f06c05ae2d026dfb579c57/vertex.js</pre>
+  https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/867cf609e8ec6bcb6700eda7f81c7c60e9ee01c9/vertex.js</pre>
 
     <p>
       It ships as a UMD module, so it works equally as a plain
@@ -492,30 +492,27 @@ curl -o static/vertex.js \
     <h2 class="sec"><span class="sec-num">03.</span> Setting a templates directory</h2>
 
     <p>
-      Vertex does not impose a global config object — the templates path is
-      passed directly to <code>Ractive.load()</code>. The cleanest pattern
-      is to create a small wrapper once and reuse it:
+      Set <code>Vertex.template.load.baseUri</code> once at startup and every
+      subsequent <code>load()</code> call that receives a relative path will
+      automatically prepend it. Absolute URLs (starting with
+      <code>http://</code>, <code>https://</code>, or <code>/</code>) are
+      always used as-is, so fully-qualified paths continue to work unchanged.
     </p>
 
-<pre><span class="c">// config.js  (or inline in your main script)</span>
-<span class="k">const</span> TEMPLATES = <span class="s">"/static/templates/"</span>;
+<pre><span class="c">// main.js — set the base once, then use short names everywhere</span>
+Vertex.template.load.baseUri = <span class="s">"/static/templates/"</span>;
 
-<span class="c">/**
- * loadTemplate(name)
- * Fetches /static/templates/{name}.html, parses it,
- * and returns a mounted Ractive instance.
- */</span>
-<span class="k">function</span> <span class="fn">loadTemplate</span>(name, options) {
-  <span class="k">return</span> Vertex.Ractive.<span class="fn">load</span>(TEMPLATES + name + <span class="s">".html"</span>, options);
-}
-
-<span class="c">// Usage</span>
-<span class="fn">loadTemplate</span>(<span class="s">"user-card"</span>, {
+<span class="c">// "user-card" resolves to /static/templates/user-card</span>
+Vertex.template.<span class="fn">load</span>(<span class="s">"user-card"</span>, {
   el:   <span class="s">"#sidebar"</span>,
   data: { name: <span class="s">"Alice"</span>, role: <span class="s">"Engineer"</span> }
 }).<span class="fn">then</span>(instance => {
   instance.<span class="fn">on</span>(<span class="s">"change"</span>, e => <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"changed:"</span>, e));
-});</pre>
+});
+
+<span class="c">// Absolute paths bypass baseUri entirely</span>
+Vertex.template.<span class="fn">load</span>(<span class="s">"/other/path/special.html"</span>, { el: <span class="s">"#special"</span> });
+Vertex.template.<span class="fn">load</span>(<span class="s">"https://cdn.example.com/tmpl.html"</span>, { el: <span class="s">"#remote"</span> });</pre>
 
     <p>
       A template file at <code>/static/templates/user-card.html</code>
@@ -534,7 +531,7 @@ curl -o static/vertex.js \
 
     <div class="note">
       <strong>Note:</strong> If the file has no <code>&lt;template&gt;</code>
-      tag, <code>Ractive.load()</code> uses the entire response body as
+      tag, <code>Vertex.template.load()</code> uses the entire response body as
       the template string. Both forms work.
     </div>
   </section>
@@ -842,20 +839,20 @@ Vertex.<span class="fn">render</span>(
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
-       § 8  RACTIVE
+       § 8  TEMPLATE ENGINE
   ════════════════════════════════════════════════════════════════════ -->
-  <section id="ractive">
-    <h2 class="sec"><span class="sec-num">08.</span> Template engine — Ractive / Mustache</h2>
+  <section id="template">
+    <h2 class="sec"><span class="sec-num">08.</span> Template engine — Vertex.template / Mustache</h2>
 
     <p>
-      The <code>Ractive</code> constructor takes an element target, a
+      The <code>Vertex.template</code> constructor takes an element target, a
       mustache template string, and a data object. It renders immediately
       and re-renders on every <code>.set()</code> or <code>.update()</code>.
     </p>
 
     <h3>Basic usage</h3>
 
-<pre><span class="k">const</span> r = <span class="k">new</span> Vertex.<span class="fn">Ractive</span>({
+<pre><span class="k">const</span> r = <span class="k">new</span> Vertex.<span class="fn">template</span>({
   el:       <span class="s">"#app"</span>,
   template: <span class="s">`
     &lt;h1&gt;{{title}}&lt;/h1&gt;
@@ -923,11 +920,11 @@ r.<span class="fn">on</span>(<span class="s">"change"</span>, ({ keypath, value 
 
     <p>
       Add <code>data-bind="keypath"</code> to any <code>&lt;input&gt;</code>
-      inside a Ractive template and Vertex will keep the input and the data
+      inside a template and Vertex will keep the input and the data
       object in sync automatically:
     </p>
 
-<pre><span class="k">new</span> Vertex.<span class="fn">Ractive</span>({
+<pre><span class="k">new</span> Vertex.<span class="fn">template</span>({
   el:       <span class="s">"#form"</span>,
   template: <span class="s">'&lt;input data-bind="username" placeholder="Username"&gt;'</span>,
   data:     { username: <span class="s">""</span> },
@@ -936,10 +933,13 @@ r.<span class="fn">on</span>(<span class="s">"change"</span>, ({ keypath, value 
   }
 });</pre>
 
-    <h3>Ractive.load() — remote templates</h3>
+    <h3>Vertex.template.load() — remote templates</h3>
 
-<pre><span class="c">// Fetches a .html file, finds the &lt;template&gt; tag, mounts it</span>
-Vertex.Ractive.<span class="fn">load</span>(<span class="s">"/static/templates/player.html"</span>, {
+<pre><span class="c">// Set base once at startup</span>
+Vertex.template.load.baseUri = <span class="s">"/static/templates/"</span>;
+
+<span class="c">// Short name resolves to /static/templates/player.html</span>
+Vertex.template.<span class="fn">load</span>(<span class="s">"player"</span>, {
   el:   <span class="s">"#player-container"</span>,
   data: { track: <span class="s">"Vortex.wav"</span>, playing: <span class="k">false</span> }
 }).<span class="fn">then</span>(instance => {
@@ -1107,8 +1107,9 @@ Vertex.<span class="fn">$v</span>(<span class="s">"#vx-card"</span>).<span class
         <tr><td><code>Vertex.useRef(initial)</code></td><td>Hook: mutable ref</td></tr>
         <tr><td><code>Vertex.useContext(ctx)</code></td><td>Hook: read context value</td></tr>
         <tr><td><code>Vertex.useHash()</code></td><td>Hook: reactive URL hash</td></tr>
-        <tr><td><code>Vertex.Ractive</code></td><td>Mustache template constructor</td></tr>
-        <tr><td><code>Vertex.Ractive.load(url, options)</code></td><td>Load remote template</td></tr>
+        <tr><td><code>Vertex.template</code></td><td>Mustache template constructor</td></tr>
+        <tr><td><code>Vertex.template.load(url, options)</code></td><td>Fetch and mount a remote template file</td></tr>
+        <tr><td><code>Vertex.template.load.baseUri</code></td><td>Base path prepended to relative URLs (default <code>""</code>)</td></tr>
         <tr><td><code>Vertex.Router</code></td><td>Singleton hash router</td></tr>
         <tr><td><code>Vertex.RouterClass</code></td><td>Backbone-style base class</td></tr>
         <tr><td><code>Vertex.$v(selector)</code></td><td>VQuery DOM wrapper</td></tr>
@@ -1149,7 +1150,7 @@ Vertex.<span class="fn">$v</span>(<span class="s">"#vx-card"</span>).<span class
   <!-- ── Footer ──────────────────────────────────────────────────────── -->
   <footer>
     <span>vertex.js — Float64 / LukeB42</span>
-    <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/0880e7f04fb9b2d717f06c05ae2d026dfb579c57/vertex.js"
+    <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/867cf609e8ec6bcb6700eda7f81c7c60e9ee01c9/vertex.js"
        target="_blank" rel="noopener">download source</a>
   </footer>
 
