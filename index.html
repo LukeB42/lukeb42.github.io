@@ -1,104 +1,583 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luke / Float64 Home</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luke / Float64 Home</title>
+  <script src="vertex.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        @media (max-width: 1084px) {
-            .container {
-                width: 100%; 
-                padding-left: 5px; 
-                padding-right: 5px;
-                box-sizing: border-box;
-            }
-        }
-        @media (min-width: 1085px) {
-            .container {
-                width: 33.33%;
-            }
-        }
+    :root {
+      --bg:      #f5f7fa;
+      --panel:   #ffffff;
+      --border:  #e0e4ea;
+      --acc:     #00bfff;
+      --orange:  #ff8c00;
+      --body:    #333333;
+      --head:    #1a1a1a;
+      --muted:   #777777;
+      --font:    "Courier New", monospace;
+    }
 
-        .container {
-           /* width: 33.33%; */
-            margin: 0 auto;
-            padding: 15px;
-            text-align: left;
-        }
-        .site-header {
-            color: #000;
-            padding: 20px;
-            text-align: left;
-            font-size: 36px;
-            font-family: "IBM Plex Sans", sans-serif;
-            font-optical-sizing: auto;
-            font-weight: 900;
-            font-style: italic;
-            font-variation-settings: "wdth" 100;
-        }
-        #float64 {
-            font-weight: bold;
-            color: white;
-            background-color: #87CEEB;
-            padding: 5px 10px;
-        }
-        #welcome {
-            color: white;
-            background-color: black;
-            padding: 5px 10px;
-            font-style: normal;
-        }
-        nav {
-            font-family: "Source Sans 3", sans-serif;
-            font-optical-sizing: auto;
-            font-weight: 400;
-            padding: 10px;
-            text-align: left;
-        }
-        nav .post-link:first-of-type {
-            margin-top: 10px;
-        }
-        nav .post-link {
-            display: block;
-            margin-bottom: 30px;
-            font-size: 20px;
-            color: #222325;
-        }
-        nav a {
-            display: contents;
-            color: #088af5;
-            text-decoration: none;
-            margin: 0 15px;
-            font-size: 1.1em;
-        }
-        nav a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    html, body { height: 100%; background: var(--bg); color: var(--body); font-family: var(--font); }
+    #root { min-height: 100vh; padding-bottom: 90px; }
+    a { color: var(--acc); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 10px 28px 10px 0;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      flex-wrap: nowrap;
+    }
+
+    /* ── Brand: site-header from index.html, preserved exactly ── */
+    .brand {
+      margin-right: auto;
+      flex-shrink: 0;
+      /* carries its own fonts/colours inline on child spans */
+      font-family: "IBM Plex Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 900;
+      font-style: italic;
+      font-variation-settings: "wdth" 100;
+      font-size: 36px;
+      line-height: 1;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    @media (max-width: 480px) {
+      .brand { font-size: 24px; }
+    }
+    .brand #float64 {
+      font-weight: bold;
+      color: white;
+      background-color: #87CEEB;
+      padding: 5px 10px;
+      font-style: italic;
+    }
+    .brand #welcome {
+      color: white;
+      background-color: black;
+      padding: 5px 10px;
+      font-style: normal;
+    }
+
+    .nav a {
+      color: var(--acc);
+      text-decoration: none;
+      font-size: .78rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .nav a:hover { text-decoration: underline; }
+
+    /* ── Views ── */
+    .view { padding: 40px 28px; }
+    .view h1 { font-size: 1.5rem; font-weight: normal; color: var(--head); margin-bottom: 1rem; }
+    .view p  { font-size: .9rem; line-height: 1.75; margin-bottom: 1.2rem; }
+
+    /* ── Post list (index.html style, driven from JSON) ── */
+    .post-list {
+      font-family: "Source Sans 3", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 400;
+    }
+    .post-link {
+      display: block;
+      margin-bottom: 30px;
+      font-size: 20px;
+      color: #222325;
+    }
+    .post-link:first-of-type { margin-top: 10px; }
+    .post-link a {
+      display: contents;
+      color: #088af5;
+      text-decoration: none;
+      font-size: 1.1em;
+    }
+    .post-link a:hover { text-decoration: underline; }
+
+    /* ── Player bar ── */
+    .player-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 78px;
+      background: var(--panel); border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px; padding: 0 20px;
+      box-shadow: 0 -2px 12px rgba(0,0,0,0.08);
+      z-index: 100;
+    }
+
+    /* Play/pause */
+    .player-bar button.play-btn {
+      background: none; border: 1px solid var(--border); color: var(--body);
+      font-family: var(--font); font-size: 1.5rem; width: 52px; height: 52px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: all .12s; border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .player-bar button.play-btn:hover,
+    .player-bar button.play-btn.playing { border-color: var(--acc); color: var(--acc); }
+
+    /* Center: track name + wide playhead */
+    .player-bar .center {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .player-bar .track-name {
+      font-size: .76rem; color: var(--muted);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .player-bar .track-name.loaded { color: var(--body); }
+    .player-bar .center input[type=range] {
+      width: 100%; accent-color: var(--acc); cursor: pointer; height: 5px;
+    }
+
+    /* Right: time + volume + hamburger */
+    .player-bar .right {
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+    }
+    .player-bar .time {
+      font-size: .72rem; color: var(--muted); white-space: nowrap;
+    }
+    @media (max-width: 480px) {
+      .player-bar .time { display: none; }
+    }
+
+    /* Volume – vertical popup */
+    .volume-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .volume-wrapper button.volume-icon {
+      background: none; border: 1px solid var(--border); color: var(--body);
+      font-size: 1.35rem; padding: 8px 10px; cursor: pointer;
+      transition: border-color .12s, color .12s;
+    }
+    .volume-wrapper button.volume-icon:hover { border-color: var(--acc); color: var(--acc); }
+
+    .volume-popup {
+      position: absolute;
+      right: -1px;
+      bottom: 55px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 16px 12px 12px;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity .18s, visibility .18s;
+      pointer-events: none;
+      z-index: 110;
+    }
+    .player-bar:hover .volume-popup,
+    .volume-wrapper:hover .volume-popup {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .volume-popup input[type=range] {
+      -webkit-appearance: slider-vertical;
+      writing-mode: bt-lr;
+      width: 28px;
+      height: 140px;
+      accent-color: var(--acc);
+      cursor: pointer;
+      background: transparent;
+    }
+
+    /* ── Hamburger playlist ── */
+    .hamburger-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .hamburger-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--body);
+      font-size: 1.2rem;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color .12s, color .12s;
+      flex-direction: column;
+      gap: 5px;
+      padding: 10px;
+    }
+    .hamburger-btn:hover,
+    .hamburger-btn.open { border-color: var(--acc); color: var(--acc); }
+    .hamburger-btn .bar {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 1px;
+      transition: background .12s;
+    }
+
+    .playlist-popup {
+      position: absolute;
+      right: 0;
+      bottom: 55px;
+      width: 320px;
+      max-width: calc(100vw - 40px);
+      max-height: 60vh;
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+      z-index: 120;
+      padding: 8px 0;
+    }
+    .playlist-popup .pl-header {
+      font-size: .7rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 8px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .pl-track {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background .1s;
+      font-size: .82rem;
+      font-family: var(--font);
+      color: var(--body);
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .pl-track:hover { background: var(--bg); }
+    .pl-track .pl-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .pl-track.active {
+      color: var(--orange);
+    }
+    .pl-track.active .pl-dot {
+      background: var(--orange);
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="site-header">
-            <span id="float64">Float64</span><span id="welcome">Amplifier</span>
-        </div>
-        <nav>
-            <span class="post-link">29/2/2026 <a href="vertex-manual.html">Vertex.js — A 1kloc SPA framework</a></span>
-            <span class="post-link">29/2/2026 <a href="https://gist.githubusercontent.com/LukeB42/deb887691f13dee9ca160c809b93ff94/raw/0a92a208214e99d01f1812a9b0a91d5f77b9ee17/law.py">law.py — A Distributed Legislature</a></span>
-            <span class="post-link">28/2/2026 <a href="tour-de-force-chapter-one.html">TOUR DE FORCE (preview)</a></span>
-            <span class="post-link">28/2/2026 <a href="iran-war-risk.html">How Bad Can The Iran War Get?</a></span>
-            <span class="post-link">28/2/2026 <a href="uk-pathogen-sensor-deployment-report.html">UK Pathogen Sensor Deployment Report</a></span>
-            <span class="post-link">27/2/2026 <a href="engineering-retention-playbook.html">Engineering Retention Playbook</a></span>
-        </nav>
-    </div>
+  <div id="root"></div>
+
+  <script>
+    const { createElement: h, render, useRef, useState, useEffect, useContext, createContext } = Vertex;
+
+    /* ── Data ── */
+
+    const POSTS = [
+      { date: '29/2/2026', label: 'Vertex.js — A 1kloc SPA framework',   url: 'vertex-manual.html' },
+      { date: '29/2/2026', label: 'law.py — A Distributed Legislature',   url: 'https://gist.githubusercontent.com/LukeB42/deb887691f13dee9ca160c809b93ff94/raw/0a92a208214e99d01f1812a9b0a91d5f77b9ee17/law.py' },
+      { date: '28/2/2026', label: 'TOUR DE FORCE (preview)',               url: 'tour-de-force-chapter-one.html' },
+      { date: '28/2/2026', label: 'How Bad Can The Iran War Get?',         url: 'iran-war-risk.html' },
+      { date: '28/2/2026', label: 'UK Pathogen Sensor Deployment Report',  url: 'uk-pathogen-sensor-deployment-report.html' },
+      { date: '27/2/2026', label: 'Engineering Retention Playbook',        url: 'engineering-retention-playbook.html' },
+    ];
+
+    const TRACKS = [
+      { id: 1, label: 'Tunage - Found Sound',    url: 'Found%20Sound.mp3' },
+      { id: 2, label: 'Tunage - Powa',           url: 'Powa.mp3' },
+      { id: 3, label: 'Tunage - Basically', url: 'Basically.mp3' },
+    ];
+
+    /* ── Player context ── */
+
+    const PlayerCtx = createContext(null);
+
+    function PlayerProvider(props) {
+      const audioRef           = useRef(null);
+      const currentIdxRef      = useRef(-1);   // stable ref for ended handler
+      const playFnRef          = useRef(null);  // stable ref so ended handler can call play()
+
+      const [isPlaying,    setIsPlaying]    = useState(false);
+      const [currentTrack, setCurrentTrack] = useState(null);
+      const [progress,     setProgress]     = useState(0);
+      const [currentTime,  setCurrentTime]  = useState(0);
+      const [duration,     setDuration]     = useState(0);
+      const [volume,       setVolumeState]  = useState(0.8);
+      const [playlistOpen, setPlaylistOpen] = useState(false);
+
+      /* Set up the Audio element once */
+      useEffect(function () {
+        const a = new Audio();
+        a.preload = 'auto';
+        a.volume = 0.8;
+
+        a.addEventListener('timeupdate', function () {
+          setCurrentTime(a.currentTime);
+          if (a.duration) setProgress((a.currentTime / a.duration) * 100);
+        });
+
+        a.addEventListener('loadedmetadata', function () {
+          setDuration(a.duration);
+        });
+
+        a.addEventListener('ended', function () {
+          /* Advance to next track, looping back to 0 from the last */
+          const nextIdx = (currentIdxRef.current + 1) % TRACKS.length;
+          if (playFnRef.current) {
+            playFnRef.current(TRACKS[nextIdx].url, nextIdx);
+          }
+        });
+
+        audioRef.current = a;
+        return function () { a.pause(); };
+      }, []);
+
+      /* Close playlist when clicking outside */
+      useEffect(function () {
+        if (!playlistOpen) return;
+        function onDoc(e) {
+          /* let the hamburger button toggle handle its own click */
+          if (e.target.closest && (e.target.closest('.hamburger-wrapper'))) return;
+          setPlaylistOpen(false);
+        }
+        document.addEventListener('click', onDoc);
+        return function () { document.removeEventListener('click', onDoc); };
+      }, [playlistOpen]);
+
+      function play(url, idx) {
+        const audio = audioRef.current;
+        if (!audio) return;
+
+        /* Resolve index if not provided */
+        let resolvedIdx = (idx !== undefined) ? idx : TRACKS.findIndex(function (t) { return t.url === url; });
+        if (url && audio.src !== url) {
+          audio.src = url;
+          setProgress(0);
+          setCurrentTime(0);
+          setDuration(0);
+        }
+        audio.play().then(function () {
+          setIsPlaying(true);
+          setCurrentTrack(url || audio.src);
+          if (resolvedIdx !== -1) currentIdxRef.current = resolvedIdx;
+        }).catch(console.error);
+      }
+
+      /* Keep the stable ref in sync */
+      playFnRef.current = play;
+
+      function pause() {
+        const audio = audioRef.current;
+        if (audio) { audio.pause(); setIsPlaying(false); }
+      }
+
+      function seek(percent) {
+        const audio = audioRef.current;
+        if (audio && audio.duration) {
+          audio.currentTime = (percent / 100) * audio.duration;
+        }
+      }
+
+      function setVolume(vol) {
+        const audio = audioRef.current;
+        if (audio) {
+          const v = Math.max(0, Math.min(1, parseFloat(vol)));
+          audio.volume = v;
+          setVolumeState(v);
+        }
+      }
+
+      function fmt(s) {
+        if (!s || isNaN(s)) return '0:00';
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return m + ':' + String(sec).padStart(2, '0');
+      }
+
+      const trackObj = currentTrack
+        ? TRACKS.find(function (t) { return t.url === currentTrack; }) || null
+        : null;
+      const trackLabel = trackObj ? trackObj.label : null;
+
+      const ctxValue = {
+        play, pause, seek, setVolume,
+        isPlaying, currentTrack, progress, volume, playlistOpen, setPlaylistOpen
+      };
+
+      return h(PlayerCtx.Provider, { value: ctxValue },
+        h('div', null,
+          props.children,
+
+          /* ── Fixed player bar ── */
+          h('div', { className: 'player-bar' },
+
+            /* Play / Pause */
+            h('button', {
+              className: 'play-btn' + (isPlaying ? ' playing' : ''),
+              onClick: function () { isPlaying ? pause() : play(currentTrack || TRACKS[0].url); }
+            }, isPlaying ? '❚❚' : '▶'),
+
+            /* Center: label + scrubber */
+            h('div', { className: 'center' },
+              h('div', { className: 'track-name' + (trackLabel ? ' loaded' : '') },
+                trackLabel || '— no track loaded —'
+              ),
+              h('input', {
+                type: 'range', min: 0, max: 100,
+                value: Math.round(progress),
+                onInput: function (e) { seek(parseFloat(e.target.value)); }
+              })
+            ),
+
+            /* Right side */
+            h('div', { className: 'right' },
+
+              h('span', { className: 'time' },
+                fmt(currentTime) + ' / ' + fmt(duration)
+              ),
+
+              /* Volume */
+              h('div', { className: 'volume-wrapper' },
+                h('button', { className: 'volume-icon' }, '🔊'),
+                h('div', { className: 'volume-popup' },
+                  h('input', {
+                    type: 'range', min: 0, max: 1, step: 0.01,
+                    value: volume,
+                    onInput: function (e) { setVolume(parseFloat(e.target.value)); }
+                  })
+                )
+              ),
+
+              /* Hamburger / playlist */
+              h('div', { className: 'hamburger-wrapper' },
+                h('button', {
+                  className: 'hamburger-btn' + (playlistOpen ? ' open' : ''),
+                  'aria-label': 'Playlist',
+                  onClick: function (e) {
+                    e.stopPropagation();
+                    setPlaylistOpen(function (o) { return !o; });
+                  }
+                },
+                  h('span', { className: 'bar' }),
+                  h('span', { className: 'bar' }),
+                  h('span', { className: 'bar' })
+                ),
+
+                playlistOpen
+                  ? h('div', {
+                      className: 'playlist-popup',
+                      onClick: function (e) { e.stopPropagation(); }
+                    },
+                      h('div', { className: 'pl-header' }, 'Playlist'),
+                      TRACKS.map(function (t) {
+                        const active = currentTrack === t.url && isPlaying;
+                        return h('button', {
+                          key: t.id,
+                          className: 'pl-track' + (active ? ' active' : ''),
+                          onClick: function () {
+                            play(t.url, TRACKS.indexOf(t));
+                          }
+                        },
+                          h('span', { className: 'pl-dot' }),
+                          t.label
+                        );
+                      })
+                    )
+                  : null
+              )
+            )
+          )
+        )
+      );
+    }
+
+    /* ── Views ── */
+
+    function HomeView() {
+      return h('div', { className: 'view' },
+        h('h1', null, '/ home'),
+        h('div', { className: 'post-list' },
+          POSTS.map(function (p, i) {
+            return h('span', { key: i, className: 'post-link' },
+              p.date + ' ',
+              h('a', { href: p.url }, p.label)
+            );
+          })
+        )
+      );
+    }
+
+    function AboutView() {
+      return h('div', { className: 'view' },
+        h('h1', null, '/ about'),
+        h('p', null,
+          "Luke's Float64 blog. Built with ",
+          h('a', { href: 'vertex-manual.html' }, 'Vertex.js'),
+          '.'
+        )
+      );
+}
+    /* ── App shell ── */
+
+    function App() {
+      const hash = Vertex.useHash();
+
+      let content;
+      if (hash === '' || hash === 'home' || hash === '/home') {
+        content = h(HomeView, null);
+      } else if (hash === 'about' || hash === '/about') {
+        content = h(AboutView, null);
+      } else {
+        content = h('div', { className: 'view' },
+          h('h1', null, '404'),
+          h('p', null, 'Route not found: #' + hash)
+        );
+      }
+
+      return h('div', null,
+        /* Nav with brand from index.html site-header */
+        h('nav', { className: 'nav' },
+          h('div', { className: 'brand' },
+            h('span', { id: 'float64' }, 'Float64'),
+            h('span', { id: 'welcome' }, 'Amplifier')
+          ),
+          h('a', { href: '#home' }, 'Home'),
+          h('a', { href: '#about' }, 'About')
+        ),
+        h(PlayerProvider, null, content)
+      );
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      render(h(App, null), document.getElementById('root'));
+    });
+  </script>
 </body>
 </html>
