@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Float64 Vertex</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
   <style>
     /* ── Reset & base ──────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,6 +56,29 @@
     }
 
     /* ── Header ────────────────────────────────────────────────────────── */
+    .site-header {
+      color: #000;
+      padding: 20px;
+      text-align: left;
+      font-size: 36px;
+      font-family: "IBM Plex Sans", sans-serif;
+      font-optical-sizing: auto;
+      font-weight: 900;
+      font-style: italic;
+      font-variation-settings: "wdth" 100;
+    }
+    #float64 {
+      font-weight: bold;
+      color: white;
+      background-color: #87CEEB;
+      padding: 5px 10px;
+    }
+    #welcome {
+      color: white;
+      background-color: black;
+      padding: 5px 10px;
+      font-style: normal;
+    }
     header {
       border-bottom: 1px solid var(--border);
       padding: 2rem 0 1.6rem;
@@ -338,11 +364,15 @@
 <div class="shell">
 
   <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <div class="site-header">
+    <span id="float64">Float64</span><span id="welcome">Amplifier</span><span class="accent">.</span>
+  </div>
+  <!--
   <header>
     <span class="site-name"><a href="#">Float64</a></span>
     <h1 class="brand">Vertex<span class="accent">.</span></h1>
   </header>
-
+-->
   <!-- ── Table of Contents ──────────────────────────────────────────── -->
   <nav class="toc" aria-label="Table of contents">
     <h2>Contents</h2>
