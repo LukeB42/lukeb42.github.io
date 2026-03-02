@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Float64 — How Bad Can the Iran War Get?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,300;1,8..60,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:       #f7f4ef;
+      --bg2:      #efe9e0;
+      --bg3:      #e5ddd2;
+      --ink:      #1c1a17;
+      --ink2:     #3d3930;
+      --ink3:     #6b6558;
+      --ink4:     #9a9186;
+      --rule:     #d5cdc2;
+      --f64:      #0098ed;
+      --f64l:     rgba(0,152,237,0.10);
+      --red:      #c0392b;
+      --redl:     rgba(192,57,43,0.10);
+      --orange:   #c06a1a;
+      --orangel:  rgba(192,106,26,0.10);
+      --amber:    #a07c10;
+      --amberl:   rgba(160,124,16,0.10);
+      --green:    #1a7a40;
+      --greenl:   rgba(26,122,64,0.08);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 17px;
+      line-height: 1.76;
+    }
+    .brand-bar {
+      background: #0098ed;
+      padding: 0 40px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-name { font-family: 'JetBrains Mono', monospace; font-size: 16px; color: #fff; }
+    .brand-date { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(255,255,255,0.65); letter-spacing: 0.1em; text-transform: uppercase; }
+    .breaking-banner {
+      background: var(--red);
+      color: #fff;
+      padding: 10px 40px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .break-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; background: rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 3px; white-space: nowrap; margin-top: 2px; }
+    .break-text { font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; color: rgba(255,255,255,0.9); }
+    .break-text strong { color: #fff; }
+    .article-header { max-width: 780px; margin: 0 auto; padding: 60px 40px 36px; }
+    .kicker { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--f64); margin-bottom: 18px; }
+    h1 { font-family: 'Playfair Display', serif; font-size: clamp(30px, 5.5vw, 52px); font-weight: 900; line-height: 1.07; letter-spacing: -0.02em; color: var(--ink); margin-bottom: 20px; }
+    h1 em { font-style: italic; color: var(--red); }
+    .deck { font-size: 19px; color: var(--ink2); line-height: 1.6; border-left: 3px solid var(--f64); padding-left: 18px; margin-bottom: 24px; }
+    .byline { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink4); letter-spacing: 0.09em; text-transform: uppercase; border-top: 1px solid var(--rule); padding-top: 16px; }
+    .byline span { color: var(--ink3); }
+    .status-strip { background: var(--bg2); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+    .status-inner { max-width: 780px; margin: 0 auto; padding: 18px 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 18px; }
+    .stat-item { border-left: 2px solid var(--rule); padding-left: 12px; }
+    .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink4); margin-bottom: 3px; }
+    .stat-val { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; line-height: 1.2; }
+    .stat-note { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--ink4); margin-top: 2px; line-height: 1.4; }
+    .c-red { color: #c0392b; } .c-orange { color: #c06a1a; } .c-amber { color: #a07c10; } .c-blue { color: #0098ed; } .c-green { color: #1a7a40; }
+    .article-body { max-width: 780px; margin: 0 auto; padding: 0 40px 80px; }
+    @media (max-width: 620px) {
+      .article-header, .article-body, .status-inner, .brand-bar, .breaking-banner { padding-left: 20px; padding-right: 20px; }
+    }
+    h2 { font-family: 'Playfair Display', serif; font-size: clamp(22px, 3.5vw, 31px); font-weight: 700; line-height: 1.18; color: var(--ink); margin: 60px 0 16px; }
+    h3 { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--ink); margin: 32px 0 10px; }
+    p { color: var(--ink2); margin-bottom: 18px; }
+    p strong { color: var(--ink); font-weight: 600; }
+    p:last-child { margin-bottom: 0; }
+    .section-rule { border: none; border-top: 1px solid var(--rule); margin: 56px 0 0; }
+    .section-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink4); margin-top: 12px; margin-bottom: -40px; }
+    blockquote { margin: 28px 0; padding: 20px 24px; background: var(--bg2); border-left: 4px solid var(--f64); border-radius: 0 6px 6px 0; }
+    blockquote p { font-size: 17px; font-style: italic; color: var(--ink2); margin: 0; }
+    blockquote cite { display: block; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink4); font-style: normal; }
+    .callout { margin: 26px 0; padding: 16px 20px; border-radius: 6px; border: 1px solid; }
+    .callout-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; margin-bottom: 8px; font-weight: 500; }
+    .callout p { font-size: 15px; line-height: 1.6; margin: 0; }
+    .callout-info  { background: var(--f64l);    border-color: rgba(0,152,237,0.3);    } .callout-info  .callout-label { color: var(--f64);    }
+    .callout-warn  { background: var(--orangel); border-color: rgba(192,106,26,0.3);  } .callout-warn  .callout-label { color: var(--orange); }
+    .callout-alert { background: var(--redl);    border-color: rgba(192,57,43,0.3);   } .callout-alert .callout-label { color: var(--red);    }
+    .callout-good  { background: var(--greenl);  border-color: rgba(26,122,64,0.25);  } .callout-good  .callout-label { color: var(--green);  }
+    .timeline { margin: 28px 0; border-left: 2px solid var(--rule); padding-left: 26px; }
+    .tl-item { position: relative; margin-bottom: 24px; }
+    .tl-item::before { content: ''; position: absolute; left: -32px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg); border: 2px solid var(--rule); }
+    .tl-item.now::before { background: var(--red); border-color: var(--red); }
+    .tl-date { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink4); margin-bottom: 3px; }
+    .tl-title { font-weight: 600; font-size: 15.5px; color: var(--ink); margin-bottom: 3px; }
+    .tl-body  { font-size: 14.5px; color: var(--ink3); line-height: 1.58; }
+    .scenario { border: 1px solid var(--rule); border-radius: 8px; margin: 18px 0; overflow: hidden; background: #fff; }
+    .scenario-head { padding: 18px 20px; cursor: pointer; user-select: none; display: flex; gap: 14px; align-items: flex-start; transition: background 0.15s; }
+    .scenario-head:hover { background: var(--bg2); }
+    .sc-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink4); min-width: 22px; margin-top: 3px; }
+    .sc-meta { flex: 1; }
+    .sc-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+    .sc-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid; }
+    .tag-r { background: var(--redl); color: var(--red); border-color: rgba(192,57,43,0.3); }
+    .tag-o { background: var(--orangel); color: var(--orange); border-color: rgba(192,106,26,0.3); }
+    .tag-a { background: var(--amberl); color: var(--amber); border-color: rgba(160,124,16,0.3); }
+    .tag-b { background: var(--f64l); color: var(--f64); border-color: rgba(0,152,237,0.3); }
+    .tag-g { background: var(--greenl); color: var(--green); border-color: rgba(26,122,64,0.3); }
+    .tag-n { background: var(--bg2); color: var(--ink4); border-color: var(--rule); }
+    .tag-live { background: var(--redl); color: var(--red); border-color: rgba(192,57,43,0.4); animation: blink 1.8s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    .sc-prob { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 80px; }
+    .sc-prob-num { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: var(--ink3); }
+    .prob-bar { width: 80px; height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 2px; }
+    .scenario-body { display: none; padding: 4px 20px 20px 56px; border-top: 1px solid var(--rule); }
+    .scenario-body.open { display: block; }
+    .scenario-body p { font-size: 15.5px; color: var(--ink3); }
+    .scenario-body p strong { color: var(--ink2); }
+    .uk-flag-box { background: var(--f64l); border: 1px solid rgba(0,152,237,0.25); border-radius: 5px; padding: 14px 16px; margin-top: 14px; }
+    .uk-flag-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--f64); margin-bottom: 6px; }
+    .uk-flag-box p { font-size: 14px; color: var(--ink3); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; margin: 28px 0; background: #fff; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead tr { background: var(--bg2); border-bottom: 1px solid var(--rule); }
+    thead th { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink4); padding: 12px 16px; text-align: left; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid var(--rule); transition: background 0.15s; }
+    tbody tr:last-child { border: none; }
+    tbody tr:hover { background: var(--bg2); }
+    tbody td { padding: 12px 16px; vertical-align: top; line-height: 1.5; }
+    .td-s { font-weight: 500; color: var(--ink2); } .td-p { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; font-weight: 500; } .td-n { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ink4); }
+    .wildcard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 22px 0; }
+    .wc-card { background: #fff; border: 1px solid var(--rule); border-radius: 7px; padding: 18px; }
+    .wc-icon { font-size: 22px; margin-bottom: 10px; }
+    .wc-card h4 { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--ink); }
+    .wc-card p { font-size: 13.5px; color: var(--ink4); line-height: 1.55; margin: 0; }
+    .policy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 22px 0; }
+    .policy-card { background: #fff; border: 1px solid var(--rule); border-radius: 7px; padding: 20px; }
+    .policy-head { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink4); margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+    .policy-item { display: flex; gap: 10px; margin-bottom: 12px; font-size: 14px; }
+    .pol-arr { color: var(--f64); font-family: 'JetBrains Mono', monospace; font-size: 12px; margin-top: 2px; }
+    .pol-txt { color: var(--ink3); line-height: 1.55; } .pol-txt strong { color: var(--ink2); font-weight: 600; }
+    footer { background: var(--bg2); border-top: 1px solid var(--rule); padding: 28px 40px; }
+    .footer-inner { max-width: 780px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .footer-text { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--ink4); line-height: 1.6; }
+    .footer-text strong { color: var(--ink3); }
+    .reveal { opacity: 0; transform: translateY(12px); transition: opacity 0.55s ease, transform 0.55s ease; }
+    .reveal.on { opacity: 1; transform: none; }
+    .nav-dots { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 9px; z-index: 200; }
+    .nd { width: 5px; height: 5px; border-radius: 50%; background: var(--rule); cursor: pointer; transition: background 0.2s, transform 0.2s; }
+    .nd.active, .nd:hover { background: var(--f64); transform: scale(1.5); }
+    @media (max-width: 768px) { .nav-dots { display: none; } }
+    .doomsday-chip { display: inline-flex; align-items: center; gap: 10px; background: var(--redl); border: 1px solid rgba(192,57,43,0.25); border-radius: 6px; padding: 10px 16px; margin: 20px 0; }
+    .dc-num { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; color: var(--red); }
+    .dc-lab { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink4); line-height: 1.4; }
+    .update-badge { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; background: rgba(192,57,43,0.1); color: var(--red); border: 1px solid rgba(192,57,43,0.25); border-radius: 3px; padding: 2px 7px; margin-left: 8px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+
+<div class="brand-bar">
+  <span class="brand-name">Float64</span>
+  <span class="brand-date">Updated · Mon 2 March 2026 · Day 3</span>
+</div>
+
+<div class="breaking-banner">
+  <span class="break-tag">⚡ Breaking</span>
+  <span class="break-text"><strong>RAF Akrotiri (Cyprus) struck by Iranian Shahed drone — first attack on European soil</strong> · Khamenei confirmed dead · Hezbollah enters war · 3 US troops KIA · Iran strikes Saudi Aramco at Ras Tanura · 555 Iranians killed · 14,000+ flights cancelled</span>
+</div>
+
+<nav class="nav-dots">
+  <div class="nd active" onclick="window.scrollTo(0,0)"></div>
+  <div class="nd" onclick="document.getElementById('uk-wwii').scrollIntoView({behavior:'smooth'})"></div>
+  <div class="nd" onclick="document.getElementById('nuclear-essay').scrollIntoView({behavior:'smooth'})"></div>
+  <div class="nd" onclick="document.getElementById('timeline').scrollIntoView({behavior:'smooth'})"></div>
+  <div class="nd" onclick="document.getElementById('scenarios').scrollIntoView({behavior:'smooth'})"></div>
+  <div class="nd" onclick="document.getElementById('matrix').scrollIntoView({behavior:'smooth'})"></div>
+  <div class="nd" onclick="document.getElementById('policy').scrollIntoView({behavior:'smooth'})"></div>
+</nav>
+
+<header class="article-header">
+  <div class="kicker">Float64 · Global Risk · Day 3 of the Iran War</div>
+  <h1>How Bad Can the <em>Iran War</em> Get?</h1>
+  <p class="deck">Khamenei is dead. British soil has been struck. Hezbollah has re-entered the war. Day three is worse than day one. Here is a fully updated look at every branch of the decision tree — honest analysis for people who want to understand, not panic.</p>
+  <div class="byline">Last updated <span>Mon 2 March 2026, ~14:00 UTC</span> · Open-source synthesis · For students, citizens, and anyone trying to make sense of this</div>
+</header>
+
+<div class="status-strip">
+  <div class="status-inner">
+    <div class="stat-item">
+      <div class="stat-label">Khamenei</div>
+      <div class="stat-val c-red">Confirmed Dead</div>
+      <div class="stat-note">State media confirmed · 40 days mourning · Interim Council formed</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Officials Killed</div>
+      <div class="stat-val c-red">40+</div>
+      <div class="stat-note">Incl. Defence Min, IRGC Cmdr, Chief of Staff, Ahmadinejad</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">UK Status</div>
+      <div class="stat-val c-orange">Under Attack</div>
+      <div class="stat-note">RAF Akrotiri drone-struck · Starmer authorised US use of UK bases</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">War Spread</div>
+      <div class="stat-val c-red">Lebanon Active</div>
+      <div class="stat-note">Hezbollah firing rockets · Israel striking Beirut · Ras Tanura hit</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">CENTCOM Targets</div>
+      <div class="stat-val c-orange">1,000+ in 24 hrs</div>
+      <div class="stat-note">B-2s, Tomahawks, F-22s, LUCAS drones, 9 Iranian ships sunk</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">US Casualties</div>
+      <div class="stat-val c-red">3 KIA · 5 Serious</div>
+      <div class="stat-note">Trump: "there will likely be more"</div>
+    </div>
+  </div>
+</div>
+
+<div class="article-body">
+
+  <p style="margin-top:44px;">This document was first written on Saturday morning as Operation Epic Fury began. It is now Monday. The situation has changed more in 60 hours than most analysts predicted in 60 days.</p>
+
+  <p>Ayatollah Ali Khamenei — who has ruled Iran since 1989 — is confirmed dead. More than 40 senior officials and commanders were killed in the opening strikes, including Defence Minister Aziz Nasirzadeh, IRGC commander Mohammad Pakpour, Chief of Staff Abdolrahim Mousavi, and former president Mahmoud Ahmadinejad. An Interim Leadership Council has formed under Article 111 of Iran's constitution. Ahmad Vahidi has been named new IRGC commander-in-chief. CIA assessments predict an IRGC hardliner will ultimately claim the Supreme Leader role.</p>
+
+  <p>Meanwhile: Hezbollah has fired missiles at northern Israel for the first time since the November 2024 ceasefire. Israel has responded with strikes on Beirut. Iran struck Saudi Arabia's Aramco facility at Ras Tanura — one of the world's largest oil terminals. Three US service members are dead. Over 14,000 flights have been cancelled. The UAE has closed schools through Wednesday. Ben Gurion airport remains shut. Three US Air Force F-15Es were shot down over Kuwait in a friendly fire incident; pilots bailed safely.</p>
+
+  <p>And this morning — the part that changed everything for Britain — an Iranian Shahed-136 drone struck the runway at RAF Akrotiri in Cyprus at 00:03 local time. British sovereign territory in Europe has been hit for the first time. Two further drones were intercepted. The government said the UK is "not at war." Defence analysts called it a wake-up call for a base with "no adequate air defence."</p>
+
+  <div class="callout callout-alert">
+    <div class="callout-label">⚠ The Single Biggest Change From Saturday</div>
+    <p>The regime collapse / power vacuum scenario was assigned 15–25% probability at the start of this conflict. It is now live. Khamenei is dead. Iran's Foreign Ministry confirmed "some military units are firing missiles without contact with the leadership — they are just using strategy they've been given." The Interim Council said it would appoint a new Supreme Leader "within days." All scenario probabilities below have been revised accordingly.</p>
+  </div>
+
+  <hr class="section-rule" id="uk-wwii" />
+  <p class="section-tag">Essay I · Updated Day 3</p>
+  <h2>Britain: From Bystander to Target in 60 Hours</h2>
+
+  <p>On Saturday morning the question was hypothetical: could Britain be drawn in? By Monday it has a specific answer. An Iranian drone has struck British territory. Starmer has authorised US use of British bases for offensive operations. RAF jets are actively shooting down Iranian drones. Trump publicly rebuked the PM for not moving faster — "very disappointed in Keir," he told The Daily Telegraph, saying it "took far too long."</p>
+
+  <h3>Saturday: "Britain Is Not At War"</h3>
+
+  <p>Starmer confirmed UK forces were engaged in defensive operations and declined to authorise offensive use of UK bases. The Attorney General had questioned the legality of the original strikes. Labour backbench opposition was near-universal. The Foreign Affairs Committee chair said on the BBC: "I don't think there's a legal basis for this action."</p>
+
+  <h3>Sunday Night: The Reversal</h3>
+
+  <p>Under pressure from Gulf leaders who had been directly struck by Iranian missiles, Starmer reversed and authorised the US to use British bases for the "specific and limited defensive purpose" of targeting Iranian missile depots and launchers. He published a summary of the government's legal position — collective self-defence. He stressed British forces would not participate in offensive strikes on Iran itself. An RAF Typhoon from Qatar, operating with the joint UK-Qatar 12 Squadron, shot down an Iranian drone heading for Qatari territory.</p>
+
+  <h3>Monday: First Drone Hits British Soil</h3>
+
+  <p>At 00:03 Cyprus local time, a Shahed-136 — identical to the drones Russia has been using in Ukraine — hit the runway at RAF Akrotiri. Minor material damage, no casualties. Two further drones intercepted. Sirens sounded again during Monday morning. Non-essential personnel and families are being evacuated to alternative accommodation. Foreign Secretary Yvette Cooper confirmed the strike hit the airport runway. The UK's stated terror threat level is under review by the Defence Secretary.</p>
+
+  <blockquote>
+    <p>"Starmer made the right call in not participating in the initial strikes. He made the wrong call in believing that made them immune to Iranian retaliation. There should have been preparation."</p>
+    <cite>— UK Defence Journal, 2 March 2026</cite>
+  </blockquote>
+
+  <h3>The Structural Logic</h3>
+
+  <p>What the 60-hour arc reveals is the trap Britain has been in since this conflict became visible. Britain's security is architecturally inseparable from the US — intelligence systems, weapons platforms, communications infrastructure, the RAF's own operational doctrine. When the US goes to war in a region where British assets are physically present, British neutrality is not really an option. Iran knows this. Iran proved it knows this.</p>
+
+  <p>The WWII parallel that seemed dramatic last week is now more structurally grounded. Not because bombs are falling on London — they aren't — but because Britain is militarily involved in a conflict Parliament has not voted for, against an enemy actively targeting British territory, with an American ally that is explicitly transactional about its expectations, and with armed forces at a readiness level widely described as dangerously inadequate. The absence of Sky Sabre air defence systems at Akrotiri before the war started — despite weeks of visible US military buildup — is an exhibit in that case.</p>
+
+  <div class="callout callout-warn">
+    <div class="callout-label">⚠ Parliament Reconvenes Wednesday</div>
+    <p>Starmer has authorised offensive use of British bases without a parliamentary vote. Post-Iraq, it is convention (not law) that prime ministers seek approval for major military operations. British sovereign territory has now been struck in retaliation. Parliament returns from recess Wednesday. This will be the first real democratic reckoning. The government's legal position — "collective self-defence" — is published. Whether Parliament accepts it is another question.</p>
+  </div>
+
+  <h3>Updated Probability Assessment</h3>
+
+  <p>We previously put a WWII-scale emergency for Britain at 5–10%. We are revising this to <strong>10–18%</strong>. British sovereign territory has been struck. The base is now being used for offensive operations. The legal justification of collective self-defence expands rather than limits further obligations as the conflict widens. Hezbollah's re-entry puts Lebanon active, which puts the eastern Mediterranean active, which makes RAF Akrotiri a potential sustained front. The question is no longer whether Britain is involved — it demonstrably is — but whether Parliament endorses and extends it, and whether the Russian opportunism scenario provides the final structural catalyst.</p>
+
+  <div class="callout callout-good">
+    <div class="callout-label">✓ The Limiting Factors</div>
+    <p>Starmer has drawn firm lines: no British troops in offensive strikes, no use of UK bases against political or economic targets. Iran's FM told Oman he remains "open to de-escalation." Trump says Iranian officials want to talk. The Omani framework still technically exists. Britain's Trident deterrent makes a direct existential attack on the UK homeland essentially irrational for any actor. The EU is standing "collectively" with Cyprus.</p>
+  </div>
+
+  <hr class="section-rule" id="nuclear-essay" />
+  <p class="section-tag">Essay II · Updated Day 3</p>
+  <h2>Nuclear Risk: The Succession Crisis Changes the Calculus</h2>
+
+  <p>On Saturday, the nuclear threat analysis was primarily structural — expired New START, the Doomsday Clock at 89 seconds, missing enriched uranium. By Monday there is a new and specific acute factor: <strong>Iran is now a nuclear-adjacent state with no functioning head of government, an active succession crisis, and some IRGC units explicitly confirmed as operating without central command.</strong></p>
+
+  <p>The Institute for Science and International Security had assessed, as of mid-February, that the probability of Iran building nuclear weapons was "around 50%, or even a little lower." That assessment assumed a functioning Iranian state making rational strategic decisions. That assumption no longer holds with certainty.</p>
+
+  <div class="doomsday-chip">
+    <div class="dc-num">89 sec</div>
+    <div style="width:1px;height:36px;background:rgba(192,57,43,0.2)"></div>
+    <div class="dc-lab">Doomsday Clock · Bulletin of Atomic Scientists<br/>Set January 2026 — closest in the clock's 79-year history</div>
+  </div>
+
+  <h3>The Enriched Uranium Problem</h3>
+
+  <p>After the June 2025 strikes, the Bulletin confirmed 400+ kg of uranium enriched to 60% — enough for several nuclear weapons even without further enrichment — was unaccounted for. No IAEA inspector has accessed Iranian nuclear sites since June 2025. CENTCOM stated today that UN nuclear watchdog chief Grossi found "no evidence nuclear facilities were hit" in this operation. The Bushehr area was struck; whether the reactor was damaged is unclear.</p>
+
+  <p>The material exists. Its location is not publicly confirmed. The state that owned it has lost its head of government, its defence minister, its chief of staff, and dozens of IRGC commanders. Some units are explicitly confirmed as operating on autonomous pre-programmed instructions. This is the most acute non-proliferation scenario in the post-Cold War era.</p>
+
+  <h3>Three Nuclear Pathways</h3>
+
+  <p><strong>Pathway 1 — Autonomous IRGC faction moves enriched material.</strong> The most novel risk since Saturday. If an IRGC faction operating on pre-programmed doctrine moves enriched material to a previously unknown facility without central political authority, the result is a de facto nuclear programme below diplomatic radar. Israel's preventive doctrine has modelled this exact scenario for decades.</p>
+
+  <p><strong>Pathway 2 — IRGC hardliner restoration with breakout doctrine.</strong> CIA assessments suggest the IRGC will push for a hardliner Supreme Leader. A hardliner who concludes that Iran's fundamental error was not having a nuclear deterrent in February 2026 will face an enormous internal constituency pressing for rapid acquisition. The North Korea parallel is historically persuasive: they built a bomb and are not being regime-changed. Iraq did not and was.</p>
+
+  <p><strong>Pathway 3 — Superpower miscalculation cascade.</strong> The arms-control vacuum created by New START's expiry means no verification mechanisms exist to distinguish accidental from deliberate escalation if US forces kill Russian advisors embedded with Iranian units, or if a cyber event is misread as a weapons launch.</p>
+
+  <blockquote>
+    <p>"Taking out Iranian Supreme Leader Ayatollah Ali Khamenei is not the same as regime change. The Islamic Revolutionary Guard Corps is the regime."</p>
+    <cite>— Council on Foreign Relations, 1 March 2026</cite>
+  </blockquote>
+
+  <h3>Honest Probability</h3>
+
+  <p>We estimate nuclear use by any actor in the next 12 months at <strong>3–6%</strong>, up from 2–5%. The increase comes from the succession crisis and autonomous IRGC scenario, not from any direct move toward weapons use by a coherent Iranian state. A 3–6% annual probability sounds small — but compounded over a decade it approaches 30–50%, which is the range that causes historians to later ask "how did no one act?" The mitigating factors are real: MAD constrains superpowers, Iran has never used chemical weapons it possessed, the IRGC understands nuclear use invites annihilation. But the IRGC also just lost its central command structure.</p>
+
+  <div class="callout callout-info">
+    <div class="callout-label">📌 Single Most Actionable Fact</div>
+    <p>The IAEA needs emergency access to Iranian nuclear sites — now, under whatever authority is currently governing Iran, with whatever guarantees can be arranged. The Interim Council has an interest in demonstrating the Islamic Republic remains a functional state. This is a potential diplomatic lever the Omani back-channel should exploit immediately. The enriched uranium question cannot wait weeks for a succession to resolve.</p>
+  </div>
+
+  <hr class="section-rule" id="timeline" />
+  <p class="section-tag">How We Got Here</p>
+  <h2>The Full Timeline: June 2025 to Today</h2>
+
+  <div class="timeline reveal">
+    <div class="tl-item">
+      <div class="tl-date">June 13–24, 2025</div>
+      <div class="tl-title">The Twelve-Day War</div>
+      <div class="tl-body">Israel strikes Iranian nuclear and military sites. Iran retaliates with 550+ ballistic missiles. US intervenes June 22 bombing Natanz, Fordow, and Isfahan. Ceasefire brokered June 24. IAEA confirms 400+ kg of 60%-enriched uranium unaccounted for. Iran begins rebuilding facilities deeper underground to defeat GBU-57 bunker busters.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Aug–Nov 2025</div>
+      <div class="tl-title">Sanctions Restored; Axis Weakens</div>
+      <div class="tl-body">UK, France, Germany trigger UN snapback. Russia and China reject its legality. Iran's land bridge through Syria severed by Assad's fall. Hezbollah and Hamas under pressure to disarm. IAEA censures Iran in November for non-cooperation.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Dec 28, 2025</div>
+      <div class="tl-title">Iran's Economy Collapses; Protests Begin</div>
+      <div class="tl-body">Rial hits 1.42 million per dollar. Protests in all 31 provinces — the largest since 1979. Regime massacres thousands. Internet cut nationwide. Khamenei personally ordered the crackdowns. International rights groups estimate 6,000–32,000 killed.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 5, 2026</div>
+      <div class="tl-title">New START Expires</div>
+      <div class="tl-body">The last US-Russia nuclear arms control treaty lapses. First time the world's two largest arsenals have had zero legal constraints since the early 1970s. UN Secretary-General calls it a "grave moment."</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 6–17, 2026</div>
+      <div class="tl-title">Nuclear Talks in Muscat and Geneva</div>
+      <div class="tl-body">US-Iran indirect talks. Both sides report progress. Iran considers transferring HEU stockpile to Turkey. Second carrier USS Gerald R. Ford deploys. Iran seizes two tankers. Khamenei threatens to sink US warships at Geneva. China reportedly finalising CM-302 anti-ship missile deal.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 27, 2026</div>
+      <div class="tl-title">"Peace Within Reach" — Then War</div>
+      <div class="tl-body">Oman's FM announces Iran agreed to permanently halt uranium stockpiling and accept full IAEA verification. "Peace within reach." Within 24 hours, Operation Epic Fury begins.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Feb 28, 2026 — Day 1</div>
+      <div class="tl-title">Operation Epic Fury / Roaring Lion Begins</div>
+      <div class="tl-body">Strikes begin at 1:15am. 200 Israeli jets strike 500 targets. US deploys B-2 stealth bombers, Tomahawks, LUCAS suicide drones — 1,000+ targets struck in 24 hours. Khamenei's compound and dozens of senior officials killed. Iran retaliates with missile barrages across the Gulf. Iranian internet cut to ~4%. 201 Iranian civilians killed by end of Day 1.</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-date">Mar 1, 2026 — Day 2</div>
+      <div class="tl-title">Khamenei Confirmed Dead; Hezbollah Enters</div>
+      <div class="tl-body">Iranian state media confirms Khamenei's death. Iran declares 40 days of mourning. Interim Leadership Council formed. Ahmad Vahidi named new IRGC commander-in-chief. Hezbollah fires rockets at northern Israel for first time since Nov 2024 ceasefire. 3 US troops killed, 5 seriously wounded. Iran strikes Saudi Aramco at Ras Tanura. Iranian drone fire at UAE; fire at Jebel Ali port. Ben Gurion airport closed. IRGC confirms some units operating without central command.</div>
+    </div>
+    <div class="tl-item now">
+      <div class="tl-date">Mar 2, 2026 — Day 3 (Today)</div>
+      <div class="tl-title">British Soil Struck; War Spreads to Lebanon</div>
+      <div class="tl-body">Iranian Shahed-136 drone hits RAF Akrotiri runway, Cyprus — first attack on European soil since war began. Two further drones intercepted. Starmer authorises US use of UK bases for "limited defensive purpose." Trump calls Starmer "very disappointing." Israel strikes Beirut. 3 F-15Es shot down over Kuwait in friendly fire incident; pilots bailed safely. 555 Iranians confirmed killed. Oman and Iran's FM still in back-channel contact. Trump says Iranian officials "want to talk." Congress files war powers resolutions; veto override unlikely.</div>
+    </div>
+  </div>
+
+  <hr class="section-rule" id="scenarios" />
+  <p class="section-tag">Decision Tree · Revised Mar 2</p>
+  <h2>Six Scenarios — All Updated for Day Three</h2>
+  <p>Every probability below has been revised from the original Saturday analysis. The biggest structural shift: Scenario 3 (power vacuum) is no longer a future risk — it is the present reality. We are now modelling what happens inside it.</p>
+
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">01</div>
+      <div class="sc-meta">
+        <div class="sc-title">Negotiated Ceasefire — Weeks, Not Days</div>
+        <div class="sc-tags"><span class="tag tag-a">Risk: Moderate</span><span class="tag tag-n">~15%</span><span class="tag tag-n">↓ from 30%</span></div>
+      </div>
+      <div class="sc-prob"><div class="sc-prob-num">15%</div><div class="prob-bar"><div class="prob-fill" style="width:15%;background:var(--amber)"></div></div></div>
+    </div>
+    <div class="scenario-body">
+      <p>The Omani framework technically survives. Iran's FM Araghchi told Oman he is "open to any serious efforts at de-escalation." Trump said Monday he "will be talking" to Iranian officials. An IRGC-led Interim Council that wants to demonstrate state legitimacy has an incentive to negotiate rather than continue absorbing damage.</p>
+      <p>The difficulty: Khamenei is dead. The calibrated-response doctrine that enabled the June 2025 ceasefire was Khamenei's personal institutional property — a 47-year learned behaviour. IRGC hardliners now running the country have a domestic political incentive to fight. Hezbollah entering the conflict means a ceasefire on the Iran front alone does not end hostilities. <strong>This scenario is still possible, but now requires more actors to agree simultaneously than at any prior point.</strong></p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>Manageable if this happens quickly. RAF Akrotiri incident becomes a one-off. Parliament debates war powers, no vote for offensive ops passes. Energy prices spike then stabilise. Major economic disruption from cancelled flights and shipping insurance costs, but not structural.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">02</div>
+      <div class="sc-meta">
+        <div class="sc-title">Extended Multi-Front Regional War <span class="update-badge">MOST LIKELY</span></div>
+        <div class="sc-tags"><span class="tag tag-o">Risk: High</span><span class="tag tag-n">~40%</span><span class="tag tag-n">↑ from 35%</span></div>
+      </div>
+      <div class="sc-prob"><div class="sc-prob-num">40%</div><div class="prob-bar"><div class="prob-fill" style="width:40%;background:var(--orange)"></div></div></div>
+    </div>
+    <div class="scenario-body">
+      <p>The war has expanded from Iran to Lebanon to Cypriot sovereign territory in 60 hours. The Houthis have pledged engagement. Iraqi PMF militias — previously restrained by IRGC central command — are now potentially operating without that restraint, which risks dragging Baghdad into a conflict the Iraqi government is trying desperately to avoid. Iran struck Saudi oil infrastructure. Israel has warned it is "prepared for an all-fronts scenario."</p>
+      <p>Hezbollah's decision to enter without coordinated Iranian command is strategically revealing. Al Jazeera analysts described it as Hezbollah deciding that "waiting is no longer an option" after the Syrian land bridge was severed and IRGC command shattered. A Hezbollah that believes its strategic position is collapsing has less reason for restraint, not more. <strong>The oil dimension is now critical:</strong> Ras Tanura struck, Hormuz traffic stalled, war insurance costs prohibitive. Brent crude rising sharply Monday morning.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>Already materialising. British territory struck. Parliament under pressure to expand involvement. Energy prices rising. 14,000+ flights cancelled means tens of thousands of British nationals stranded — unprecedented consular emergency. If Lebanon war escalates, RAF Akrotiri becomes a sustained front rather than a one-off target.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">03</div>
+      <div class="sc-meta">
+        <div class="sc-title">Power Vacuum — This Is Already Happening <span class="update-badge">LIVE</span></div>
+        <div class="sc-tags"><span class="tag tag-live">⬤ Active</span><span class="tag tag-o">Risk: Very High</span><span class="tag tag-n">~25%</span></div>
+      </div>
+      <div class="sc-prob"><div class="sc-prob-num">25%</div><div class="prob-bar"><div class="prob-fill" style="width:25%;background:var(--orange)"></div></div></div>
+    </div>
+    <div class="scenario-body">
+      <p>This is no longer a future scenario. Iran is governed by an Interim Leadership Council in a constitutional holding pattern. Some IRGC units are confirmed operating on autonomous pre-programmed doctrine without contact with political leadership. The Interim Council said it would name a new Supreme Leader "within days." Ahmad Vahidi is now IRGC commander. The question is which version of the vacuum plays out.</p>
+      <p><strong>Version A — Quick IRGC hardliner consolidation:</strong> Command coherence restored within days, but with a more bellicose doctrine than Khamenei's careful calibration. <strong>Version B — Prolonged contested succession:</strong> Leaves Iran's 2,000-missile arsenal and nuclear material under decentralised control for weeks. The Council on Foreign Relations said it plainly: "The IRGC is the regime. Killing Khamenei is not the same as regime change." If the IRGC unifies under a new leader quickly, the regime survives in harder form. If it doesn't, proxy networks across four countries are running on autonomous pre-programmed instructions with no political authority to call them off.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>High and escalating. SAS/SBS deployment to help secure nuclear material is now a real scenario — executable by executive authority without parliamentary vote. British nationals across the Gulf face proxy retaliation from autonomous militia units with no one to call them off. The consular emergency is already live: evacuation planning reportedly underway as airport closures persist.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">04</div>
+      <div class="sc-meta">
+        <div class="sc-title">CRINK Opportunistic Escalation</div>
+        <div class="sc-tags"><span class="tag tag-r">Risk: Critical</span><span class="tag tag-n">~10%</span><span class="tag tag-n">→ stable</span></div>
+      </div>
+      <div class="sc-prob"><div class="sc-prob-num">10%</div><div class="prob-bar"><div class="prob-fill" style="width:10%;background:var(--red)"></div></div></div>
+    </div>
+    <div class="scenario-body">
+      <p>Russia has condemned the strikes as "unprovoked armed aggression." China called for an immediate stop. Neither has moved toward direct military involvement — the cost remains prohibitive. But the strategic opportunity presented by Gulf-distracted American leadership has not changed. A US Ambassador met the Estonian PM on Monday morning to discuss "regional and global security" — NATO is already thinking about the opportunistic-escalation window. The CM-302 missile deal between China and Iran is presumably on hold given Iran's current chaos. This is an important de-escalating factor that was not in the original analysis.</p>
+      <p>Russia's position is the one to watch. It has a strategic partnership with Iran, is watching the US commit substantial military resources in the Gulf, and has spent three years testing NATO's resolve in Europe with drone incursions, sabotage, and undersea cable attacks. Whether Russia views this as an opportunity or a warning depends on assessments inside the Kremlin that no one outside it can confirm.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>This is where the true WWII-scale scenario lives. Russia moving against a NATO Baltic member while the US is committed in the Gulf would require Britain to honour Article 5 without reliable American backing. The SDR described this exact scenario. Parliament is not prepared for this conversation.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">05</div>
+      <div class="sc-meta">
+        <div class="sc-title">Britain's WWII-Scale Emergency</div>
+        <div class="sc-tags"><span class="tag tag-r">Risk: Critical</span><span class="tag tag-n">~12%</span><span class="tag tag-n">↑ from 7%</span></div>
+      </div>
+      <div class="sc-prob"><div class="sc-prob-num">12%</div><div class="prob-bar"><div class="prob-fill" style="width:12%;background:var(--red)"></div></div></div>
+    </div>
+    <div class="scenario-body">
+      <p>We are raising this probability substantially. On Saturday it was theoretical. By Monday, Iran has attacked British territory, the PM has authorised offensive use of British bases without a parliamentary vote, Trump has publicly rebuked the PM and demonstrated the transactional nature of the relationship, Hezbollah has re-entered putting the eastern Mediterranean active, RAF Akrotiri has been struck, and the UK terror threat is under review. All three of the Saturday triggers have partially activated: British assets struck (✓), Trump conditioning the relationship on compliance (initial move made), Russia opportunism (watching and waiting).</p>
+      <p>The constitutional crisis is imminent — not because Britain faces an existential military threat to the homeland, but because the democratic oversight mechanisms are visibly under strain. Starmer has taken Britain into an offensive military posture in 72 hours without Parliament having any say. The post-Iraq convention exists precisely to prevent this. Wednesday's reconvening will be the first test of whether Britain's democratic institutions can maintain control of a crisis accelerating faster than deliberative democracy is designed to handle.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p><em>This is already partially the scenario.</em> Parliamentary constitutional crisis, consular emergency for Gulf nationals, British sovereign territory in Europe under drone attack, energy prices rising, PM being shamed by US President for insufficient loyalty, terror threat under review. The question now is how far it goes — and whether Russia provides the final structural catalyst that makes it unambiguous.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="scenario reveal">
+    <div class="scenario-head" onclick="toggle(this)">
+      <div class="sc-num">06</div>
+      <div class="sc-meta">
+        <div class="sc-title">Nuclear Use by Any Actor</div>
+        <div class="sc-tags"><span class="tag tag-r">Risk: Existential</span><span class="tag tag-n">3–6%</span><span class="tag tag-n">↑ from 3%</span></div>
+      </div>
+      <div class="sc-prob"><div class="sc-prob-num">4%</div><div class="prob-bar"><div class="prob-fill" style="width:4%;background:var(--red)"></div></div></div>
+    </div>
+    <div class="scenario-body">
+      <p>The structural analysis from Saturday holds — MAD, rational actor constraints, the terminal nature of nuclear exchange as deterrent. What has changed is the Iranian-specific pathway. A state with decentralised military command, 400+ kg of unaccounted enriched uranium, no functioning head of government, and some units explicitly confirmed operating on autonomous pre-programmed doctrine is qualitatively different from the Iran that existed 72 hours ago. We are not saying an IRGC autonomous unit is about to move material. We are saying the institutional structure that prevented it has been severely damaged.</p>
+      <p>IAEA chief Grossi said Monday that no evidence was found of nuclear facilities being struck in this operation. That is reassuring for immediate reactor safety — but does nothing to clarify where the enriched uranium is or who now controls decisions about it in a state experiencing an unprecedented succession crisis.</p>
+      <div class="uk-flag-box">
+        <div class="uk-flag-label">🇬🇧 UK Exposure</div>
+        <p>Britain's Continuous At-Sea Deterrent (Trident) exists for this scenario. It makes a direct nuclear attack on the UK homeland essentially irrational for any actor. It does not protect against Iranian drones hitting RAF Akrotiri, but it is the hardest backstop Britain possesses.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="section-rule" id="matrix" />
+  <p class="section-tag">Summary — Saturday vs. Monday</p>
+  <h2>How Every Probability Has Moved in 60 Hours</h2>
+
+  <div class="table-wrap reveal">
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Sat 28 Feb</th>
+          <th>Mon 2 Mar</th>
+          <th>Move</th>
+          <th>Driver</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="td-s">Ceasefire within weeks</td>
+          <td class="td-p c-amber">25–35%</td>
+          <td class="td-p c-amber">~15%</td>
+          <td class="td-n">↓ sharply</td>
+          <td class="td-n">Khamenei dead; Hezbollah active; hardliner succession expected</td>
+        </tr>
+        <tr>
+          <td class="td-s">Extended multi-front war</td>
+          <td class="td-p c-orange">30–40%</td>
+          <td class="td-p c-orange">~40%</td>
+          <td class="td-n">→ up slightly</td>
+          <td class="td-n">Lebanon front active; autonomous IRGC; Gulf strikes widening</td>
+        </tr>
+        <tr>
+          <td class="td-s">Power vacuum (LIVE)</td>
+          <td class="td-p c-orange">15–25%</td>
+          <td class="td-p c-orange">~25% (Active)</td>
+          <td class="td-n">↑ — Present tense</td>
+          <td class="td-n">Khamenei confirmed dead; IRGC confirmed autonomous in places</td>
+        </tr>
+        <tr>
+          <td class="td-s">CRINK opportunism</td>
+          <td class="td-p c-red">8–15%</td>
+          <td class="td-p c-red">~10%</td>
+          <td class="td-n">→ stable</td>
+          <td class="td-n">Russia/China holding; CM-302 deal in limbo</td>
+        </tr>
+        <tr>
+          <td class="td-s">Britain's WWII-scale emergency</td>
+          <td class="td-p c-red">5–10%</td>
+          <td class="td-p c-red">~12%</td>
+          <td class="td-n">↑ sharply</td>
+          <td class="td-n">Akrotiri struck; UK bases now offensive; Parliament crisis imminent</td>
+        </tr>
+        <tr>
+          <td class="td-s">Nuclear use (any actor)</td>
+          <td class="td-p c-red">2–5%</td>
+          <td class="td-p c-red">3–6%</td>
+          <td class="td-n">↑ modest</td>
+          <td class="td-n">Autonomous IRGC units; no IAEA access; unaccounted HEU</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="margin-top:40px;">Five Wildcards to Watch Closely</h3>
+  <div class="wildcard-grid reveal">
+    <div class="wc-card">
+      <div class="wc-icon">🛢</div>
+      <h4>Ras Tanura &amp; the Strait</h4>
+      <p>Iran struck the world's largest oil terminal this morning. JMIC rates Strait of Hormuz risk as "critical" — attack almost certain. Even partial disruption drives Brent to $120+. Watch tanker tracking data and war insurance rates; they move faster than official statements.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">🔱</div>
+      <h4>IRGC Succession</h4>
+      <p>Ahmad Vahidi named as new IRGC commander. A new Supreme Leader will be chosen "within days." Every day that process takes is a day of autonomous unit operation. The speed and direction of the succession is the most important unknown in the conflict right now.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">🇱🇧</div>
+      <h4>Lebanon Front</h4>
+      <p>Hezbollah entering without coordinated Iranian command means it is making decisions for its own survival, which may not align with de-escalation. Lebanese PM Salam called Hezbollah's action "illegal." Israel is striking Beirut. A full Lebanon war dramatically expands the theatre.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">☢</div>
+      <h4>Enriched Uranium</h4>
+      <p>400+ kg of 60%-enriched uranium. No IAEA access since June 2025. Autonomous IRGC units confirmed. Securing this material is the most urgent non-proliferation task on the planet. No public plan exists.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">🏛</div>
+      <h4>Westminster Wednesday</h4>
+      <p>Parliament reconvenes Wednesday. Starmer has authorised offensive use of British bases without a vote — and British territory has been struck in retaliation. The war powers question is unavoidable. The political dynamics will determine how far UK involvement extends.</p>
+    </div>
+  </div>
+
+  <hr class="section-rule" id="policy" />
+  <p class="section-tag">What Should Happen</p>
+  <h2>Recommendations: For Policymakers and for You</h2>
+
+  <div class="policy-grid reveal">
+    <div class="policy-card">
+      <div class="policy-head">🇬🇧 UK Government — Immediate</div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Parliamentary emergency debate on Wednesday.</strong> British territory has been struck. The PM authorised offensive base use. Parliament must be shown the legal advice and given a vote. The post-Iraq convention is not optional.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Deploy Sky Sabre to Akrotiri immediately.</strong> The base was struck without adequate air defence, despite weeks of visible US military buildup. Basic force protection of British sovereign territory is a fundamental obligation.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Accelerate Gulf evacuation planning.</strong> 14,000+ flights cancelled, Ben Gurion closed, regional airspace shut. Communicate publicly what options British nationals have. Don't wait for official evacuation orders to build the plan.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Activate strategic petroleum reserve.</strong> Ras Tanura struck, Hormuz stalled. Energy price emergency is a near-term risk. Coordinate with IEA now.</div></div>
+    </div>
+    <div class="policy-card">
+      <div class="policy-head">🌍 Western Alliance</div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>IAEA emergency access to Iranian nuclear sites — now.</strong> The Interim Council has an interest in demonstrating state legitimacy. This is the diplomatic lever. Use it before the succession resolves into a harder position.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Preserve the Omani channel.</strong> The deal from last Friday must not die with the strikes. Araghchi remains FM and says he's open. Oman is still calling for a ceasefire. This is the only credible off-ramp.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Open a Russia back-channel.</strong> The opportunistic-escalation window in Europe is open right now. Pre-emptive communication reduces the risk of two simultaneous crises. Cost: nothing.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Restart New START talks.</strong> A voluntary US-Russia data exchange as a confidence measure costs nothing and reduces the miscalculation risk created by the arms-control vacuum. It is the most important policy action not being discussed in today's news cycle.</div></div>
+    </div>
+    <div class="policy-card">
+      <div class="policy-head">🧑‍🎓 For You Right Now</div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Verify before sharing.</strong> Iran is at near-total internet shutdown. All sides have active propaganda operations. Multiple major claims — the Abraham Lincoln being hit, various casualty figures — were wrong when first reported. Use primary sources: CENTCOM, UK MoD, Times of Israel live blog, Reuters.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>If you're in the Gulf, check FCO advice now.</strong> The Foreign Office is planning emergency routes for nationals with airports closed. Check the travel advisory for your specific country and make a plan before you need one.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Watch energy and food prices.</strong> Hormuz disruption and Ras Tanura strikes are real supply-chain events. Check whether your energy supplier has fixed-price contracts or is exposed to wholesale market swings.</div></div>
+      <div class="policy-item"><div class="pol-arr">→</div><div class="pol-txt"><strong>Contact your MP before Wednesday.</strong> Parliament reconvenes then and war powers are on the agenda. Whether you think Britain should be more or less involved, this is the democratic lever available to you. Use it.</div></div>
+    </div>
+  </div>
+
+  <blockquote style="margin-top:36px;">
+    <p>"The death of Ali Khamenei is a defining moment in Iran's history. What comes next is uncertain. It is also an opportunity for Iran's people to shape their own future."</p>
+    <cite>— EU High Representative Kaja Kallas, 1 March 2026</cite>
+  </blockquote>
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-text">
+      <strong>Sources (Day 3 update):</strong> NBC News live blog, CBS News, NPR, Fox News, USNI News, Reuters, AP, Al Jazeera, Euronews,<br/>
+      Times of Israel live blog, GB News, ITV News, Bloomberg, TIME, UK Defence Journal, CNBC, Aerotime,<br/>
+      Wikipedia (live: 2026 Iranian leadership crisis · 2026 Israeli–US strikes · Prelude articles),<br/>
+      Bulletin of Atomic Scientists, ISIS Non-proliferation, Chatham House, Crisis Group, Atlantic Council, White House / CENTCOM
+    </div>
+    <div class="footer-text" style="text-align:right;">
+      <strong>Float64</strong> · Updated 2 Mar 2026 ~14:00 UTC<br/>
+      Open-source synthesis only · Not affiliated with any<br/>government, intelligence agency, or military body.
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggle(head) {
+    const body = head.nextElementSibling;
+    const isOpen = body.classList.contains('open');
+    document.querySelectorAll('.scenario-body').forEach(b => b.classList.remove('open'));
+    if (!isOpen) body.classList.add('open');
+  }
+  document.querySelectorAll('.scenario-body')[1].classList.add('open');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  const ids = ['uk-wwii','nuclear-essay','timeline','scenarios','matrix','policy'];
+  const dots = document.querySelectorAll('.nd');
+  window.addEventListener('scroll', () => {
+    let cur = -1;
+    ids.forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.5) cur = i + 1;
+    });
+    dots.forEach((d, i) => d.classList.toggle('active', i === Math.max(0, cur)));
+  });
+</script>
+</body>
+</html>
