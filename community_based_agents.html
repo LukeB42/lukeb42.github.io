@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Community-Based Agents: Psychology, Criminality and the Economics of Manufactured Crisis</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink-light: #2d2d4a;
+    --rule: #8b8ba7;
+    --rule-light: #c8c8dc;
+    --cream: #f5f4ef;
+    --cream-dark: #e8e6dd;
+    --accent: #8b1a1a;
+    --accent-light: #c0392b;
+    --gold: #9b7a3d;
+    --gold-light: #c4a35a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { font-size: 16px; }
+
+  body {
+    background: var(--cream);
+    color: var(--ink);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 1.05rem;
+    line-height: 1.85;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Page chrome */
+  .page-border {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 100;
+    border: 3px solid var(--ink);
+  }
+  .page-border::after {
+    content: '';
+    position: absolute;
+    top: 6px; left: 6px; right: 6px; bottom: 6px;
+    border: 1px solid var(--rule);
+  }
+
+  /* Header */
+  header {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 3rem 5rem 2.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent) 0%, var(--gold) 50%, var(--accent) 100%);
+  }
+
+  .classification-banner {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--gold-light);
+    border: 1px solid var(--gold);
+    display: inline-block;
+    padding: 0.25rem 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2.5rem;
+  }
+
+  .doc-ref {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--rule);
+    line-height: 1.8;
+  }
+
+  header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: clamp(1.7rem, 3.5vw, 2.6rem);
+    line-height: 1.25;
+    max-width: 820px;
+    color: var(--cream);
+    letter-spacing: 0.01em;
+    margin-bottom: 0.75rem;
+  }
+
+  header h1 em {
+    font-style: italic;
+    color: var(--rule-light);
+  }
+
+  .subtitle {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem;
+    font-weight: 300;
+    color: var(--rule);
+    font-style: italic;
+    margin-bottom: 2rem;
+    letter-spacing: 0.03em;
+  }
+
+  .divider-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--rule), transparent);
+    margin: 1.5rem 0;
+  }
+
+  .author-block {
+    display: flex;
+    gap: 3rem;
+    margin-top: 1.5rem;
+  }
+
+  .author-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--rule);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.6;
+  }
+
+  .author-item span {
+    display: block;
+    color: var(--cream-dark);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    margin-top: 0.15rem;
+  }
+
+  /* Main */
+  main {
+    flex: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 4rem 3rem 6rem;
+    width: 100%;
+    font-size: 14pt;
+  }
+
+  /* Abstract */
+  .abstract {
+    border-left: 3px solid var(--accent);
+    padding: 1.5rem 2rem;
+    background: var(--cream-dark);
+    margin-bottom: 3.5rem;
+    position: relative;
+  }
+
+  .abstract::before {
+    content: 'ABSTRACT';
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+
+  .abstract p {
+    font-style: italic;
+    color: var(--ink-light);
+    font-size: 0.95em;
+  }
+
+  /* Section headings */
+  .section {
+    margin-bottom: 3.5rem;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .section:nth-child(1) { animation-delay: 0.05s; }
+  .section:nth-child(2) { animation-delay: 0.1s; }
+  .section:nth-child(3) { animation-delay: 0.15s; }
+  .section:nth-child(4) { animation-delay: 0.2s; }
+  .section:nth-child(5) { animation-delay: 0.25s; }
+  .section:nth-child(6) { animation-delay: 0.3s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--rule-light);
+  }
+
+  .section-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-top: 0.2rem;
+  }
+
+  .section h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: 1.35rem;
+    color: var(--ink);
+    line-height: 1.3;
+    letter-spacing: 0.01em;
+  }
+
+  .section p {
+    margin-bottom: 1rem;
+    color: var(--ink-light);
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  .section p:last-child { margin-bottom: 0; }
+
+  /* Callout box */
+  .callout {
+    border: 1px solid var(--rule-light);
+    border-left: 3px solid var(--gold);
+    padding: 1rem 1.5rem;
+    margin: 1.5rem 0;
+    background: rgba(155, 122, 61, 0.04);
+  }
+
+  .callout p {
+    font-size: 0.9em;
+    font-style: italic;
+    color: var(--ink);
+    margin: 0;
+    text-align: left;
+  }
+
+  .callout .callout-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+    font-style: normal;
+  }
+
+  /* Statute box */
+  .statute-box {
+    background: var(--ink);
+    color: var(--cream-dark);
+    padding: 1.25rem 1.75rem;
+    margin: 1.5rem 0;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    line-height: 1.9;
+    letter-spacing: 0.02em;
+  }
+
+  .statute-box .statute-title {
+    color: var(--gold-light);
+    font-size: 0.6rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  .statute-box ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .statute-box ul li::before {
+    content: '▸  ';
+    color: var(--accent-light);
+  }
+
+  /* Strong emphasis */
+  strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  /* Recommendations */
+  .recommendations {
+    background: var(--ink);
+    color: var(--cream);
+    padding: 2.5rem 3rem;
+    margin-top: 4rem;
+    position: relative;
+  }
+
+  .recommendations::before {
+    content: 'RECOMMENDATIONS FOR PRACTITIONERS';
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.25em;
+    color: var(--gold-light);
+    display: block;
+    margin-bottom: 1.5rem;
+  }
+
+  .recommendations h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-size: 1.3rem;
+    color: var(--cream);
+    margin-bottom: 1rem;
+  }
+
+  .rec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  @media (max-width: 640px) {
+    .rec-grid { grid-template-columns: 1fr; }
+    header { padding: 2rem; }
+    main { padding: 2rem 1.5rem 5rem; }
+  }
+
+  .rec-item {
+    border-top: 1px solid rgba(200,200,220,0.2);
+    padding-top: 1rem;
+  }
+
+  .rec-item-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    color: var(--gold-light);
+    letter-spacing: 0.2em;
+    margin-bottom: 0.4rem;
+  }
+
+  .rec-item p {
+    font-size: 0.88rem;
+    color: var(--rule-light);
+    line-height: 1.65;
+    margin: 0;
+  }
+
+  /* Footer */
+  footer {
+    background: var(--ink);
+    color: var(--rule);
+    padding: 1rem 5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    border-top: 3px solid var(--accent);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .footer-classification {
+    color: var(--gold-light);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  @media (max-width: 640px) {
+    footer { padding: 1rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-border"></div>
+
+<header>
+  <div class="classification-banner">For Official Use &mdash; Law Enforcement &amp; Parliamentary Distribution</div>
+  <div class="doc-meta">
+    <div class="doc-ref">
+      REF: CBA/2026/001<br>
+      DATE: March 2026<br>
+      REVIEW: Annual
+    </div>
+    <div class="doc-ref" style="text-align:right;">
+      AUDIENCE: Police Officers<br>
+      &amp; Members of Parliament<br>
+      PAGES: 1 of 1
+    </div>
+  </div>
+  <h1>Community-Based Agents:<br><em>Psychology, Criminality, and the Economics<br>of Manufactured Crisis</em></h1>
+  <div class="subtitle">An analytical briefing on predatory community actors, their methods, their motivations, and their measurable cost to public life</div>
+  <div class="divider-rule"></div>
+  <div class="author-block">
+    <div class="author-item">Prepared for<span>HM Law Enforcement &amp; Parliament</span></div>
+    <div class="author-item">Classification<span>Official Use</span></div>
+    <div class="author-item">Status<span>Analytical Briefing</span></div>
+  </div>
+</header>
+
+<main>
+
+  <div class="abstract">
+    <p>This document examines a class of actor referred to herein as the <strong>community-based agent</strong> (CBA): individuals embedded within residential or social communities who systematically deploy harassment, coercion, manufactured crisis, and psychological manipulation — not for direct material gain, but to generate influence, perceived indispensability, and narcissistic supply. Drawing on relevant criminal statutes, behavioural psychology, and economic analysis, this briefing argues that CBAs constitute a net drain on community resources, public service capacity, and individual wellbeing, and that their activity pattern is self-reinforcing, cyclical, and fundamentally predatory in character.</p>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">§ 01</span>
+      <h2>The Criminal Repertoire: Coercion, Harassment, and the Manufacture of Detention</h2>
+    </div>
+
+    <p>The community-based agent does not typically pursue one specific criminal act. Rather, they operate through an orchestrated repertoire of lower-level offences sustained over time, with the cumulative intention of destabilising a target's life sufficiently to precipitate a crisis — most often a needless police contact, mental health detention, or social services involvement — from which the CBA then positions themselves as an indispensable intermediary or solution.</p>
+
+    <div class="statute-box">
+      <span class="statute-title">Relevant Statutes — Commonly Engaged</span>
+      <ul>
+        <li>Protection from Harassment Act 1997 — sustained campaign of harassment and alarm</li>
+        <li>Serious Crime Act 2015 s.76 — coercive and controlling behaviour in personal relationships</li>
+        <li>Offences Against the Person Act 1861 / Criminal Justice Act 1988 — threats to kill or cause harm</li>
+        <li>Human Rights Act 1998 — Articles 3, 5, 8 (degrading treatment, liberty, private/family life)</li>
+        <li>Computer Misuse Act 1990 ss.1–3 — unauthorised computer access, data interference</li>
+        <li>Criminal Damage Act 1971 — interference with property as harassment vector</li>
+        <li>Public Order Act 1986 ss.4–5 — threatening, abusive, or insulting conduct</li>
+      </ul>
+    </div>
+
+    <p>A defining feature of the CBA's method is <strong>deniability by design</strong>. Individual acts — a noise complaint, a rumour, a minor act of property interference — are calibrated to fall just beneath the threshold of immediate prosecution while accumulating into a pattern that systematically degrades the target's functioning. Officers attending individual incidents often cannot see the broader pattern; this is not accidental. The CBA exploits the episodic nature of police response.</p>
+
+    <p>The strategic endpoint is revealing: the CBA does not wish the target to be imprisoned or permanently removed. They wish the target to be <em>destabilised</em> — distracted, discredited, and, most importantly, detained. The detention is not incidental to the CBA's goals. As the following section explains, it is the product that unlocks a specific chain of extraction reaching from the CBA's own family all the way to the public purse.</p>
+
+    <div class="callout">
+      <span class="callout-label">Practitioner Note</span>
+      <p>When attending incidents involving a subject who appears repeatedly connected to a specific individual's distress — whether as complainant, witness, or concerned party — officers should consider whether a pattern of manufactured crisis may be present and log accordingly under intelligence records rather than treating incidents as isolated.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">§ 02</span>
+      <h2>The Recruitment Failure Pivot: From "Do My Job" to "Look Like I Need Money"</h2>
+    </div>
+
+    <p>The community-based agent's primary gambit is recruitment: an implicit or explicit invitation for the target to perform labour, generate output, or provide material support under conditions that credit the CBA rather than the actual producer. The framing is usually community solidarity, shared cause, or reciprocal loyalty. When the target refuses — as a competent, self-sufficient person reliably will — the CBA does not abandon the strategy. They escalate it.</p>
+
+    <p>The escalation path is the needless detention. Having failed to extract voluntary compliance, the CBA intensifies their campaign of agitation — harassment, threats, manufactured social crises — with the specific aim of pushing the target into behaviour that triggers a police or mental health intervention. The target, not the CBA, is detained. The CBA, who engineered the entire sequence, now performs the role of concerned party at the margins of the outcome they caused.</p>
+
+    <p>This detention serves as a <strong>prestige event</strong> directed primarily at the CBA's own near kin. Family members who have observed only the CBA's unproductive daily existence — who know, at some level, that they are supporting or subsidising someone who generates nothing — are presented with apparent evidence of consequence and influence. The CBA did not achieve anything. They caused something. In environments where causing things reads as power, this distinction is deliberately obscured. The CBA bills themselves, to their own family, as the person whose intervention shaped events: a fixer, an operator, someone who matters.</p>
+
+    <p>The CBA's superiors — those higher in the hierarchy who direct or encourage this activity — then use the recorded detention and surrounding disruption to argue upward for additional public funding. More community intervention is required. More crisis response capacity. More programme spend. The manufactured crisis becomes a data point that justifies extracting money from the taxpayer. <strong>That money does not return to the community that generated the apparent need.</strong> It flows to the superiors and the structures they control. The CBA receives, at best, a small increment of status and perhaps minor material benefit. The bulk of the extraction passes straight over their head.</p>
+
+    <p>The arrangement robs everyone in the CBA's vicinity, including the CBA themselves and their own family. The near kin the CBA sought to impress are taxpayers. They fund the public services whose budgets are being siphoned by the superiors the CBA serves. They pay, alongside every other resident, for a crisis the CBA caused and a solution that never arrives. The CBA has robbed their own family twice: first by consuming their domestic emotional and material resources, and second by participating in a system that extracts public funds from everyone, including them. The target loses liberty. The community loses money. The CBA's family loses both — and receives, in exchange, a performance of prestige built entirely on other people's suffering.</p>
+
+    <div class="callout">
+      <span class="callout-label">Extraction Chain — Summary for Officers</span>
+      <p>Recruitment pitch fails → target agitated into needless detention → CBA claims prestige with near kin → superiors cite manufactured crisis to justify public funding claims → taxpayer funds extracted → CBA's own family robbed alongside target and community. The CBA is the instrument of this chain, not its principal beneficiary.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">§ 03</span>
+      <h2>The Insecurity Loop: Crime as Symptom and Cause</h2>
+    </div>
+
+    <p>Community-based agents are not strategists who have rationally selected harassment as an efficient path to an outcome. They are, structurally speaking, trapped in a self-reinforcing loop in which <strong>insecurity produces criminal behaviour, and criminal behaviour deepens insecurity</strong>. Understanding this loop is essential for practitioners who might otherwise attribute more deliberate strategic intelligence to the CBA than the evidence warrants.</p>
+
+    <p>The CBA's insecurity is rooted in an accurate, if unacknowledged, appraisal of their own productive deficit. They are unable to generate the status, resources, or interpersonal recognition they require through legitimate means. This inability is distressing. The distress is converted into externalised action — harassment, coercion, social manipulation — which provides a momentary sense of agency and control. However, because this action is criminal, it also creates ongoing legal jeopardy, damages social reputation over time, and narrows the CBA's legitimate opportunities further. The narrowing of legitimate opportunity then intensifies the original insecurity.</p>
+
+    <p>The result is a subject who is, without exception, <em>busier being destructive than they could ever afford to be if they were constructive</em>. The time and cognitive load invested in maintaining harassment campaigns, monitoring targets, managing informant relationships, and sustaining manufactured personas is extraordinary. Every waking hour consumed in this fashion is an hour not spent acquiring skills, building genuine relationships, or generating value. The CBA is, in the most literal sense, working very hard at becoming less capable of functioning without predation.</p>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">§ 04</span>
+      <h2>Narcissistic Architecture: The Fantasy Hierarchy and Its External Patrons</h2>
+    </div>
+
+    <p>The psychological substrate of the community-based agent is, in clinical terms, a narcissistic operating mode: an orientation toward the world in which others exist primarily as objects to confirm, serve, or reflect a self-image that cannot be sustained through genuine achievement. What distinguishes the CBA from the more commonly encountered individual narcissist is that they are rarely operating independently. They are typically embedded within a <strong>hierarchy of narcissistic delegation</strong>.</p>
+
+    <p>At the community level, the CBA attempts to extract narcissistic supply — validation, deference, evidence of power — from those immediately around them. They do this by transforming the people in their environment: creating dependency, manufacturing need, engineering crises that cast the CBA as pivotal. The target is not merely a victim but a prop in an ongoing production whose audience is the CBA's own fragile self-concept.</p>
+
+    <p>However, CBAs are themselves frequently operating under instruction from, or in imitation of, more powerful actors who require their own, vastly more dangerous fantasies to be maintained. The pattern scales. The local CBA manufactures neighbourhood crises to feel powerful; the institutional or geopolitical equivalent manufactures public crises — pandemics misattributed to reassign accountability, atrocities reframed to protect allied relationships — to sustain narratives that serve state-level narcissistic or strategic interests. The CBA is, in this sense, the community-scale expression of a structural human pathology that presents identically whether it operates on a street or a global stage. <em>The mechanism is invariant; only the resources and the body count differ.</em></p>
+
+    <div class="callout">
+      <span class="callout-label">Analytical Note</span>
+      <p>Practitioners should resist the temptation to treat community-level manufactured crisis as categorically distinct from larger-scale crisis manufacture. The behavioural fingerprint — false attribution, self-appointment as resolver, exploitation of genuine distress for positional gain — is the same. Understanding it at the local level builds analytical literacy for the larger pattern.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">§ 05</span>
+      <h2>The Constabulary Contrast: Legitimate Quiet Versus Compulsive Criminal Industry</h2>
+    </div>
+
+    <p>The public is happy to pay the police to sit quietly in a station where nothing is happening. This is not a criticism — it is the only model that could possibly work. A constabulary that only received funds when crimes were occurring would have every structural incentive to ensure crimes were always occurring. The salaried, non-contingent model is correct precisely because it decouples officer compensation from criminal activity. The officer on a quiet shift, attending nothing, responding to nothing, is not failing. They are the product of a peaceful community, and the public rightly funds that outcome with the same commitment as any other. There is no expectation, implicit or otherwise, that police must generate activity to justify their existence. Quiet is the goal. Quiet is what we are paying for.</p>
+
+    <p>The community-based agent, by contrast, is in all likelihood operating under some form of direction — most plausibly from military intelligence or an equivalent apparatus whose interest lies in maintaining coercive relationships with foreign actors, sustaining the leverage that narcissistic international arrangements require, and producing domestic destabilisation as a byproduct of that broader project. This does not exonerate the CBA. It contextualises why the effort is sustained with such consistency and at such personal cost. The CBA is, in this reading, <em>employed</em> — however informally, however deniably — to manufacture exactly the kind of low-level community crisis that keeps targets distracted, keeps data flowing upward, and keeps the broader apparatus of coercive influence plausibly distant from anything it could be held responsible for. The criminal industry is not spontaneous. It is tasked. The difference between the CBA and the police officer on a quiet shift is therefore not merely one of character but of contract: the officer is paid to be available in the absence of crime; the CBA is directed to ensure crime's absence never occurs.</p>
+
+    <p>This contrast is analytically important because it demolishes any framing of the CBA as a rational economic actor responding to incentives. The police officer is paid to be available whether or not they are needed; the logic is sound and the public endorses it. The CBA receives no such contract. The relentless effort they invest in criminal behaviour is not extracted from them by circumstance — it is chosen, renewed daily, and sustained against all rational self-interest. It costs the CBA their time, their freedom from legal jeopardy, and ultimately their capacity to live a functioning life. That they persist regardless is not evidence of strategic purpose. It is evidence of how completely the compulsion has displaced any remaining instinct toward their own wellbeing.</p>
+
+    <div class="callout">
+      <span class="callout-label">Key Distinction</span>
+      <p>A police officer doing nothing in a quiet week is a success. A CBA doing nothing for a single day is, by their own behavioural record, an anomaly. The asymmetry of effort — legitimate inactivity versus relentless criminal industry — is itself diagnostic of the CBA's condition.</p>
+    </div>
+  </div>
+
+  <!-- SECTION 6 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">§ 06</span>
+      <h2>Economic Black Holes: The Measurable Cost of Negative-Value Actors</h2>
+    </div>
+
+    <p>The community-based agent is, in economic terms, a <strong>net consumer of social capital</strong> who produces no compensating output. This is not a rhetorical claim but a measurable one. Resources — time, money, emotional labour, police hours, NHS capacity, housing officer attention, social services caseload — flow toward the CBA and the crises they generate. Nothing flows back. The CBA does not produce goods, services, stable relationships, or community cohesion. They produce disorder, and disorder is expensive.</p>
+
+    <p>Consider the resource footprint of a single active CBA operating over twelve months: multiple police attendances (each costing hundreds of pounds in officer time and administration), potential mental health crisis team deployments triggered by target distress, GP and A&E usage by those destabilised by sustained harassment, housing authority involvement, and the unquantifiable but very real loss of productive capacity by the target who must spend time and cognitive resource managing the CBA's interference rather than working, parenting, or contributing. A conservative estimate of annualised cost per active CBA, accounting for direct public service consumption alone, runs readily into five figures.</p>
+
+    <p>This economic framing is not intended to reduce human harm to a ledger entry. It is intended to equip practitioners and policymakers with a mode of argument that complements the ethical one. Where moral arguments about harassment and coercive control have failed to produce adequate systemic response, demonstrating that CBAs represent measurable economic black holes — absorbing resources while generating negative returns — may succeed in directing attention and resource toward earlier, more effective intervention.</p>
+
+    <p>The CBA's relationship to resources is not merely passive consumption. Their activity actively destroys value in the environment around them. Productive individuals who might otherwise generate economic and social output are distracted, distressed, or displaced. Businesses fail. Families fracture. Neighbours move away. The CBA's footprint is not merely the size of what they absorb but the size of what they prevent from being created. <strong>Opportunity cost, properly accounted, makes the CBA one of the most expensive categories of non-violent social actor that public services routinely encounter — and one of the least systematically tracked.</strong></p>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="recommendations">
+    <h3>Practitioner Recommendations</h3>
+    <div class="rec-grid">
+      <div class="rec-item">
+        <div class="rec-item-num">REC — 01</div>
+        <p>Establish intelligence-led logging of repeat complainants whose reports consistently target the same individuals and consistently fail to substantiate.</p>
+      </div>
+      <div class="rec-item">
+        <div class="rec-item-num">REC — 02</div>
+        <p>Train officers in pattern recognition for manufactured crisis: the cycling between aggressive demand and performed vulnerability in the same subject toward the same targets.</p>
+      </div>
+      <div class="rec-item">
+        <div class="rec-item-num">REC — 03</div>
+        <p>Pursue wasting police time and malicious communications charges consistently rather than episodically, to remove the zero-cost harassment subsidy currently enjoyed by CBAs.</p>
+      </div>
+      <div class="rec-item">
+        <div class="rec-item-num">REC — 04</div>
+        <p>Commission economic impact assessments of identified CBAs at the community level, to build an evidence base for resource-justified early intervention programmes.</p>
+      </div>
+      <div class="rec-item">
+        <div class="rec-item-num">REC — 05</div>
+        <p>Ensure that coercive control legislation is applied not only within intimate partner contexts but to sustained community-level harassment campaigns meeting the threshold of s.76 SCA 2015.</p>
+      </div>
+      <div class="rec-item">
+        <div class="rec-item-num">REC — 06</div>
+        <p>MPs should consider legislative review of the gap between intimate-partner coercive control protections and community-level equivalents, which currently lack a directly applicable statutory framework.</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <span class="footer-classification">&#9632; For Official Use</span>
+  <span>Community-Based Agents: Psychology, Criminality &amp; Economics of Manufactured Crisis</span>
+  <span>REF: CBA/2026/001 &nbsp;&mdash;&nbsp; March 2026</span>
+  <span class="footer-classification">&#9632; For Official Use</span>
+</footer>
+
+</body>
+</html>
