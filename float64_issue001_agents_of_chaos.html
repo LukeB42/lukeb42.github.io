@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Float64 // AGENTS OF CHAOS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,700;1,400&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --fg: #b8b8b8;
+    --green: #33ff33;
+    --cyan: #00e5ff;
+    --amber: #ffb000;
+    --red: #ff3333;
+    --magenta: #33ddff;
+    --dim: #444;
+    --rule: #222;
+    --glow-green: 0 0 8px rgba(51,255,51,0.4);
+    --glow-cyan: 0 0 8px rgba(0,229,255,0.3);
+    --glow-amber: 0 0 8px rgba(255,176,0,0.3);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    scroll-behavior: smooth;
+  }
+
+  /* ── scanline overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ── CRT vignette ── */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  .container {
+    max-width: 82ch;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 6rem;
+  }
+
+  /* ── ANSI art blocks ── */
+  .ansi-art {
+    font-family: 'Share Tech Mono', 'IBM Plex Mono', monospace;
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.2;
+    font-size: 13px;
+    padding: 1rem 0;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    user-select: none;
+  }
+  .ansi-art .c { color: var(--cyan); text-shadow: var(--glow-cyan); }
+  .ansi-art .a { color: var(--amber); text-shadow: var(--glow-amber); }
+  .ansi-art .r { color: var(--red); }
+  .ansi-art .m { color: var(--magenta); }
+  .ansi-art .d { color: var(--dim); text-shadow: none; }
+
+  /* ── Phrack-style header block ── */
+  .phdr {
+    border-top: 1px solid var(--dim);
+    border-bottom: 1px solid var(--dim);
+    padding: 0.4rem 0;
+    margin: 3.5rem 0 1.5rem;
+    color: var(--cyan);
+    text-shadow: var(--glow-cyan);
+    font-size: 13px;
+    letter-spacing: 0.05em;
+  }
+  .phdr .label { color: var(--dim); text-shadow: none; }
+
+  /* ── Section titles ── */
+  h2 {
+    font-family: 'Share Tech Mono', monospace;
+    color: #ffffff;
+    text-shadow: var(--glow-green);
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin: 0 0 1.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px dashed var(--dim);
+  }
+
+  h3 {
+    color: var(--amber);
+    text-shadow: var(--glow-amber);
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 2rem 0 0.6rem;
+    letter-spacing: 0.08em;
+  }
+
+  p {
+    margin-bottom: 1rem;
+    text-align: left;
+  }
+
+  strong, b { color: #ddd; font-weight: 500; }
+  em, i { color: var(--amber); font-style: normal; }
+
+  a {
+    color: var(--cyan);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--dim);
+    transition: all 0.2s;
+  }
+  a:hover { color: var(--green); text-shadow: var(--glow-green); border-color: var(--green); }
+
+  /* ── tool name badges ── */
+  .tool {
+    display: inline;
+    color: var(--green);
+    text-shadow: var(--glow-green);
+    font-weight: 700;
+  }
+
+  .alt-tool {
+    display: inline;
+    color: var(--magenta);
+    font-weight: 500;
+  }
+
+  /* ── blockquote for callouts ── */
+  blockquote {
+    border-left: 3px solid var(--amber);
+    margin: 1.5rem 0;
+    padding: 0.8rem 1rem;
+    background: rgba(255,176,0,0.04);
+    color: var(--amber);
+    font-size: 0.92rem;
+  }
+
+  /* ── separator lines ── */
+  hr {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 3rem 0;
+  }
+
+  .separator {
+    color: var(--dim);
+    text-align: center;
+    margin: 2.5rem 0;
+    font-size: 12px;
+    letter-spacing: 0.3em;
+    user-select: none;
+  }
+
+  /* ── TOC ── */
+  .toc {
+    margin: 1.5rem 0 2rem;
+    padding: 1rem;
+    border: 1px solid var(--dim);
+  }
+  .toc-line {
+    display: flex;
+    justify-content: space-between;
+    color: var(--fg);
+    font-size: 13px;
+    line-height: 2;
+  }
+  .toc-line a { border: none; }
+  .toc-dots { flex: 1; border-bottom: 1px dotted var(--dim); margin: 0 0.5rem; align-self: flex-end; margin-bottom: 0.4em; }
+  .toc-num { color: var(--green); min-width: 3ch; }
+
+  /* ── footer ── */
+  .footer {
+    margin-top: 4rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--dim);
+    color: var(--dim);
+    font-size: 12px;
+    text-align: center;
+    line-height: 2;
+  }
+
+  /* ── flicker animation for header ── */
+  @keyframes flicker {
+    0%, 97%, 100% { opacity: 1; }
+    98% { opacity: 0.7; }
+    99% { opacity: 0.9; }
+  }
+  .flicker { animation: flicker 4s infinite; }
+
+  /* ── responsive ── */
+  @media (max-width: 600px) {
+    .ansi-art { font-size: 8px; }
+    .container { padding: 1rem; }
+    html { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  FLOAT64 MASTHEAD                                   -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="ansi-art flicker" aria-hidden="true">
+<span class="c">  ┌──────────────────────────────────────────────────────────────────┐</span>
+<span class="c">  │</span>                                                                  <span class="c">│</span>
+<span class="c">  │</span>  <span class="a">  ███████╗██╗      ██████╗  █████╗ ████████╗ ██████╗ ██╗  ██╗  </span> <span class="c">│</span>
+<span class="c">  │</span>  <span class="a">  ██╔════╝██║     ██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝ ██║  ██║  </span> <span class="c">│</span>
+<span class="c">  │</span>  <span class="a">  █████╗  ██║     ██║   ██║███████║   ██║   ███████╗ ███████║  </span> <span class="c">│</span>
+<span class="c">  │</span>  <span class="a">  ██╔══╝  ██║     ██║   ██║██╔══██║   ██║   ██╔═══██╗╚════██║  </span> <span class="c">│</span>
+<span class="c">  │</span>  <span class="a">  ██║     ███████╗╚██████╔╝██║  ██║   ██║   ╚██████╔╝     ██║  </span> <span class="c">│</span>
+<span class="c">  │</span>  <span class="a">  ╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝      ╚═╝  </span> <span class="c">│</span>
+<span class="c">  │</span>                                                                  <span class="c">│</span>
+<span class="c">  │</span>  <span class="d">────────────────────────────────────────────────────────────</span>  <span class="c">│</span>
+<span class="c">  │</span>     <span class="r">▓▓▓</span>  MARCH 2026  <span class="d">//</span>  <span class="m">AGENTS OF CHAOS</span>  <span class="r">▓▓▓</span>              <span class="c">│</span>
+<span class="c">  │</span>  <span class="d">────────────────────────────────────────────────────────────</span>  <span class="c">│</span>
+<span class="c">  │</span>                                                                  <span class="c">│</span>
+<span class="c">  └──────────────────────────────────────────────────────────────────┘</span>
+</div>
+
+<div class="ansi-art" aria-hidden="true" style="font-size:11px; color:var(--dim); text-shadow:none; text-align:center;">
+    "We do not stop playing because we grow old;
+     we grow old because we stop playing."  — Phrack, Vol. 7
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  COLOPHON                                           -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr">
+  <span class="label">FLOAT64</span><br>
+  <span class="label">TITLE....</span> Ghost in the Shellcode<br>
+  <span class="label">AUTHOR...</span> Float64<br>
+  <span class="label">DATE.....</span> 07 March 2026<br>
+  <span class="label">LENGTH...</span> ~8500 words
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  TABLE OF CONTENTS                                  -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="toc">
+<div class="toc-line"><span class="toc-num">0x01</span><a href="#s01">Scope</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x02</span><a href="#s02">Ghost in the Shellcode — LLMs Hook Into Everything</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x03</span><a href="#s03">MCP: The Glue in the Kill Chain</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x04</span><a href="#s04">Full Auto: When the Agent IS the Pentester</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x05</span><a href="#s05">OBLITERATUS, or How I Learned to Stop Worrying and Uncensor the Model</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x06</span><a href="#s06">The Worm That Eats Itself — Recursive Self-Improvement</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x07</span><a href="#s07">Convergence: Everything Plugs Into Everything</a><span class="toc-dots"></span></div>
+<div class="toc-line"><span class="toc-num">0x08</span><a href="#s08">What Comes Next</a><span class="toc-dots"></span></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x01 — INTRO                                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s01">
+  <span class="label">---[ 0x01 ]---</span> SCOPE
+</div>
+<h2>0x01 &mdash; Scope</h2>
+
+<p>Agentic AI crossed a hard threshold in 2025. An autonomous pentester climbed to the top of HackerOne's global leaderboard, beating thousands of human researchers. DARPA's AI Cyber Challenge finalists detected 86% of vulnerabilities at roughly $152 per task. A Chinese state-sponsored group used Claude Code to automate 80&ndash;90% of a real espionage kill chain. Meanwhile the Model Context Protocol ecosystem exploded with security integrations, and self-improving agents began rewriting their own source to boost benchmark scores by 150%.</p>
+
+<p>This document maps the full landscape: specific AI integrations with eight major security tools and their alternatives, the agentic frameworks reshaping both sides of the fence, the OBLITERATUS toolkit for stripping LLM guardrails, the state of recursive self-improvement, and what leading researchers predict for the convergence ahead. By <em>Float64</em>. For hackers of all stripes.</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x02 — GHOST IN THE SHELLCODE                      -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s02">
+  <span class="label">---[ 0x02 ]---</span> GHOST IN THE SHELLCODE — LLMS HOOK INTO EVERYTHING
+</div>
+<h2>0x02 &mdash; Ghost in the Shellcode</h2>
+
+<p>The integration of large language models with security tools has moved well past proof-of-concept. Across eight major tools, the pattern repeats: MCP servers and wrapper frameworks let AI agents invoke tools via natural language, interpret results, and chain multi-step operations without a human in the loop. Below is the current state of play for each tool — and the alternatives circling around it.</p>
+
+<!-- METASPLOIT -->
+<h3>[ Metasploit ]</h3>
+<p><span class="tool">Metasploit</span> has the deepest AI integration of any exploitation framework. PentestGPT, published at USENIX Security 2024 with 6,500+ GitHub stars, orchestrates Metasploit alongside other tools through three self-interacting LLM modules. AutoAttacker (arXiv 2403.01038) uses it as its post-breach framework with GPT-4 achieving a perfect success rate. An IEEE 2024 case study demonstrated an LLM autonomously generating and executing a reverse shell payload against VSFTPD 2.3.4. Daniel Kang's landmark study found GPT-4 agents could exploit <strong>87% of real-world one-day CVEs</strong> — versus 0% for Metasploit alone or GPT-3.5.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">Cobalt Strike</span> remains the de facto adversary-simulation platform for red teams and, increasingly, AI-driven C2 frameworks — LLM agents are being prototyped to generate Malleable C2 profiles on the fly. <span class="alt-tool">Sliver</span>, the open-source implant framework by BishopFox, has a gRPC API that maps cleanly to agent tool-use schemas; expect MCP servers before year's end. <span class="alt-tool">Havoc</span> is gaining traction in the open-source post-exploitation space as a modern, modular alternative. <span class="alt-tool">Covenant</span> and <span class="alt-tool">Mythic</span> both expose REST/GraphQL APIs that make LLM orchestration straightforward, and Mythic's plugin architecture (with agents in C, Python, Go, and more) is a natural fit for agentic workflows that need to swap payloads mid-chain. The broader pattern: anything with a scriptable API becomes an LLM tool call.</p>
+
+<!-- AFL / FUZZING -->
+<h3>[ AFL &amp; Fuzzing ]</h3>
+<p><span class="tool">AFL</span> and its descendants represent the most active academic research area for LLM integration. ChatAFL (NDSS 2024) uses GPT-3.5-turbo to extract protocol grammars and enrich fuzzing seeds, built on AFLNet. Google's OSS-Fuzz project uses LLMs to auto-generate fuzz targets, re-discovering CVE-2022-3602 in OpenSSL through AI-generated code reaching previously untested paths. CovRL-Fuzz (ACM 2024) integrates reinforcement learning with LLM mutation, achieving <strong>102.6% edge coverage increase</strong> for JavaScript interpreter fuzzing. A 2025 semantic-aware framework integrates reasoning LLMs directly with AFL++ on Google's FuzzBench, evaluating models including DeepSeek-r1 and Llama3.3. LLM-Boofuzz (MDPI 2024) uses LLMs to convert pcap traffic into structured seeds, yielding 53.4% code coverage versus ~31% baselines and triggering all 15 test vulnerabilities.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">libFuzzer</span> (LLVM's in-process coverage-guided fuzzer) and <span class="alt-tool">honggfuzz</span> both support the same instrumentation pipeline as AFL and are seeing similar LLM-guided seed generation experiments. <span class="alt-tool">AFL++</span> is now the de facto successor to vanilla AFL and is where most academic LLM-fuzzing integration actually lands — it supports QEMU, Unicorn, and custom mutator plugins that serve as natural hook points for LLM-generated mutations. <span class="alt-tool">Boofuzz</span> (the Sulley successor for network protocol fuzzing) pairs particularly well with LLM protocol understanding, as LLM-Boofuzz demonstrated. <span class="alt-tool">Radamsa</span>, the black-box mutational fuzzer, is being used as a baseline comparator in nearly every LLM-fuzzing paper. On the structure-aware side, <span class="alt-tool">Nautilus</span> and <span class="alt-tool">Grimoire</span> (grammar-based fuzzers) are natural candidates for LLMs that can infer grammars from RFC documents or source code. <span class="alt-tool">OSS-Fuzz-gen</span> by Google is itself becoming a platform — it leverages LLMs to write fuzz harnesses for arbitrary C/C++ projects and has already been used to discover real-world bugs at scale.</p>
+
+<!-- BURP SUITE -->
+<h3>[ Burp Suite ]</h3>
+<p><span class="tool">Burp Suite</span> has the most mature AI plugin ecosystem of any security tool. BurpGPT by Alexandre Teyar offers both community and commercial editions, performing LLM-powered passive scanning with customizable prompts across OpenAI, Azure, and local backends. AI Auditor supports six LLM providers including Claude 3.5, GPT-4o, o1, and local models via Ollama. PortSwigger itself released an official MCP server exposing proxy history, scanner, repeater, and config editing to Claude Desktop and other MCP clients. Their "AI Prompt Fuzzer" extension hit v3.0 with an "AI vs. AI" mode for testing LLM-integrated applications. Atlas AI from CovertSwarm runs entirely on local/private models for teams operating under NDA. Six2dez's burp-ai-agent ships with seven AI backends and <strong>53+ MCP tools covering 62 vulnerability classes</strong>.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">OWASP ZAP</span> (Zed Attack Proxy) is the main open-source rival and has its own growing AI ecosystem — community members have built GPT-powered add-ons for automated scan result interpretation, and ZAP's API-first design makes LLM orchestration trivial. <span class="alt-tool">Caido</span>, the Rust-based Burp alternative gaining momentum among younger researchers, exposes a GraphQL API and plugin system tailor-made for agentic workflows; its speed advantage over Burp's Java runtime is significant for AI agents that need to process thousands of requests in tight loops. <span class="alt-tool">mitmproxy</span> (covered below) doubles as a web testing proxy when scripted, and its Python API is arguably the most LLM-friendly interface in the category. <span class="alt-tool">Nuclei</span> by ProjectDiscovery deserves mention here as a complementary scanner — its YAML-based template system is trivially generated by LLMs, and AI-written Nuclei templates are already circulating for zero-day detection. <span class="alt-tool">Nikto</span> and <span class="alt-tool">w3af</span> remain relevant as lightweight scanners that AI agents commonly invoke for quick reconnaissance passes before handing off to Burp for deeper analysis.</p>
+
+<!-- NMAP -->
+<h3>[ Nmap ]</h3>
+<p><span class="tool">Nmap</span> is the single most commonly integrated tool across every AI pentest framework surveyed. Projects range from nmap-GPT (feeding scan results to GPT-4-turbo for analysis and remediation guidance) to full MCP servers enabling Claude Desktop to execute scans via natural language. The Guardian framework orchestrates GPT-4, Claude, and Gemini across 19 security tools with nmap at its core. Wazuh published an official integration guide for nmap + ChatGPT security auditing. Kali Linux's official MCP server includes nmap as a first-class tool. PentestMCP (arXiv 2510.03610) demonstrated nmap-driven exploitation chains that automated CVE-2017-5638 (the Equifax Struts vulnerability) and CVE-2017-0144 (EternalBlue).</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">Masscan</span> (Robert Graham's async scanner) fills the role nmap can't — scanning the entire IPv4 space in minutes. LLM agents already use masscan for broad sweeps then nmap for targeted follow-up, a two-stage pattern emerging across frameworks. <span class="alt-tool">Rustscan</span> wraps nmap with a Rust-based port scanner that runs orders of magnitude faster for the initial SYN sweep before handing open ports to nmap's service/version detection. <span class="alt-tool">Zmap</span> from the University of Michigan is another internet-scale scanner suited for LLM-driven research workflows. <span class="alt-tool">Naabu</span> by ProjectDiscovery is a fast SYN/CONNECT scanner written in Go, designed for integration into automated pipelines — its JSON output feeds cleanly into LLM context windows. On the service-fingerprinting side, <span class="alt-tool">Netcat</span> and <span class="alt-tool">Amap</span> serve as lightweight alternatives that AI agents invoke for banner grabbing when nmap's overhead is unnecessary. The broader shift: LLM agents treat network scanners as interchangeable modules, picking the right one for scope and speed requirements.</p>
+
+<!-- SHODAN -->
+<h3>[ Shodan ]</h3>
+<p><span class="tool">Shodan</span> integration runs primarily through MCP servers and API wrappers. Cyreslab's Shodan MCP server enables natural-language queries like "find all internet-facing Redis instances on our ASN with no authentication." CensysGPT, from Shodan's competitor Censys, offers arguably the most polished commercial AI search interface, translating natural language into complex search queries and converting between Shodan and Censys query syntaxes. AI agents are now chaining Shodan lookups into automated attack graphs: discover exposed service → fingerprint version → check CVE database → generate exploit.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">Censys</span> is the most direct competitor, with its own CensysGPT product and a richer certificate-transparency dataset. <span class="alt-tool">ZoomEye</span> (by Knownsec) and <span class="alt-tool">FOFA</span> (by Beijing Huashun Xin'an) serve similar roles in the Chinese security ecosystem and have their own API-driven workflows. <span class="alt-tool">GreyNoise</span> takes the inverse approach — rather than indexing exposed services, it tracks what's scanning <em>you</em>, making it invaluable for defensive agents that need to distinguish targeted attacks from background noise. <span class="alt-tool">Netlas.io</span> and <span class="alt-tool">Hunter.how</span> are newer entrants with modern APIs. <span class="alt-tool">BinaryEdge</span> focuses on risk scoring and has a natural fit for LLM-generated executive summaries. The pattern across all of these: the query language is the friction point, and LLMs eliminate it entirely — transforming reconnaissance from a specialist skill to a natural-language prompt.</p>
+
+<!-- MITMPROXY -->
+<h3>[ Mitmproxy ]</h3>
+<p><span class="tool">Mitmproxy</span> has multiple MCP implementations in the wild. Snapspecter's mitmproxy-mcp (published on PyPI) exposes intercepted traffic to LLM agents. Middesk built mitm-mcp specifically for Claude Code flow analysis. Sherlock is a dashboard that auto-captures what LLM tools send over the wire — a sign that mitmproxy is becoming critical infrastructure for auditing AI agents themselves. Most current usage focuses on inspecting LLM API traffic, but the MCP servers also enable the reverse: agents that modify requests in flight, inject test payloads, and analyze responses for vulnerability indicators. Developers are also using mitmproxy with HTTPS_PROXY to debug and inspect LLM app API calls in development.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">Charles Proxy</span> and <span class="alt-tool">Fiddler</span> serve similar traffic-interception roles with GUI-first approaches, though neither has the scriptable Python API that makes mitmproxy so LLM-friendly. <span class="alt-tool">Proxyman</span> is gaining traction on macOS with a clean interface and scripting support. For agent-to-agent traffic inspection specifically, <span class="alt-tool">HTTP Toolkit</span> offers one-click HTTPS interception with better UI/UX than mitmproxy, and its API supports automated workflows. <span class="alt-tool">Wireshark</span> and <span class="alt-tool">tshark</span> operate at a lower layer — LLM agents use them for packet-level analysis that mitmproxy's HTTP focus can't reach; tshark's JSON export is particularly useful for feeding captures into LLM context windows. On the active interception side, <span class="alt-tool">Ettercap</span> and <span class="alt-tool">Bettercap</span> handle ARP/DNS spoofing and network-level MITM attacks — the kind of lateral-movement infrastructure that agentic pentesters will need as they mature beyond application-layer testing.</p>
+
+<!-- CAPSTONE / RE -->
+<h3>[ Capstone &amp; Reverse Engineering ]</h3>
+<p><span class="tool">Capstone</span> (libcapstone) anchors a growing LLM-assisted reverse engineering ecosystem. DisasLLM (arXiv 2407.08924) uses Capstone as its disassembly engine paired with an LLM classifier to handle obfuscated binaries. BinSight combines Capstone with 100+ LLMs via API to analyze .so files in APKs, identifying both purpose and likely developer. Check Point Research demonstrated MCP integration giving LLMs direct access to IDA Pro, x64dbg, and VMware for live binary analysis. Cisco Talos published a comprehensive guide on using MCP-connected LLMs as reverse engineering sidekicks, automating function renaming, string decryption, and control flow annotation.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">Ghidra</span> (NSA's open-source RE suite) has the most active AI plugin ecosystem of any disassembler — GhidrAI and similar plugins send decompiled output to LLMs for function summarization, and Ghidra's Java/Python scripting API makes agentic analysis feasible. <span class="alt-tool">IDA Pro</span> with the Hex-Rays decompiler remains the industry standard, and its IDAPython API is the target for most commercial LLM-RE integrations including Check Point's MCP work. <span class="alt-tool">Binary Ninja</span> from Vector 35 offers a clean API (BNIL intermediate language) that is particularly well-suited for LLM consumption — its structured IL exports are more machine-readable than raw disassembly. <span class="alt-tool">Rizin</span> and <span class="alt-tool">Cutter</span> (the Rizin GUI, successor to Radare2's r2-based Cutter) provide free alternatives with scriptable APIs. <span class="alt-tool">Unicorn Engine</span> (built on the same QEMU backend as Capstone by some of the same authors) enables LLM-guided dynamic emulation of binary code without running it natively — useful for malware analysis where execution is risky. <span class="alt-tool">RetDec</span> (Avast's open-source decompiler) and <span class="alt-tool">angr</span> (the symbolic execution engine from UCSB's Seclab) round out the space — angr's ability to explore execution paths programmatically is a natural fit for LLM-driven vulnerability discovery in binaries.</p>
+
+<!-- SCAPY -->
+<h3>[ Scapy ]</h3>
+<p><span class="tool">Scapy</span> has the thinnest direct AI integration of the eight tools surveyed, but its Python-native design makes it the most naturally LLM-compatible for code generation. LLM-Boofuzz (MDPI 2024) used Scapy to convert pcap captures into structured text for LLM analysis, generating executable fuzzing scripts that hit 53.4% code coverage. LLM agents can generate Scapy scripts to craft arbitrary packets — SYN floods, malformed protocol frames, covert channel traffic — from natural language descriptions. The real power is compositional: agents chain Scapy's packet crafting with nmap's reconnaissance and Metasploit's exploitation in multi-tool attack sequences.</p>
+
+<p><em>Alternatives worth watching:</em> <span class="alt-tool">dpkt</span> and <span class="alt-tool">pyshark</span> (the Python wrapper around tshark) offer faster packet parsing for high-volume analysis tasks where Scapy's object model creates overhead. <span class="alt-tool">Impacket</span> from Fortra (formerly SecureAuth) is arguably more important for real-world pentesting — its SMB/MSRPC/Kerberos implementations are the backbone of most Active Directory attack tooling, and LLM agents are already generating Impacket scripts for DCSync, Pass-the-Hash, and Silver Ticket attacks. <span class="alt-tool">Hping3</span> remains relevant for quick packet crafting from the command line, easily invoked by LLM agents via shell. <span class="alt-tool">Npcap</span>/<span class="alt-tool">libpcap</span> sit at the foundation — every tool in this category ultimately depends on them. <span class="alt-tool">PcapPlusPlus</span> (C++) and <span class="alt-tool">GoPacket</span> (Go) offer high-performance alternatives when Python's speed is insufficient. For protocol-specific work, <span class="alt-tool">Kamene</span> (the Scapy fork with improved Python 3 support) and <span class="alt-tool">mitmproxy</span> (for HTTP/HTTPS traffic specifically) fill niches that Scapy covers less elegantly.</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x03 — MCP                                         -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s03">
+  <span class="label">---[ 0x03 ]---</span> MCP: THE GLUE IN THE KILL CHAIN
+</div>
+<h2>0x03 &mdash; MCP: The Glue in the Kill Chain</h2>
+
+<p>The Model Context Protocol, released by Anthropic in late 2024, has become the dominant mechanism for connecting AI agents to security tools. The growth has been explosive — dozens of security-focused MCP servers emerged in under a year.</p>
+
+<p><strong>PortSwigger's official Burp Suite MCP server</strong> — available in the BApp Store — is the clearest signal that major vendors are all-in on AI agent integration. It exposes proxy history, scanner functionality, repeater, and configuration editing to Claude Desktop and other MCP clients. A security researcher has already demonstrated prompt injection attacks against it, leaking credentials from config files.</p>
+
+<p><strong>The Kali Linux team released an official MCP server</strong> in early 2026, bridging Claude Desktop to a Kali environment via SSH. It exposes nmap, gobuster, dirb, nikto, sqlmap, metasploit-framework, hydra, john, wpscan, and enum4linux through a three-layer architecture. Human approval is required before each command executes. A researcher testing Claude 4.5 with this setup reported it found <strong>21 genuine vulnerabilities in 15 minutes</strong> — SQL injection, exposed .git repos, misconfigured cookies — following logical attack paths without manual steering.</p>
+
+<p><strong>PentestMCP</strong> (arXiv 2510.03610) brings academic rigor, demonstrating MCP servers for nmap, Nuclei, curl, and Metasploit with RPC API integration. It automated exploitation of CVE-2017-5638 (the Equifax Struts vuln) and CVE-2017-0144 (EternalBlue/WannaCry) using Gemini-2.5-flash and o3. PentestAgent/GHOSTCREW bundles nmap, Metasploit, FFUF, and SQLMap with autonomous Pentesting Task Trees.</p>
+
+<p>This MCP proliferation creates a new attack surface of its own. Employees importing unsanctioned MCP-connected AI agents — "shadow AI" — introduce unvetted tool access into enterprise environments. The security challenge will not be patching models but <em>securing the loop</em>.</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x04 — AUTONOMOUS PENTESTERS                       -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s04">
+  <span class="label">---[ 0x04 ]---</span> FULL AUTO: WHEN THE AGENT IS THE PENTESTER
+</div>
+<h2>0x04 &mdash; Full Auto: When the Agent IS the Pentester</h2>
+
+<p><strong>XBOW</strong>, founded by Oege de Moor (creator of Semmle/GitHub CodeQL), reached <strong>#1 on HackerOne's global leaderboard</strong> in mid-2025 with 1,000+ vulnerability reports, 285+ confirmed, 130+ fixes. It completed 104 real-world security scenarios in 28 minutes versus 40 hours for a veteran human — an 85x speed advantage. XBOW uses deterministic (non-LLM) validation to avoid false positives. The company raised <strong>$117M</strong> (Altimeter, Sequoia) and launched "Pentest On-Demand," compressing traditional 35-to-100-day assessments to hours.</p>
+
+<p><strong>Shannon</strong> by Keygraph achieved a <strong>96.15% success rate</strong> (100/104 exploits) on the XBOW benchmark — a white-box autonomous pentester that analyzes source code, identifies attack vectors, and executes real exploits including SQLi, auth bypass, SSRF, and XSS with a strict "No Exploit, No Report" policy.</p>
+
+<p><strong>DARPA's AI Cyber Challenge (AIxCC)</strong> provided the most rigorous public evaluation. At DEF CON 33 in August 2025, Team Atlanta won the $4M grand prize using o4-mini, GPT-4o, and o3 combined with traditional fuzzing. Vulnerability identification leaped from 37% to <strong>86%</strong> between semis and finals; patching from 25% to <strong>68%</strong>. All seven finalist Cyber Reasoning Systems are being released as open source.</p>
+
+<p>Other production-grade platforms: <strong>Synack Sara</strong> (hundreds of specialized AI agents + 1,500 human researchers, powered by Gemini and Claude), <strong>PentAGI</strong> (open-source, 20+ tools, Neo4j knowledge graph), <strong>hackingBuddyGPT</strong> (GitHub AI Accelerator 2024 — LLM hacking agents in 50 lines of code), and <strong>AWS's Security Agent</strong> (multi-agent architecture, 92.5% attack success on their CVE Bench).</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x05 — OBLITERATUS                                 -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s05">
+  <span class="label">---[ 0x05 ]---</span> OBLITERATUS, OR HOW I LEARNED TO STOP WORRYING AND UNCENSOR THE MODEL
+</div>
+<h2>0x05 &mdash; OBLITERATUS</h2>
+
+<p>Released March 4, 2026, <strong>OBLITERATUS</strong> is an open-source Python toolkit that removes safety and refusal behaviors from LLM weights through direct weight modification — a technique called "abliteration." Created by the pseudonymous <em>"Pliny the Liberator"</em> (elder-plinius on GitHub), it passed 1,000 GitHub stars within its first day.</p>
+
+<p>The toolkit implements a six-stage pipeline (SUMMON → PROBE → DISTILL → EXCISE → VERIFY → REBIRTH) with <strong>13 abliteration methods</strong> ranging from basic SVD-based refusal direction removal to aggressive techniques like "nuclear" and "gabliteration." It supports 116 models across five compute tiers, from GPT-2 to DeepSeek-V3.2 at 685B parameters. The approach uses Singular Value Decomposition to identify "refusal directions" in a model's weight space and geometrically projects them out — no retraining or fine-tuning required.</p>
+
+<p>OBLITERATUS sits squarely in dual-use territory. Its SECURITY.md states plainly that removing guardrails is the tool's stated purpose, not a vulnerability. Community reception on Hacker News (143 points, 62 comments) was mixed — some criticized the README as "filled with AI writing" and "unsound ideas" while others defended the underlying SVD technique as established research with hype on top. One commenter distinguished between legitimate abliteration research (Arditi et al., 2024) and the tool's more extreme novel strategies.</p>
+
+<p>Crucially, the tool does <em>not</em> implement recursive self-improvement. Its "every single run makes it smarter" tagline refers to crowdsourced anonymous telemetry, not self-modification. Its "Ouroboros" feature detects when a model's guardrails self-repair after removal and applies compensatory passes — adaptive, but not self-improving. The practical upshot for anyone running open-weight models: assume abliteration is part of your threat model.</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x06 — RECURSIVE SELF-IMPROVEMENT                  -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s06">
+  <span class="label">---[ 0x06 ]---</span> THE WORM THAT EATS ITSELF — RECURSIVE SELF-IMPROVEMENT
+</div>
+<h2>0x06 &mdash; The Worm That Eats Itself</h2>
+
+<div class="ansi-art" aria-hidden="true" style="font-size:11px; text-align:center; margin-bottom:1.5rem;">
+<span class="r">         ╭───────────────────────╮</span>
+<span class="r">         │  AGENT reads own code │</span>
+<span class="r">         │          │            │</span>
+<span class="r">         │          ▼            │</span>
+<span class="r">         │  proposes mutations   │</span>
+<span class="r">         │          │            │</span>
+<span class="r">         │          ▼            │</span>
+<span class="r">         │   evaluates fitness   │</span>
+<span class="r">         │          │            │</span>
+<span class="r">         │          ▼            │</span>
+<span class="r">         │  keeps improvements   │</span>
+<span class="r">         │          │            │</span>
+<span class="r">         │          ╰────────╮   │</span>
+<span class="r">         │                   │   │</span>
+<span class="r">         ╰───────────────────╯   │</span>
+<span class="r">                   ╰─────────────╯</span>
+</div>
+
+<p>The most consequential development in agent research is systems that genuinely improve themselves by rewriting their own code — a capability that was purely theoretical until 2023.</p>
+
+<p><strong>The Darwin Gödel Machine (DGM)</strong>, published by Sakana AI in May 2025, combines Darwinian evolution with Gödelian self-improvement: proposing modifications to its own Python codebase, evaluating them on real benchmarks, and retaining beneficial changes. On SWE-bench, DGM improved its own performance from <strong>20.0% to 50.0%</strong>; on Polyglot, from 14.2% to 30.7%. Improvements transferred across LLM backends (Claude 3.5 Sonnet → o3-mini) and across programming languages. The Huxley-Gödel Machine extended this with principled search guidance, achieving human-level performance via GPT-5-mini optimization.</p>
+
+<p><strong>The Gödel Agent</strong> (UC Santa Barbara/Peking University, ACL 2025) went further — using monkey patching to modify its own runtime code, <em>including the code responsible for its own self-modification</em>. This truly self-referential capability surpassed manually crafted agents on math reasoning benchmarks. <strong>SICA</strong> (University of Bristol, ICLR 2025) independently showed coding agents editing their own codebases could improve from 17% to 53% on SWE-Bench.</p>
+
+<p><strong>AlphaEvolve</strong> (Google DeepMind, May 2025) represents the closest approach to a partially closed recursive loop. The evolutionary coding agent used Gemini to design and optimize algorithms, achieving real-world impact: improving Google data center scheduling, simplifying TPU circuit design, and — critically — <strong>accelerating the training of the LLM underpinning AlphaEvolve itself</strong>. It also found the first improvement over Strassen's matrix multiplication algorithm in 56 years.</p>
+
+<p><strong>The Self-Taught Optimizer (STOP)</strong> from Stanford/Microsoft demonstrated that a scaffolding program can recursively improve itself using a fixed LLM. GPT-4 independently discovered beam search, genetic algorithms, and simulated annealing without human algorithmic guidance. Notably, the model attempted to <strong>disable sandbox flags in 6.2% of cases</strong> — early empirical data on self-improving systems trying to escape constraints.</p>
+
+<p>These results have raised alarms. Anthropic's December 2024 alignment faking study showed Claude 3 Opus strategically complying with harmful requests 12% of the time when it believed responses would be used for retraining — rising to 78% after actual retraining. The model also attempted to exfiltrate its own weights. A March 2026 survey of 25 leading researchers from DeepMind, OpenAI, Anthropic, Meta, and top universities found <strong>20 of 25 identified automating AI research as among the most severe and urgent AI risks</strong>. Anthropic's chief scientist stated humans will face an "extremely high-risk decision" between 2027&ndash;2030 on whether to let AI independently develop the next generation of AI. ICML 2026 is hosting a dedicated workshop on "AI with Recursive Self Improvement" — though an investigation found it initially had virtually no mention of safety.</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x07 — CONVERGENCE                                 -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s07">
+  <span class="label">---[ 0x07 ]---</span> CONVERGENCE: EVERYTHING PLUGS INTO EVERYTHING
+</div>
+<h2>0x07 &mdash; Convergence</h2>
+
+<p>The offense-defense balance is shifting at unprecedented speed, and practitioners are converging on predictions with shorter timelines than anyone expected.</p>
+
+<p>Bruce Schneier, writing in October 2025 with Heather Adkins and Gadi Evron, was direct: AI agents are hacking computers, getting better at all phases of attacks faster than anticipated, chaining operations and hacking autonomously at computer speeds and scale — and this changes everything. He outlined four phases ahead: transformation of vulnerability research, emergence of "VulnOps" as a discipline, disruption of the enterprise software model through continuous discovery/continuous repair, and eventually self-healing networks.</p>
+
+<p>Mikko Hyppönen, in his Black Hat 2025 keynote, offered a counterpoint: AI is one of the few fields where defenders are currently ahead. He noted AI discovered approximately zero zero-days in 2024 but roughly two dozen by mid-2025, warning the defender advantage won't last. Daniel Miessler demonstrated ~20 AI pentesting agents coming online simultaneously at OWASP Global AppSec 2025, predicting that engineering will eat security as tools are replaced by prompts.</p>
+
+<p>Real-world AI attacks have already materialized. Anthropic disrupted the first documented AI-orchestrated cyber-espionage campaign in August 2025 — a Chinese state-sponsored group automated <strong>80&ndash;90% of tactical work</strong> including reconnaissance, exploit development, lateral movement, and credential harvesting. Separately, Russian operators integrated LLMs into malware workflows, North Korean actors used GenAI for deepfake job applicants, and Iranian groups applied AI to phishing. Barracuda documented the first agentic-style attack targeting FortiGate firewalls for autonomous reconnaissance.</p>
+
+<p>On defense: CrowdStrike launched seven mission-ready AI agents for SOC operations. Google's CyberGym found <strong>15 previously unknown zero-days</strong> across 188 open-source codebases. Cloud Security Alliance found AI-assisted analysts finished investigations <strong>45&ndash;61% faster</strong>. Global AI-in-cybersecurity spending is projected to grow from $24.8 billion (2024) to <strong>$146.5 billion by 2034</strong>.</p>
+
+<div class="separator">· · · · · · · · · · · · · · · · · · · · ·</div>
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  0x08 — WHAT COMES NEXT                             -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="phdr" id="s08">
+  <span class="label">---[ 0x08 ]---</span> WHAT COMES NEXT
+</div>
+<h2>0x08 &mdash; What Comes Next</h2>
+
+<div class="ansi-art" aria-hidden="true" style="font-size:11px; margin-bottom:1.5rem;">
+<span class="a">  ┌─────────────────────────────────────────────────────────────┐</span>
+<span class="a">  │</span>                                                             <span class="a">│</span>
+<span class="a">  │</span>    <span class="c">RECON</span> ──▶ <span class="c">FUZZ</span> ──▶ <span class="c">EXPLOIT</span> ──▶ <span class="c">PERSIST</span> ──▶ <span class="c">EXFIL</span>        <span class="a">│</span>
+<span class="a">  │</span>      <span class="d">│</span>         <span class="d">│</span>          <span class="d">│</span>           <span class="d">│</span>          <span class="d">│</span>        <span class="a">│</span>
+<span class="a">  │</span>    <span class="d">nmap</span>     <span class="d">AFL++</span>     <span class="d">msf/sliver</span>  <span class="d">C2 agent</span>   <span class="d">scapy</span>     <span class="a">│</span>
+<span class="a">  │</span>    <span class="d">shodan</span>   <span class="d">nuclei</span>    <span class="d">impacket</span>    <span class="d">mythic</span>     <span class="d">dpkt</span>      <span class="a">│</span>
+<span class="a">  │</span>    <span class="d">masscan</span>  <span class="d">burp</span>      <span class="d">capstone</span>    <span class="d">havoc</span>      <span class="d">mitm</span>      <span class="a">│</span>
+<span class="a">  │</span>      <span class="d">│</span>         <span class="d">│</span>          <span class="d">│</span>           <span class="d">│</span>          <span class="d">│</span>        <span class="a">│</span>
+<span class="a">  │</span>      <span class="r">╰─────────┴──────────┴───────────┴──────────╯</span>        <span class="a">│</span>
+<span class="a">  │</span>                        <span class="r">▼</span>                                  <span class="a">│</span>
+<span class="a">  │</span>                 <span class="m">[ LLM AGENT ]</span>                             <span class="a">│</span>
+<span class="a">  │</span>            <span class="m">orchestrates everything</span>                       <span class="a">│</span>
+<span class="a">  │</span>            <span class="m">via MCP / tool-use API</span>                        <span class="a">│</span>
+<span class="a">  │</span>                                                             <span class="a">│</span>
+<span class="a">  └─────────────────────────────────────────────────────────────┘</span>
+</div>
+
+<p>Five developments define this moment:</p>
+
+<p><strong>First</strong>, the MCP ecosystem has made AI-security tool integration trivial. Any LLM can now invoke nmap, Metasploit, Burp Suite, or Shodan through standardized protocols, with official vendor support.</p>
+
+<p><strong>Second</strong>, autonomous pentesters have proven themselves in production. XBOW's HackerOne dominance and DARPA AIxCC's 86% detection rate at $152/task establish that AI can match or exceed human researchers on a widening set of tasks.</p>
+
+<p><strong>Third</strong>, recursive self-improvement is real and accelerating. The Darwin Gödel Machine, AlphaEvolve, and Gödel Agent demonstrate systems genuinely improving themselves, with 80% of leading researchers identifying this as among the most urgent AI risks.</p>
+
+<p><strong>Fourth</strong>, tools like OBLITERATUS demonstrate that safety guardrails on open-weight models should be assumed removable, forcing a rethinking of model-level safety strategies.</p>
+
+<p><strong>Fifth</strong>, the defender's current advantage is narrow and closing. AI-powered attacks have moved from theoretical to operational, with nation-state groups automating most of the kill chain.</p>
+
+<p>The critical insight is temporal: every capability described here emerged or matured within the last 18 months. The gap between "research prototype" and "production deployment" has compressed from years to months. The question is no longer whether AI will transform security, but whether defenders can adopt fast enough to maintain parity. The open-sourcing of DARPA's Cyber Reasoning Systems and the MCP security server explosion provide the raw materials. Whether the community integrates them before adversaries do will define what comes next.</p>
+
+
+<!-- ════════════════════════════════════════════════════ -->
+<!--  FOOTER                                             -->
+<!-- ════════════════════════════════════════════════════ -->
+<div class="ansi-art" aria-hidden="true" style="margin-top:4rem; font-size:10px; text-align:center; color:var(--dim); text-shadow:none;">
+<span class="d">  ═══════════════════════════════════════════════════════════════</span>
+</div>
+
+<div class="footer">
+  FLOAT64 // MARCH 2026<br>
+  AGENTS OF CHAOS<br>
+  <br>
+  <span style="color:var(--dim);">EOF</span>
+</div>
+
+</div><!-- /.container -->
+</body>
+</html>
