@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0f0a">
+<title>FIELD MANUAL — SURVIVAL</title>
+<style>
+  :root {
+    --bg:        #0d0f0a;
+    --bg2:       #141710;
+    --bg3:       #1c2016;
+    --border:    #2a3020;
+    --amber:     #c8941a;
+    --amber-dim: #7a5a10;
+    --olive:     #7a8c5a;
+    --olive-dim: #4a5438;
+    --red:       #c84040;
+    --text:      #c8c4b0;
+    --text-dim:  #7a7868;
+    --mono:      'Courier New', 'Lucida Console', monospace;
+    --serif:     Georgia, 'Times New Roman', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); min-height: 100vh; padding-bottom: 4rem; }
+
+  header { background: var(--bg2); border-bottom: 2px solid var(--amber); padding: 1rem; position: sticky; top: 0; z-index: 100; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .logo { display: flex; flex-direction: column; line-height: 1; }
+  .logo-line1 { font-size: 0.55rem; letter-spacing: 0.3em; color: var(--amber-dim); text-transform: uppercase; }
+  .logo-title { font-size: 1.3rem; font-weight: bold; letter-spacing: 0.15em; color: var(--amber); text-shadow: 0 0 20px rgba(200,148,26,0.4); }
+  .logo-sub { font-size: 0.5rem; letter-spacing: 0.2em; color: var(--text-dim); text-transform: uppercase; }
+  .header-meta { text-align: right; font-size: 0.5rem; color: var(--text-dim); letter-spacing: 0.1em; line-height: 1.8; }
+  .search-wrap { position: relative; }
+  #search { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 0.75rem; padding: 0.5rem 0.5rem 0.5rem 2rem; letter-spacing: 0.05em; outline: none; transition: border-color 0.2s; }
+  #search:focus { border-color: var(--amber); }
+  #search::placeholder { color: var(--text-dim); }
+  .search-icon { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 0.8rem; pointer-events: none; }
+
+  #nav-tabs { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg2); padding: 0 0.5rem; }
+  .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-dim); font-family: var(--mono); font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.5rem 0.6rem; cursor: pointer; white-space: nowrap; transition: color 0.15s, border-color 0.15s; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+  main { padding: 1rem; max-width: 680px; margin: 0 auto; }
+
+  .guide-section { display: none; }
+  .guide-section.active { display: block; }
+  .section-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1.2rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+  .section-icon { font-size: 1.4rem; line-height: 1; }
+  .section-title { font-size: 0.65rem; letter-spacing: 0.3em; text-transform: uppercase; color: var(--olive); }
+  .section-num { margin-left: auto; font-size: 0.5rem; color: var(--text-dim); letter-spacing: 0.1em; }
+
+  .entry { border: 1px solid var(--border); margin-bottom: 0.6rem; background: var(--bg2); }
+  .entry-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 0.75rem; cursor: pointer; user-select: none; transition: background 0.15s; }
+  .entry-head:hover { background: var(--bg3); }
+  .entry-code { font-size: 0.5rem; color: var(--amber-dim); letter-spacing: 0.1em; min-width: 3rem; }
+  .entry-title { font-size: 0.8rem; color: var(--text); letter-spacing: 0.05em; flex: 1; }
+  .priority { font-size: 0.5rem; padding: 0.15rem 0.4rem; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid; }
+  .priority.critical { color: var(--red); border-color: var(--red); }
+  .priority.high { color: var(--amber); border-color: var(--amber-dim); }
+  .priority.medium { color: var(--olive); border-color: var(--olive-dim); }
+  .chevron { color: var(--text-dim); font-size: 0.6rem; transition: transform 0.2s; flex-shrink: 0; }
+  .entry.open .chevron { transform: rotate(90deg); }
+  .entry-body { display: none; padding: 0 0.75rem 0.75rem; border-top: 1px solid var(--border); background: var(--bg); }
+  .entry.open .entry-body { display: block; }
+  .entry-body p, .entry-body li { font-family: var(--serif); font-size: 0.85rem; line-height: 1.65; color: var(--text); margin-top: 0.6rem; }
+  .entry-body ul, .entry-body ol { padding-left: 1.2rem; }
+  .entry-body h4 { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--amber); margin-top: 0.9rem; margin-bottom: 0.2rem; }
+  .entry-body .warn { background: rgba(200,64,64,0.12); border-left: 2px solid var(--red); padding: 0.5rem 0.6rem; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.7rem; color: #e08080; line-height: 1.5; }
+  .entry-body .tip { background: rgba(200,148,26,0.08); border-left: 2px solid var(--amber-dim); padding: 0.5rem 0.6rem; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.7rem; color: #b89050; line-height: 1.5; }
+  .entry-body .steps { counter-reset: step; padding-left: 0; list-style: none; }
+  .entry-body .steps li { counter-increment: step; position: relative; padding-left: 2rem; }
+  .entry-body .steps li::before { content: counter(step); position: absolute; left: 0; top: 0.65rem; width: 1.3rem; height: 1.3rem; background: var(--bg3); border: 1px solid var(--border); font-family: var(--mono); font-size: 0.6rem; color: var(--amber); display: flex; align-items: center; justify-content: center; line-height: 1; }
+
+  .freq-table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.65rem; }
+  .freq-table th { background: var(--bg3); color: var(--amber); letter-spacing: 0.1em; text-transform: uppercase; padding: 0.4rem 0.5rem; text-align: left; border: 1px solid var(--border); }
+  .freq-table td { padding: 0.35rem 0.5rem; border: 1px solid var(--border); color: var(--text); vertical-align: top; line-height: 1.4; }
+  .freq-table tr:nth-child(even) td { background: var(--bg2); }
+  .freq-table .continent { color: var(--olive); font-size: 0.6rem; letter-spacing: 0.1em; }
+  .freq-table .freq { color: var(--amber); }
+
+  .ref-table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-family: var(--mono); font-size: 0.65rem; }
+  .ref-table th { background: var(--bg3); color: var(--amber); letter-spacing: 0.1em; text-transform: uppercase; padding: 0.4rem 0.5rem; text-align: left; border: 1px solid var(--border); }
+  .ref-table td { padding: 0.35rem 0.5rem; border: 1px solid var(--border); color: var(--text); vertical-align: top; line-height: 1.4; }
+  .ref-table tr:nth-child(even) td { background: var(--bg2); }
+
+  #search-results { display: none; }
+  #search-results.active { display: block; }
+  .search-hit .entry-code { color: var(--olive); }
+  .no-results { text-align: center; color: var(--text-dim); font-size: 0.7rem; letter-spacing: 0.2em; padding: 3rem 1rem; text-transform: uppercase; }
+
+  .status-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg2); border-top: 1px solid var(--border); padding: 0.4rem 1rem; display: flex; justify-content: space-between; font-size: 0.5rem; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
+  .status-dot { display: inline-block; width: 0.4rem; height: 0.4rem; background: var(--olive); border-radius: 50%; margin-right: 0.4rem; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  mark { background: rgba(200,148,26,0.3); color: var(--amber); border-radius: 1px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="logo">
+      <span class="logo-line1">FM-F64</span>
+      <span class="logo-title">FIELD MANUAL</span>
+      <span class="logo-sub">survival · wilderness · emergency · free living</span>
+    </div>
+    <div class="header-meta">
+      REV 2.0<br>
+      18 SECTIONS
+    </div>
+  </div>
+  <div class="search-wrap">
+    <span class="search-icon">◈</span>
+    <input type="search" id="search" placeholder="Search all guides..." autocomplete="off" spellcheck="false">
+  </div>
+</header>
+
+<div id="nav-tabs">
+  <button class="tab-btn" data-section="mind">🧠 Mind</button>
+  <button class="tab-btn" data-section="free">🆓 Free</button>
+  <button class="tab-btn" data-section="camp">⛺ Camp</button>
+  <button class="tab-btn active" data-section="fire">🔥 Fire</button>
+  <button class="tab-btn" data-section="water">💧 Water</button>
+  <button class="tab-btn" data-section="shelter">🏕 Shelter</button>
+  <button class="tab-btn" data-section="food">🌿 Food</button>
+  <button class="tab-btn" data-section="forage">🍄 Forage</button>
+  <button class="tab-btn" data-section="craft">🔧 Craft</button>
+  <button class="tab-btn" data-section="nav">🧭 Nav</button>
+  <button class="tab-btn" data-section="firstaid">⛑ First Aid</button>
+  <button class="tab-btn" data-section="medical">🏥 Medical+</button>
+  <button class="tab-btn" data-section="hazards">⚠️ Hazards</button>
+  <button class="tab-btn" data-section="urban">🏙 Urban</button>
+  <button class="tab-btn" data-section="comms">📻 Comms</button>
+  <button class="tab-btn" data-section="signal">📡 Signal</button>
+  <button class="tab-btn" data-section="knots">🪢 Knots</button>
+  <button class="tab-btn" data-section="tables">📋 Tables</button>
+</div>
+
+<main>
+<div id="search-results"></div>
+
+<!-- ══════════════════════════════════════════ FIRE ══ -->
+<section class="guide-section active" id="sec-fire">
+  <div class="section-header"><span class="section-icon">🔥</span><span class="section-title">Fire Craft</span><span class="section-num">SEC. 01</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">F-01</span><span class="entry-title">Fire Triangle & Site Selection</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>The Fire Triangle</h4>
+    <p>Every fire needs three elements: <strong>fuel</strong> (combustible material), <strong>heat</strong> (ignition source), and <strong>oxygen</strong>. Remove any one and the fire dies.</p>
+    <h4>Site Selection Rules</h4>
+    <ul><li>Clear a 3-metre radius of dry leaves and debris.</li><li>Choose a sheltered spot — wind feeds and spreads fire unpredictably.</li><li>Build on mineral soil or rock, never directly on dry peat.</li><li>Never build under overhanging branches or near dry grass runs.</li><li>Prepare an exit route before lighting.</li></ul>
+    <div class="warn">⚠ Never leave fire unattended. Drown embers completely with water — stir — drown again. Ash can retain heat for 24+ hours.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">F-02</span><span class="entry-title">Tinder, Kindling, Fuel Grades</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Tinder</h4>
+    <ul><li>Dry grass, cattail fluff, dry moss</li><li>Bark from birch or cedar — shredded fine</li><li>Dried fungi (Amadou / horse hoof fungus)</li><li>Charcloth, char punk, or dried animal dung</li><li>Pocket lint, cotton wool, petroleum jelly on cotton balls</li></ul>
+    <h4>Kindling</h4>
+    <p>Dry dead twigs still attached to lower trunk. Split larger sticks to expose dry interior.</p>
+    <h4>Fuel</h4>
+    <p>Wrist-to-arm-thick hardwood (oak, ash, birch). Split logs burn hotter and more efficiently.</p>
+    <div class="tip">▸ TIP: In wet conditions, find dead wood still standing (not ground-contact). Split it — the centre will be dry.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">F-03</span><span class="entry-title">Friction Fire — Bow Drill</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Components</h4>
+    <ul><li><strong>Fireboard:</strong> soft dry wood (willow, cedar, cottonwood). Thumbnail-thick.</li><li><strong>Spindle:</strong> straight, dry, same or slightly harder wood. 30–40 cm.</li><li><strong>Bow:</strong> slightly curved branch; cordage (paracord, shoelace, rawhide).</li><li><strong>Handhold:</strong> hard wood or stone socket.</li><li><strong>Catch plate:</strong> bark or leaf under the notch.</li></ul>
+    <h4>Technique</h4>
+    <ol class="steps"><li>Cut a notch in the fireboard (~⅛ of drill hole). Place catch plate under notch.</li><li>Kneel, brace fireboard foot with knee, pin handhold wrist against shin.</li><li>Use long, steady bow strokes — full extension. Maintain downward pressure.</li><li>When smoke thickens and black powder fills notch, do 10 fast strokes then stop.</li><li>Tap coal onto catch plate, transfer to tinder bundle, blow gently from below.</li></ol>
+    <div class="warn">⚠ Most common failure is wet wood or inconsistent pressure.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">F-04</span><span class="entry-title">Flint & Steel / Ferro Rod</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Strike a ferro rod at 15–30° into a waiting tinder bundle. One firm, controlled scrape.</p>
+    <p>For flint and steel, use a sharp edge of flint or quartzite. Strike high-carbon steel downward so sparks fall onto char cloth held beneath.</p>
+    <div class="tip">▸ TIP: A ferro rod works wet. At 3000°C, sparks will ignite damp tinder if aimed correctly.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">F-05</span><span class="entry-title">Fire Structures</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Teepee</h4><p>Best for starting. Stack kindling in a cone around tinder. Burns hot, fast.</p>
+    <h4>Log Cabin</h4><p>Alternating square layers. Burns long, good coals for cooking.</p>
+    <h4>Star Fire</h4><p>Push 4–6 long logs radially inward. Feed by pushing logs in as they burn. Ideal for overnight.</p>
+    <h4>Trench Fire</h4><p>Dig a trench aligned with prevailing wind. Natural bellows. Low profile, less visible at night.</p>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ WATER ══ -->
+<section class="guide-section" id="sec-water">
+  <div class="section-header"><span class="section-icon">💧</span><span class="section-title">Water Procurement</span><span class="section-num">SEC. 02</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">W-01</span><span class="entry-title">The 3-Day Rule & Priorities</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>You can survive approximately 3 days without water. Water is your second priority after immediate safety.</p>
+    <h4>Daily requirements</h4>
+    <ul><li>Sedentary, cool: ~1.5 litres/day minimum</li><li>Active, temperate: 2–3 litres/day</li><li>Hot climate / high exertion: 4–6+ litres/day</li></ul>
+    <div class="warn">⚠ Never eat without water access. Digestion consumes water. In extreme scarcity, fasting is preferable to dehydration.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">W-02</span><span class="entry-title">Finding Water Sources</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Reading the landscape</h4>
+    <ul><li><strong>Follow valleys downhill</strong> — water flows to low ground.</li><li><strong>Animal trails</strong> converge at water sources at dawn/dusk.</li><li><strong>Vegetation clusters</strong> of willows, cottonwood, cattails indicate subsurface water.</li><li><strong>Insects</strong> (flies and bees) are rarely far from water.</li><li><strong>Birds</strong> fly toward water at dusk; depart at dawn.</li></ul>
+    <h4>Emergency collection</h4>
+    <ul><li><strong>Morning dew:</strong> Tie absorbent cloth around legs and walk through vegetation at dawn. Wring into container.</li><li><strong>Transpiration bag:</strong> Tie clear plastic bag around leafy branch in full sun.</li><li><strong>Rock seeps:</strong> Check concave rock faces after rain. Squeeze saturated moss.</li><li><strong>Snow/ice:</strong> Always melt before drinking; never eat large quantities directly.</li></ul>
+    <div class="warn">⚠ Never drink seawater or urine. Avoid stagnant pools and bright-green algae blooms.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">W-03</span><span class="entry-title">Purification Methods</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Boiling</h4>
+    <p>Rolling boil for 1 minute (3 minutes above 2000m). Kills bacteria, viruses, and protozoa. Does NOT remove chemical contaminants.</p>
+    <h4>Chemical Treatment</h4>
+    <p>2 chlorine dioxide tablets per litre of clear water. Wait 30 min (cold/turbid: 60 min). Handles Cryptosporidium.</p>
+    <h4>Improvised Filter</h4>
+    <ol class="steps"><li>Layer container: fine grass at bottom, crushed charcoal, sand, coarse gravel at top.</li><li>Pour water through slowly. Repeat 2–3 times until clear.</li><li>Always boil or chemically treat after filtering.</li></ol>
+    <div class="tip">▸ TIP: Let turbid water settle 30 minutes or pre-filter through cloth before treating.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">W-04</span><span class="entry-title">Solar Still</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Extracts moisture via condensation. Output ~0.5 L/day in good conditions but produces clean water.</p>
+    <ol class="steps"><li>Dig a bowl-shaped hole ~1m wide, 60cm deep in full sun.</li><li>Place a container at the lowest point.</li><li>Optionally add green vegetation or wet soil around the sides.</li><li>Stretch clear plastic sheet taut over the hole; seal edges with soil.</li><li>Place a small rock in the centre so sheet forms a cone pointing down toward container.</li></ol>
+    <div class="tip">▸ TIP: A drinking tube run under the sheet lets you sip without dismantling the still.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ SHELTER ══ -->
+<section class="guide-section" id="sec-shelter">
+  <div class="section-header"><span class="section-icon">🏕</span><span class="section-title">Shelter Construction</span><span class="section-num">SEC. 03</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">S-01</span><span class="entry-title">Site Selection</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ul><li>Elevated ground — avoids cold air pooling and flash floods.</li><li>Natural windbreak on dominant wind side.</li><li>Proximity to water but not flood risk.</li><li>Away from dead standing trees ("widow makers") and insect nests.</li></ul>
+    <div class="warn">⚠ Avoid: dry riverbeds, cliff bases, valley bottoms, directly under large dead trees.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">S-02</span><span class="entry-title">Debris Hut</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Most effective emergency shelter using only natural materials. Essentially a sleeping bag made of leaves.</p>
+    <ol class="steps"><li>Find a ridgepole 2–3m long. Prop one end 60cm high on a stump or forked branch.</li><li>Lean branches along both sides at 45°.</li><li>Pile debris (leaves, pine needles) over ribbing at least 60cm thick. Start from bottom like shingles.</li><li>Fill interior with dry leaves — packed tightly.</li><li>Block entrance with a backpack or woven branch door.</li></ol>
+    <div class="tip">▸ TIP: Just big enough to crawl into. Every extra cubic foot requires your body to heat more air.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">S-03</span><span class="entry-title">Lean-To</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Best combined with a fire. Open front faces fire; angled roof deflects wind and reflects heat inward.</p>
+    <ol class="steps"><li>Lash a horizontal ridgepole between two trees at chest height.</li><li>Lean branches at 45° against ridgepole.</li><li>Layer debris, bark, or large leaves over frame from bottom to top (shingle style).</li></ol>
+    <p>A reflector wall behind the fire (stacked logs) doubles radiant heat toward shelter.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">S-04</span><span class="entry-title">Snow Shelter — Quinzhee</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Interior stays near 0°C regardless of outside conditions. Life-saving in sub-zero environments.</p>
+    <ol class="steps"><li>Pile snow into a mound 2–2.5m high, 3m diameter. Pack firmly.</li><li>Insert 20–30 sticks (~20cm long) radially across the mound.</li><li>Wait 2 hours for snow to sinter (critical for structural integrity).</li><li>Hollow out from leeward side until you hit stick tips (~15cm wall).</li><li>Poke a ventilation hole in the roof.</li><li>Sleep on a raised platform of branches to avoid cold ground.</li></ol>
+    <div class="warn">⚠ Always keep a stick inside to clear the vent hole. CO2 accumulates. Mark entrance clearly.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ CAMP ══ -->
+<section class="guide-section" id="sec-camp">
+  <div class="section-header"><span class="section-icon">⛺</span><span class="section-title">Free Camping</span><span class="section-num">SEC. 04</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">C-01</span><span class="entry-title">Legal Landscape by Region</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>UK</h4>
+    <ul><li><strong>Scotland:</strong> Legal right to wild camp under the Land Reform (Scotland) Act 2003. Responsible access applies — no fires near woodland, no camping near houses without permission.</li><li><strong>England & Wales:</strong> No general right to wild camp. Dartmoor National Park is the one exception (legal following 2023 reinstatement). Elsewhere: tolerated if discreet, leave no trace, and move promptly if asked.</li></ul>
+    <h4>Europe</h4>
+    <ul><li><strong>Fully legal:</strong> Sweden, Norway, Finland, Estonia — right to roam (Allemansrätten). 1–2 nights, 150m from dwellings.</li><li><strong>Legal with restrictions:</strong> Austria, Czech Republic, Switzerland (above tree line). Fire usually prohibited.</li><li><strong>Technically illegal but widely tolerated:</strong> France, Germany, Spain, Portugal — discreet single-night camping rarely enforced.</li><li><strong>Strictly enforced:</strong> Netherlands, Belgium, Ireland.</li></ul>
+    <h4>North America</h4>
+    <p>Legal on most US National Forest and BLM land (14-day limit). National Parks require permits. Canada: similar rules on Crown Land. Always check local regulations.</p>
+    <h4>Australia / New Zealand</h4>
+    <p>Legal in many state forests and national parks. Freedom camping popular in NZ with a self-contained vehicle. Check "Freedom Camping" designations on local council maps.</p>
+    <div class="tip">▸ TIP: Apps like iOverlander, Campermate, and WikiCamps show legal free camp spots with user reviews.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">C-02</span><span class="entry-title">Identifying a Good Free Camp Spot</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Terrain factors</h4>
+    <ul><li><strong>Level ground:</strong> Check by lying down on the site — even a 3° slope is uncomfortable by morning. Hip bones will tell you everything.</li><li><strong>Drainage:</strong> Avoid any depression or dip; if it rains you will be in a puddle. Look for a slight crown or gentle slope away from the tent.</li><li><strong>Substrate:</strong> Soft earth or grass is ideal. Rock is cold and hard. Sand drains well but stakes pull out.</li><li><strong>Wind:</strong> A natural windbreak (hedgerow, wall, treeline) on the prevailing wind side is valuable. But check for standing dead wood overhead.</li></ul>
+    <h4>Safety and privacy</h4>
+    <ul><li>Not visible from roads, footpaths, or farmhouses — reduces confrontation risk.</li><li>At least 200m from any water source to avoid flooding; also reduces insects.</li><li>Not in a dry riverbed, gully, or drainage channel (flash flood risk).</li><li>Check overhead: dead branches, power lines, tree hazard.</li><li>No signs of previous human activity that suggests the land is actively used (footpaths, crop marks).</li></ul>
+    <h4>Environmental reads</h4>
+    <ul><li>Lush green patches in a field can indicate boggy ground — avoid.</li><li>Cattle-grazed ground is often flat and clear — good, but check for dung.</li><li>Bracken is a poor sleeping surface and harbours ticks.</li><li>Pine forest floors (needle duff) are excellent — soft, level, dry, naturally suppressed undergrowth.</li></ul>
+    <div class="tip">▸ TIP: Scout the spot in daylight. A place that looks flat in the dark may have roots, rocks, or a camber you won't find until 3am.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">C-03</span><span class="entry-title">Best Time to Set Up Camp</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Ideal window: 60–90 minutes before dark</h4>
+    <p>This gives you enough natural light to: scout and assess the ground properly, clear debris and stones, pitch correctly with all pegs seated, find water, gather dry wood, and orient your tent door away from the wind.</p>
+    <h4>If stealth camping (avoiding being seen)</h4>
+    <p>Arrive at your chosen spot at last light — close to dusk but not after dark. You need just enough light to pitch without a torch (torchlight at dusk is visible from distance). The window is approximately the 20–30 minutes of dim light after the sun drops below the horizon.</p>
+    <h4>Tent orientation</h4>
+    <ul><li>Door facing away from prevailing wind — reduces draughts and keeps rain from blowing in.</li><li>If using a bivy or tarp, the lower end should point into wind so rain runs off rather than pools.</li><li>In cold conditions: door facing east catches first sun and warms the tent earlier.</li></ul>
+    <div class="warn">⚠ Pitching in the dark leads to: incorrectly staked tents that collapse in wind, missed hazards, and poor drainage decisions. Plan your spot in daylight even if you pitch at dusk.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">C-04</span><span class="entry-title">Best Time to Break Camp in the Morning</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Ideal time: sunrise to 90 minutes after</h4>
+    <p>You want to be packed and gone before dog walkers, early hikers, or farm workers arrive — typically before 07:30 in rural areas, earlier near urban fringes.</p>
+    <h4>Managing condensation</h4>
+    <p>Tents accumulate condensation on the inner and outer skins overnight — both from body moisture and dew. If time allows, open the door and let morning air circulate for 30–60 minutes before packing. In sun, prop the inner and outer apart to dry.</p>
+    <p>If you must pack a wet tent: stuff inner into a dry bag, outer fly in a separate accessible pocket. Dry it at the first opportunity the same day — leaving a wet tent packed for more than 12 hours promotes mould.</p>
+    <h4>Ground restoration</h4>
+    <ul><li>Scatter any disturbed grass or leaf litter back over your sleeping area.</li><li>Fill any peg holes with soil.</li><li>Remove all litter including food waste, biodegradable or not.</li><li>Leave no trace — the next person (and wildlife) should not know you were there.</li></ul>
+    <div class="tip">▸ TIP: Pack everything except tent and sleeping bag first. Strike the tent last, roll it fast, and leave. Lingering after 08:00 on wild ground is when encounters happen.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">C-05</span><span class="entry-title">Leave No Trace Principles</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ul><li><strong>Plan ahead:</strong> Know regulations. Carry a map. Know your exits.</li><li><strong>Travel & camp on durable surfaces:</strong> Rock, gravel, dry grass, snow. Avoid sensitive vegetation.</li><li><strong>Dispose of waste properly:</strong> Bury human waste 15cm deep, 60m from water/trail/camp. Pack out all rubbish.</li><li><strong>Leave what you find:</strong> No digging, no carving, no moving rocks beyond necessity.</li><li><strong>Minimise fire impact:</strong> Use existing fire rings or fire pan. Burn wood to ash, scatter cold ash.</li><li><strong>Respect wildlife:</strong> Observe from distance. Never feed wildlife. Secure food in sealed bags.</li><li><strong>Be considerate:</strong> Yield to other users. Keep noise down in camp areas.</li></ul>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ FOOD ══ -->
+<section class="guide-section" id="sec-food">
+  <div class="section-header"><span class="section-icon">🌿</span><span class="section-title">Food Procurement</span><span class="section-num">SEC. 05</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FD-01</span><span class="entry-title">Priorities & Caloric Reality</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Food is your lowest immediate survival priority. A healthy adult survives 3 weeks without food. Energy spent hunting can exceed calories gained early on.</p>
+    <h4>Caloric hierarchy (effort vs return)</h4>
+    <ul><li><strong>Best ROI:</strong> insects, grubs, eggs, fish (traps/weirs)</li><li><strong>Medium ROI:</strong> small mammals (snares), edible plants</li><li><strong>Low ROI:</strong> large game hunting (high energy expenditure)</li></ul>
+    <div class="warn">⚠ Never eat unknown plants without certainty. Many deadly species resemble edible ones.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FD-02</span><span class="entry-title">High-Confidence Edible Plants (Temperate)</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Dandelion</h4><p>Entire plant edible — leaves, flowers, roots. Roots roasted as coffee substitute. Unmistakable.</p>
+    <h4>Cattail</h4><p>Found at water edges. Pollen: shake onto food. Shoots (spring): peel and eat raw. Roots: pound in water, settle starch, drain, bake or boil.</p>
+    <h4>Nettles</h4><p>Highly nutritious. Cook to neutralise sting. Boil 2–3 minutes; discard water.</p>
+    <h4>Pine</h4><p>Inner bark (cambium): edible raw or cooked. Young shoots edible. Pine needles: steep for Vitamin C tea. Pine nuts: calorie-dense.</p>
+    <h4>Clover</h4><p>Leaves, flowers all edible. Best cooked. High protein for a plant source.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FD-03</span><span class="entry-title">Insects & Grubs</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Calorie-dense, protein-rich, plentiful. 2 billion people regularly eat them.</p>
+    <ul><li><strong>Grubs/larvae:</strong> under rotting logs, in soil. High in fat. Roast or boil.</li><li><strong>Grasshoppers/crickets:</strong> remove legs and wings; roast on hot rock.</li><li><strong>Ants:</strong> edible raw or cooked. Cook wood ants to neutralise formic acid.</li><li><strong>Earthworms:</strong> squeeze out gut contents; boil or dry.</li></ul>
+    <div class="warn">⚠ Avoid: brightly coloured insects, hairy caterpillars, acrid-smelling beetles. Never eat raw insects near agricultural land (pesticide risk).</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FD-04</span><span class="entry-title">Improvised Snares</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Set snares on active runs — look for flattened vegetation, droppings, and hair.</p>
+    <ol class="steps"><li>Form a fixed loop of wire ~10cm diameter for rabbit (fist-sized for squirrel).</li><li>Hang loop 8–10cm above the ground on a rabbit run.</li><li>Anchor firmly to a tree or staked toggle.</li><li>Set 6–10 snares in different locations; check every 4–6 hours.</li></ol>
+    <div class="tip">▸ TIP: Wear gloves when setting — human scent significantly reduces effectiveness.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ FORAGE ══ -->
+<section class="guide-section" id="sec-forage">
+  <div class="section-header"><span class="section-icon">🍄</span><span class="section-title">Foraging by Region & Fungi</span><span class="section-num">SEC. 06</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FR-01</span><span class="entry-title">Tropical Foraging</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>High-yield tropical plants</h4>
+    <ul><li><strong>Coconut palm:</strong> Nuts for food, water, and oil. Young coconut water is sterile — safe to drink. Trunk pith (heart of palm) edible. Leaves for weaving shelter.</li><li><strong>Bamboo:</strong> Young shoots (under 30cm) edible raw or boiled. Older shoots require boiling in multiple changes of water to reduce cyanogenic compounds. Segments hold water.</li><li><strong>Plantain/banana (wild):</strong> Fruit, flower, and young core all edible. Boil green fruit. Leaves are excellent for wrapping, cooking, waterproofing.</li><li><strong>Breadfruit:</strong> Large starchy fruit. Boil or roast. One tree can produce hundreds of fruit per season.</li><li><strong>Papaya:</strong> Common in disturbed tropical ground. All parts useful — fruit, seeds, leaves (cooked). Unripe papaya is starchy and high in calories.</li></ul>
+    <h4>Water</h4>
+    <p>Cut green bamboo internodes — often holds collected water. Slash a vine near its base — some drip clear, safe water. Banana trunk: cut, scoop hollow, collects groundwater.</p>
+    <div class="warn">⚠ Many tropical plants are toxic. The "shiny, avoid brightly coloured" rule is less reliable in tropics. Prioritise known species.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FR-02</span><span class="entry-title">Arctic / Boreal Foraging</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Key species</h4>
+    <ul><li><strong>Crowberry (Empetrum nigrum):</strong> Small black berries on low heathland shrub. Tart. High Vitamin C. Common across Arctic and subarctic.</li><li><strong>Cloudberry (Rubus chamaemorus):</strong> Amber-orange berry, low to ground in boggy tundra. Exceptionally high in Vitamin C. One of the most nutritious arctic plants.</li><li><strong>Labrador tea (Ledum spp.):</strong> Steep leaves for a warming tea. Do not overuse — contains trace toxins. Recognisable by white underleaf fuzz and resinous smell.</li><li><strong>Reindeer lichen (Cladonia rangiferina):</strong> Edible after prolonged boiling (removes acids). Low nutrition but provides bulk carbohydrate. Grey-green, branching, carpet-forming.</li><li><strong>Arctic willow:</strong> Inner bark edible. Leaves contain Vitamin C — eat raw in spring.</li><li><strong>Fireweed (Epilobium angustifolium):</strong> Young shoots in spring edible raw. Flowers edible. One of the first plants to colonise burned ground.</li></ul>
+    <div class="tip">▸ TIP: Animal hunting/trapping is far higher yield in arctic conditions than foraging. Prioritise seal, arctic hare, ptarmigan, fish.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FR-03</span><span class="entry-title">Desert Foraging</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Water is the priority — not food</h4>
+    <p>In desert survival, caloric procurement should not override water conservation. Movement to find plants burns water. Prioritise shade and water first.</p>
+    <h4>Edible desert plants (global)</h4>
+    <ul><li><strong>Prickly pear cactus (Opuntia):</strong> Remove spines with two sticks or fire. Pads (nopales) edible raw or cooked. Fruit (tuna) high in sugar and water. Found in Americas, Mediterranean, Africa.</li><li><strong>Barrel cactus (N. America):</strong> Pry off top, mash and squeeze the flesh through cloth. Small amount of bitter, milky water. Emergency only — causes vomiting if consumed in quantity.</li><li><strong>Agave:</strong> Central core edible when roasted. High in sugar. Can be tapped for sap (ferments into pulque). Found across Americas and planted globally.</li><li><strong>Mesquite (Prosopis spp.):</strong> Seed pods (ripe, yellow) grind into calorie-dense flour. Raw pods edible but tough. Found across Americas and Africa.</li><li><strong>Date palm:</strong> Fruit highly nutritious. Harvested in autumn. Found across MENA desert regions.</li></ul>
+    <div class="warn">⚠ Do not attempt to dig up cacti for water — the water content is minimal, energy expenditure is huge, and many cause gastrointestinal distress.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FR-04</span><span class="entry-title">Coastal Foraging</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Coastlines are one of the highest-yield foraging environments due to the combination of sea vegetables, shellfish, fish, and shore birds.</p>
+    <h4>Shellfish</h4>
+    <ul><li><strong>Mussels, limpets, winkles, cockles:</strong> Found on rocky shores. Always boil; discard any that don't open when cooked. Never eat shellfish from harbours, near sewage outflows, or during red tide (toxic algal bloom).</li><li><strong>Harvesting:</strong> Low tide, rocky intertidal zone. Use a flat stone or knife to dislodge limpets with a quick sideways strike before they grip.</li></ul>
+    <h4>Sea vegetables</h4>
+    <ul><li><strong>Sea lettuce (Ulva lactuca):</strong> Bright green, translucent fronds. Found globally on rocks. Eat raw or cook. High in iron and protein.</li><li><strong>Dulse (Palmaria palmata):</strong> Red/purple fronds, chewy texture. Found in cold Atlantic waters. High in protein and minerals.</li><li><strong>Bladderwrack (Fucus vesiculosus):</strong> Brown seaweed with air bladders. Best as broth; too tough to eat raw. High in iodine.</li><li><strong>Kelp (various):</strong> Long brown fronds. Dry and powder as seasoning or boil in soups.</li></ul>
+    <h4>Rock pools</h4>
+    <p>Small crabs, prawns, and small fish can be caught by hand or with a woven grass net at low tide. Urchins (spiny) — crack open and eat the orange roe inside raw.</p>
+    <div class="warn">⚠ Shellfish filter feeders concentrate toxins. Red or brown tidal discolouration (algal bloom) means avoid all shellfish — cooking does not neutralise paralytic shellfish toxin.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FR-05</span><span class="entry-title">Mushroom Identification — Safe vs Deadly</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <div class="warn">⚠ CRITICAL: More people die from mushroom poisoning than from any other wild food source. Never eat a mushroom unless you are 100% certain of its identity. Do not use colour alone. When in doubt — do not eat.</div>
+    <h4>Highly distinctive safe species (UK/Europe/N. America)</h4>
+    <ul><li><strong>Giant Puffball (Calvatia gigantea):</strong> Football-sized white ball. Interior must be pure white throughout when cut — if any hint of gills or yellow, discard. Fry in butter. No dangerous look-alikes at full size.</li><li><strong>Chicken of the Woods (Laetiporus sulphureus):</strong> Bright orange-yellow shelf fungus on trees. No look-alikes. Fry well — causes reactions when undercooked or when harvested from conifers in some individuals.</li><li><strong>Chanterelle (Cantharellus cibarius):</strong> Golden-yellow, funnel shaped, forked false gills (not true gills), fruity smell. Confusion risk: false chanterelle (Hygrophoropsis aurantiaca) has true gills — edible but inferior; jack-o-lantern (Omphalotus) grows in clusters on wood, has true gills — causes violent illness. Always check for forked veins, not true gills.</li><li><strong>Hedgehog mushroom (Hydnum repandum):</strong> Cream/tan cap, spines (teeth) under cap instead of gills. No dangerous look-alikes. Reliable beginner species.</li><li><strong>Oyster mushroom (Pleurotus ostreatus):</strong> Pale grey-white fan, grows in overlapping shelves on dead wood, white gills running down a short off-centre stem. Mild smell. Widely farmed — recognisable.</li></ul>
+    <h4>The three killers — learn these to avoid</h4>
+    <ul><li><strong>Death Cap (Amanita phalloides):</strong> Causes 90% of fatal mushroom poisonings worldwide. Pale green-yellow cap, white gills, white skirt (ring), bulbous base in a cup (volva). Symptoms delayed 6–24 hours — when they appear, severe liver/kidney damage is already progressing. Found in woodland, often near oak.</li><li><strong>Destroying Angel (Amanita virosa):</strong> Pure white all over. White gills, ring, volva. Lethal. Often mistaken for button mushroom (which has no volva) or field mushroom.</li><li><strong>Funeral Bell (Galerina marginata):</strong> Small brown mushroom growing on wood in clusters. Commonly mistaken for edible Honey Fungus (Armillaria). Has deadly amatoxins. Always check: Honey Fungus grows from base of trees, often has a ring, caps are more honey-coloured and scaly.</li></ul>
+    <div class="tip">▸ TIP: Always check the BASE of the mushroom. An Amanita has a distinctive cup (volva) at the base, often buried. Never harvest mushrooms without pulling them fully from the ground and examining the base.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ CRAFT ══ -->
+<section class="guide-section" id="sec-craft">
+  <div class="section-header"><span class="section-icon">🔧</span><span class="section-title">Tools, Trapping & Craft</span><span class="section-num">SEC. 07</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CR-01</span><span class="entry-title">Natural Cordage</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Cordage is second only to cutting tools in primitive utility. Snares, lashings, bows, shelters, fishing — all require it.</p>
+    <h4>Best plants for cordage (Northern temperate)</h4>
+    <ul><li><strong>Stinging nettle (Urtica dioica):</strong> Highest-quality natural cordage. Strip leaves, ret (soak) stems in water for 24h, peel away green rind to expose long white fibres. Twist when dry.</li><li><strong>Dogbane (Apocynum cannabinum):</strong> North America. Similar process to nettle. Dead standing stems in winter are ideal.</li><li><strong>Inner bark of lime/basswood, willow, cedar:</strong> Peel inner bark in spring (cambium layer). Split into thin strips while wet; twist when drying for natural tension.</li><li><strong>Iris leaves, yucca, agave fibres:</strong> Tropical to temperate. Split lengthwise, dry partially, then twist.</li></ul>
+    <h4>Reverse-wrap technique</h4>
+    <ol class="steps"><li>Take two bundles of fibre, fold at midpoint. You now have four ends.</li><li>Hold the fold in your left hand. Twist the near two strands clockwise (away from you) with your right hand.</li><li>Then wrap those two strands over the far two strands (counter-clockwise).</li><li>Repeat — twist clockwise, wrap counter-clockwise. The opposing tensions lock the cord together.</li><li>Add new fibres by overlapping a fresh bundle with the ends before they run out.</li></ol>
+    <div class="tip">▸ TIP: Damp fibres are easier to work. The cord tightens as it dries, increasing strength.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CR-02</span><span class="entry-title">Deadfall Traps</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Deadfall traps use a heavy weight to kill prey. No metal required. Effective for small mammals and birds.</p>
+    <h4>Figure-4 Deadfall</h4>
+    <ol class="steps"><li>Carve three sticks: a vertical post, a diagonal arm, and a horizontal bait stick. Each notched to interlock — forming a figure "4" when assembled.</li><li>The heavy weight (flat rock or log, 3–5× animal's weight) balances on the diagonal arm.</li><li>Bait is attached to the end of the horizontal stick.</li><li>When prey disturbs the bait, the figure-4 collapses, dropping the weight.</li></ol>
+    <h4>Promontory Peg Deadfall</h4>
+    <p>Simpler variant: a single notched peg driven into the ground holds a leaning weight at an angle. A baited trigger stick sits in the notch. Disturbance collapses the whole assembly. Faster to build than figure-4.</p>
+    <div class="tip">▸ TIP: Place on active runways. Bait with berries, nuts, or insects. Wear gloves — scent on the trap reduces effectiveness. Set 6+ traps at once.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CR-03</span><span class="entry-title">Fish Traps & Weirs</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Fish traps work 24/7 without your presence — extremely high ROI for calories.</p>
+    <h4>Basket trap</h4>
+    <p>Weave green branches or reeds into a cone shape with an inward-pointing funnel entrance. Fish swim in following bait/current; the inward cone prevents escape. Weight with rocks, place in a stream with the opening facing upstream.</p>
+    <h4>Stone weir</h4>
+    <p>In a shallow stream, build a V-shaped wall of rocks pointing upstream with a gap at the apex. Place a basket trap or a wooden cage at the apex gap. Fish following the channel funnel into the trap. At low tide on a beach, stone weirs built across a bay trap fish as the tide recedes.</p>
+    <h4>Gill net (improvised)</h4>
+    <p>Weave cordage in a grid pattern with openings slightly larger than the target fish's head. Suspend vertically between two poles or stakes in a stream. Fish swim in, gill covers snag in the mesh. Check every 2–4 hours.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CR-04</span><span class="entry-title">Flint Knapping — Improvised Blades</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>A sharp stone flake is more useful than a dull metal knife. Obsidian, chert, and flint can produce edges sharper than surgical steel.</p>
+    <h4>Percussion flaking</h4>
+    <ol class="steps"><li>Find a nodule of flint, chert, or obsidian. Test hardness by scratching glass — it should scratch easily.</li><li>Strike the edge of the nodule at 30–45° with a hard hammerstone. Aim to remove a large primary flake.</li><li>The flat surface (platform) created becomes your striking platform.</li><li>Strike repeatedly at the edge of this platform to drive off thin, sharp flakes.</li><li>Each flake is immediately useful as a cutting, scraping, or scoring tool.</li></ol>
+    <div class="warn">⚠ Wear eye protection if available (flint chips at high velocity). Work with leather or thick cloth over your thighs. Flint edges are sharper than they look.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CR-05</span><span class="entry-title">Food Preservation — Smoking & Drying</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Drying (jerky / biltong method)</h4>
+    <p>Slice meat or fish as thin as possible (3–5mm). Remove all fat (fat goes rancid). Hang over a rack in direct sun and moving air. In hot climates: 1–2 days. In cool/cloudy: 3–5 days, or hang near (not over) a fire. Dried correctly, meat keeps 1–4 weeks without refrigeration.</p>
+    <h4>Smoking</h4>
+    <p>Build a smoke tepee: poles covered with bark/leaves with a controlled smouldering fire of hardwood or green alder/apple wood inside. Hang meat/fish 1m above the smoke source. Cold smoke (60–80°C) for 6–12 hours preserves and flavours. Hot smoke (above 70°C internal) cooks and preserves simultaneously.</p>
+    <h4>Salt packing</h4>
+    <p>If salt is available: pack meat fully in salt for 24–48 hours to draw out moisture. Rinse, then dry or smoke. Combined salt-and-smoke treatment gives weeks of shelf life without refrigeration.</p>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ NAV ══ -->
+<section class="guide-section" id="sec-nav">
+  <div class="section-header"><span class="section-icon">🧭</span><span class="section-title">Navigation</span><span class="section-num">SEC. 08</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">N-01</span><span class="entry-title">Finding North — Multiple Methods</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Shadow Stick Method</h4>
+    <ol class="steps"><li>Push a 1m stick vertically in flat, clear ground.</li><li>Mark shadow tip with a stone (this is West).</li><li>Wait 15–30 minutes; mark new shadow tip (this is East).</li><li>Draw a line between marks — you have an E-W line. North is perpendicular.</li></ol>
+    <h4>Night — Polaris (Northern Hemisphere)</h4>
+    <p>Find the Big Dipper. The two stars forming the outer edge of the cup point directly to Polaris (North Star), almost exactly due North. Distance ≈ 5× the gap between those two stars.</p>
+    <h4>Southern Cross (Southern Hemisphere)</h4>
+    <p>Extend the long axis of the Southern Cross 4.5× beyond the base star — this points to the South Celestial Pole (there is no bright star there). Drop a perpendicular to the horizon for due South.</p>
+    <h4>Watch Method</h4>
+    <p>Point hour hand at sun. Bisect the angle between hour hand and 12 o'clock — this points roughly South (Northern Hemisphere). In Southern Hemisphere: point 12 at sun; bisect toward hour hand.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">N-02</span><span class="entry-title">Dead Reckoning & Route Planning</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Baseline strategy</h4>
+    <p>If lost, identify the nearest known linear feature — river, road, coastline, railway. Travel toward it in a straight line. Linear features are impossible to miss if you travel perpendicular to them.</p>
+    <h4>Pace counting</h4>
+    <p>Count every time your left foot hits the ground over 100m on flat terrain (typically 60–70 double paces). Adjust: uphill +15%, soft ground +10%, carrying load +5%.</p>
+    <h4>Deliberate offset</h4>
+    <p>When navigating to a point on a linear feature, aim 20° to one side. When you hit the feature, you know which direction to turn.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">N-03</span><span class="entry-title">Reading Terrain & River Crossing</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ul><li><strong>Ridgelines:</strong> easiest walking, good visibility, but exposed to weather.</li><li><strong>Rivers:</strong> lead to civilisation. Follow downstream but may require crossings.</li><li><strong>Valleys:</strong> easier walking but cold, foggy, flood-prone.</li></ul>
+    <h4>River crossing</h4>
+    <ul><li>Unbuckle pack waist strap before entering — drop pack if swept away.</li><li>Cross at widest, shallowest point. Fast narrow water = deeper.</li><li>Face upstream, angle 45° downstream, use a pole on upstream side.</li><li>Never cross barefoot.</li></ul>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ FIRST AID ══ -->
+<section class="guide-section" id="sec-firstaid">
+  <div class="section-header"><span class="section-icon">⛑</span><span class="section-title">Wilderness First Aid</span><span class="section-num">SEC. 09</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">A-01</span><span class="entry-title">Bleeding Control</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ol class="steps"><li>Apply direct pressure with the cleanest material available. Do not remove — add layers.</li><li>Elevate the wound above heart level if possible.</li><li>Maintain firm, steady pressure for a minimum of 10 minutes without peeking.</li><li>If a limb and bleeding is life-threatening: apply tourniquet 5–8cm above wound. Note the time.</li></ol>
+    <div class="warn">⚠ A tourniquet causes tissue damage. Use only when life is at risk. Limb loss is preferable to death. Mark time of application.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">A-02</span><span class="entry-title">Hypothermia</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Stages</h4>
+    <ul><li><strong>Mild (35–32°C):</strong> shivering, poor coordination, confusion.</li><li><strong>Moderate (32–28°C):</strong> shivering stops (ominous), muscular rigidity, drowsy.</li><li><strong>Severe (&lt;28°C):</strong> unconscious, barely detectable pulse.</li></ul>
+    <h4>Treatment</h4>
+    <ol class="steps"><li>Remove from cold; remove wet clothing.</li><li>Insulate from ground; wrap in sleeping bag or mylar blanket.</li><li>Add heat to armpits, groin, neck.</li><li>Give warm sweet drinks if conscious and swallowing safely.</li><li>Handle gently — rough movement can trigger cardiac arrest.</li></ol>
+    <div class="warn">⚠ "Not dead until warm and dead." Resuscitate even an apparently dead hypothermia patient — the cold heart may respond to CPR once rewarmed.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">A-03</span><span class="entry-title">Fractures & Splinting</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ol class="steps"><li>Do not straighten a closed fracture unless circulation is compromised (blue/white extremity).</li><li>Pad the splint material at pressure points.</li><li>Immobilise the joint above AND below the fracture.</li><li>Tie with cloth strips — firm but not tight enough to restrict circulation.</li><li>Check circulation below the splint every 30 minutes.</li></ol>
+    <div class="tip">▸ TIP: For lower leg fracture, the uninjured leg can serve as the splint. Pad between legs and bind together.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">A-04</span><span class="entry-title">Burns</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ul><li><strong>1st degree:</strong> redness, pain. Cool running water 10–20 min.</li><li><strong>2nd degree:</strong> blisters, intense pain. Cool; do not burst blisters; cover clean non-stick dressing.</li><li><strong>3rd degree:</strong> white/charred, painless. Cover loosely; do not remove adherent material. Evacuate.</li></ul>
+    <div class="warn">⚠ Never apply butter, oil, toothpaste, or ice. Cool water only. Burns covering &gt;10% of body area are life-threatening.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ MEDICAL+ ══ -->
+<section class="guide-section" id="sec-medical">
+  <div class="section-header"><span class="section-icon">🏥</span><span class="section-title">Advanced Field Medicine</span><span class="section-num">SEC. 10</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">M-01</span><span class="entry-title">Wound Closure & Improvised Suturing</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <div class="warn">⚠ Do not close wounds that are: contaminated/dirty, more than 6 hours old, animal bites, deep punctures. These must be left open to drain and treated with antibiotics if available.</div>
+    <h4>Butterfly strips (improvised)</h4>
+    <p>Cut narrow strips of tape, sticking plaster, or tough leaf with a waist in the middle. Stick one side, pull wound edges together, stick other side. Space every 5mm. Effective for clean, straight lacerations.</p>
+    <h4>Thorn / improvised suture</h4>
+    <p>For gaping wounds in field conditions with no other option: use a straight thorn or carved bone needle with plant cordage (or hair). Pass needle at 90° to wound edge, 5mm from edge and 5mm deep. Tie loosely — just enough to close gap. Do not overtighten; swelling will come. Space every 5mm. Remove in 5–7 days (face) or 7–10 days (body).</p>
+    <h4>Wound care</h4>
+    <ul><li>Irrigate thoroughly with clean water under pressure (syringe, water bottle with pinhole).</li><li>Remove all debris before closing.</li><li>Change dressings daily and check for signs of infection.</li></ul>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">M-02</span><span class="entry-title">Infection Management</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Signs of wound infection (progression)</h4>
+    <ul><li><strong>Stage 1:</strong> Increasing redness, warmth, swelling at wound site (12–24h). Normal inflammatory response.</li><li><strong>Stage 2:</strong> Pus formation, throbbing pain, red streaking extending from wound (24–72h). Active infection.</li><li><strong>Stage 3:</strong> Red streaks spreading up limb toward body, fever, swollen lymph nodes. Systemic infection — life-threatening. Evacuate immediately.</li></ul>
+    <h4>Improvised antiseptics</h4>
+    <ul><li><strong>Honey (raw):</strong> Exceptionally effective wound dressing. Antibacterial, draws out fluid, creates physical barrier. Apply directly, cover.</li><li><strong>Sugar packing:</strong> Pour granulated sugar into infected wound and pack. Osmotic effect draws out fluid and inhibits bacteria. Change every 12–24h.</li><li><strong>Pine resin:</strong> Warm and apply directly. Antibacterial and creates a seal over small wounds.</li><li><strong>Garlic (allicin):</strong> Crush raw clove and apply juice to wound. Natural antibiotic. Burns slightly.</li></ul>
+    <div class="warn">⚠ No improvised antiseptic replaces antibiotics for established infection. Seek medical evacuation if red streaking appears.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">M-03</span><span class="entry-title">Shoulder Dislocation Reduction</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <div class="warn">⚠ Do not attempt reduction if fracture is suspected (deformity at unusual point, severe swelling). Only reduce a straightforward shoulder dislocation.</div>
+    <h4>Cunningham technique (no force required)</h4>
+    <ol class="steps"><li>Seat the patient upright on the ground. Kneel in front.</li><li>Ask patient to relax arm completely — drape it over your forearm.</li><li>Firmly massage the muscle bellies of the bicep, deltoid, and trapezius for several minutes while coaching the patient to relax.</li><li>Gently support the elbow and apply slow, very gentle traction downward.</li><li>As muscles relax fully, the shoulder usually reduces with a soft clunk.</li></ol>
+    <h4>Stimson technique (gravity-assisted)</h4>
+    <p>Patient lies face-down on a raised surface, arm hanging straight down. Apply 4–7kg of weight to the wrist (rocks in a bag). Wait 15–20 minutes for muscle fatigue to allow reduction. Often reduces spontaneously.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">M-04</span><span class="entry-title">Dental Emergencies</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Dry socket (post-extraction)</h4>
+    <p>Severe throbbing pain 2–4 days after tooth removal, empty-feeling socket. Pack with oil of cloves (eugenol) on cotton, or raw honey. Change every 12h. This is extremely painful but not dangerous.</p>
+    <h4>Toothache / abscess</h4>
+    <p>Oil of cloves or clove bud crushed and applied directly to the cavity provides significant temporary pain relief (eugenol is a dental anaesthetic). Garlic placed in the cavity has antimicrobial effects. If fever, facial swelling, or difficulty swallowing develops — dental abscess spreading — this is a medical emergency requiring evacuation and antibiotics.</p>
+    <h4>Broken tooth</h4>
+    <p>Rinse with warm salty water. Cover a sharp broken edge with dental wax, softened candle wax, or chewing gum to prevent laceration of tongue. Avoid extreme temperatures on the tooth.</p>
+    <h4>Knocked-out tooth (avulsion)</h4>
+    <p>Handle only by the crown (not root). If clean, immediately reinsert into socket. If dirty, rinse briefly in milk or saline (not water) and reinsert. Hold in place by biting on cloth. If reimplanted within 30 minutes: high chance of survival. Get to a dentist within 2 hours.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">M-05</span><span class="entry-title">Eye Injuries</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Foreign body</h4>
+    <p>Irrigate with clean water from the inner corner outward. Blink rapidly underwater. For particle on white of eye: carefully remove with the moist corner of a clean cloth or the tip of a clean finger. Do not attempt to remove anything embedded in the cornea (coloured part).</p>
+    <h4>Snow blindness</h4>
+    <p>UV burn of the cornea. Excruciating, feels like sand in eyes, temporary loss of vision. Treatment: darkness, rest, cool wet cloth over closed eyes, 24–48h recovery. Prevention: improvised snow goggles — cut narrow horizontal slits in bark, card, or cloth and tie around head.</p>
+    <h4>Chemical splash</h4>
+    <p>Irrigate immediately with large volumes of water for at least 20 minutes continuously. Do not rub eyes. Remove contact lenses if present. Continue irrigation. Acids cause immediate damage then stop; alkalis continue to burn for hours — alkali burns require extended irrigation.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">M-06</span><span class="entry-title">Emergency Childbirth</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Most births are uncomplicated. Your role is to support the process, not direct it.</p>
+    <ol class="steps"><li>Wash hands thoroughly. Prepare clean cloth, warm water, something to tie and cut the cord.</li><li>Keep the mother warm, comfortable, and as calm as possible. Let her choose her position.</li><li>As the head crowns, apply gentle counter-pressure with a clean cloth to prevent rapid delivery — reduces tearing.</li><li>As head delivers, check if the cord is around the neck — if so, gently slip it over the head or slip the baby through the loop.</li><li>Support the baby's head and body as they rotate and deliver. Do not pull.</li><li>The baby will be slippery. Hold firmly but gently. Clear mouth and nose if needed.</li><li>Dry the baby immediately; wrap in clean cloth. Place on mother's chest — skin to skin.</li><li>The cord does not need to be cut immediately. Wait until it stops pulsating (2–5 minutes). Tie firmly in two places 5cm apart; cut between with the cleanest available blade.</li><li>The placenta delivers in 5–60 minutes naturally. Do not pull on the cord. Keep mother warm.</li></ol>
+    <div class="warn">⚠ Seek help if: labour exceeds 24h, baby's head not visible after 30 min pushing, cord presents before baby, heavy bleeding before delivery, or anything other than the head presents first (breech — do not pull, support and get help).</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ HAZARDS ══ -->
+<section class="guide-section" id="sec-hazards">
+  <div class="section-header"><span class="section-icon">⚠️</span><span class="section-title">Environmental Hazards</span><span class="section-num">SEC. 11</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">H-01</span><span class="entry-title">Heatstroke & Heat Illness</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Progression</h4>
+    <ul><li><strong>Heat cramps:</strong> painful muscle spasms, usually legs. Rest, water with salt or electrolytes.</li><li><strong>Heat exhaustion:</strong> heavy sweating, weakness, cold/pale/clammy skin, nausea, headache. Temperature normal or slightly elevated. Move to shade, cool and hydrate. Rest for the day.</li><li><strong>Heatstroke:</strong> hot/red/dry OR damp skin, temperature above 40°C, confusion, loss of consciousness. Medical emergency. Cool immediately by any means — immersion in water, ice packs to groin/armpits/neck, wet and fan.</li></ul>
+    <div class="warn">⚠ Heatstroke with confusion means the brain is failing. Cooling is the treatment. Do not delay.</div>
+    <div class="tip">▸ TIP: Work in early morning and evening in hot climates. Rest in shade 10:00–16:00. Acclimatisation takes 10–14 days.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">H-02</span><span class="entry-title">Altitude Sickness</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Acute Mountain Sickness (AMS)</h4>
+    <p>Onset above 2500m. Headache + one of: nausea, fatigue, dizziness, poor sleep. Ascend no further. Rest and hydrate at current altitude. Usually resolves in 24–48h.</p>
+    <h4>High Altitude Cerebral Oedema (HACE)</h4>
+    <p>Severe AMS with ataxia (can't walk a straight line) or altered mental status. Life-threatening. <strong>Descend immediately — minimum 500–1000m.</strong> If available: supplemental oxygen, dexamethasone 8mg loading dose.</p>
+    <h4>High Altitude Pulmonary Oedema (HAPE)</h4>
+    <p>Breathlessness at rest, cough (may produce pink frothy sputum), extreme fatigue. Often at night. Kills faster than HACE. <strong>Descend immediately.</strong> Sit upright. Supplemental O2 if available. Nifedipine 30mg SR if available.</p>
+    <h4>Prevention</h4>
+    <ul><li>Ascend no more than 300–500m per day above 3000m.</li><li>Acclimatise with "climb high, sleep low" — day hikes to altitude, sleep lower.</li><li>Avoid alcohol and sedatives at altitude — suppress respiration.</li></ul>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">H-03</span><span class="entry-title">Frostbite & Trench Foot</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Frostbite stages</h4>
+    <ul><li><strong>Frostnip:</strong> skin pale, cold, painful — no ice crystals in tissue yet. Rewarm with body heat immediately. Full recovery expected.</li><li><strong>Superficial frostbite:</strong> skin frozen, firm on surface, soft underneath, painful on thawing. White/grey colour. Do not rub. Rewarm in 37–40°C water (not hot) for 20–30 min. Blisters may form — leave intact.</li><li><strong>Deep frostbite:</strong> solid, wooden feel all the way through, blue-black colour. Rewarm only if there is no risk of refreezing — a thaw-refreeze cycle is catastrophic. Transport to hospital.</li></ul>
+    <h4>Trench foot</h4>
+    <p>Caused by prolonged exposure to cold and wet (above freezing). Feet become red, swollen, painful, then numb. Remove wet footwear, dry feet gently, rewarm slowly at room temperature, elevate. Avoid direct heat. Can take weeks to heal. Prevention: keep feet dry, change socks daily, dry footwear overnight.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">H-04</span><span class="entry-title">Lightning</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>30-30 rule</h4>
+    <p>If time between flash and thunder is less than 30 seconds — seek shelter immediately. Wait 30 minutes after the last thunder before resuming outdoor activity.</p>
+    <h4>Dangerous locations</h4>
+    <ul><li>Hilltops, ridgelines, open fields</li><li>Under isolated trees or the tallest tree in an area</li><li>Near water (rivers, lakes, coastline)</li><li>In or near cave entrances and cliff overhangs</li><li>Holding metal objects (poles, fishing rods, umbrellas)</li></ul>
+    <h4>Safe locations</h4>
+    <ul><li>Substantial buildings or hard-topped metal vehicles</li><li>In forest: dense stand of small, same-height trees</li><li>Low ground: ditches, gullies (but not flood-prone)</li></ul>
+    <h4>Lightning crouch (last resort in open ground)</h4>
+    <p>Squat on the balls of your feet, feet together, head down, ears covered, do not lie flat. Minimises ground current contact. Group members spread out at least 15m apart to prevent all being struck simultaneously.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">H-05</span><span class="entry-title">Hyponatremia — Over-Hydration</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Hyponatremia (low blood sodium) is caused by drinking too much water without replacing electrolytes. Common in endurance events and hot-weather survival. Can kill as effectively as dehydration.</p>
+    <h4>Symptoms</h4>
+    <p>Nausea, headache, confusion, fatigue, muscle weakness — identical to dehydration. Key differentiator: patient has been drinking a lot but no improvement; urine is clear or absent.</p>
+    <h4>Treatment</h4>
+    <p>Stop drinking water immediately. Consume salt (salty food, electrolyte tablets, a pinch of salt in water). Rest. Severe cases (seizures, unconsciousness) are a medical emergency — do not give more water.</p>
+    <div class="tip">▸ TIP: In hot conditions or sustained exertion, drink to thirst — not on a schedule. Always replace salt. Urine should be pale yellow, not clear.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">H-06</span><span class="entry-title">Animal Encounters</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Bears (Brown / Grizzly)</h4>
+    <ul><li><strong>Defensive attack</strong> (surprised bear): do not run; stand ground; speak calmly; back away slowly. If attacked — play dead: face down, hands protecting neck, legs slightly apart to resist rolling. Stay still until bear leaves.</li><li><strong>Predatory attack</strong> (bear follows, attacks at night, in camp): fight back aggressively with everything available — this bear sees you as prey. Never play dead.</li><li><strong>Prevention:</strong> make noise when hiking. Never approach cubs. Store food in bear boxes or hung 4m off ground and 1m from trunk.</li></ul>
+    <h4>Bears (Black)</h4>
+    <p>Rarely fatal but bolder than grizzly. Fight back in all attacks. Make yourself large and loud. Do not play dead.</p>
+    <h4>Big Cats (Lion, Cougar, Leopard)</h4>
+    <p>Do not run — triggers prey response. Face the animal, make yourself as large as possible, shout, throw objects. Maintain eye contact. Back away slowly. If attacked: fight back targeting the eyes and nose. Do not play dead.</p>
+    <h4>Snakes</h4>
+    <ul><li>Most bites occur when people handle, step on, or startle snakes. Give all snakes a wide berth.</li><li>If bitten: immobilise the affected limb below heart level, keep patient calm and still (reduces venom spread), remove jewellery, mark and time bite, get to antivenom as fast as possible.</li><li>Do NOT: cut and suck wound, apply tourniquet, apply ice, give alcohol.</li></ul>
+    <h4>Crocodile / Alligator</h4>
+    <p>Never approach water's edge in croc country at night or dusk. If grabbed: attack the eyes and snout tip (pressure points). If in a roll: do not resist — move with it and wait for the grip to release (very rare, but clawing eyes can interrupt the roll.</p>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ URBAN ══ -->
+<section class="guide-section" id="sec-urban">
+  <div class="section-header"><span class="section-icon">🏙</span><span class="section-title">Urban & Disaster Survival</span><span class="section-num">SEC. 12</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">U-01</span><span class="entry-title">Earthquake Aftermath</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Immediate (drop, cover, hold on)</h4>
+    <p>Get under a sturdy table or desk, or against an interior wall away from windows. Hold on. Do not run outside during shaking — you will be hit by debris.</p>
+    <h4>After shaking stops</h4>
+    <ul><li>Expect aftershocks — stay alert.</li><li>Check for gas leaks: smell, hissing. If suspected: open windows, do not use any switch or flame, leave building, call emergency line from outside.</li><li>Do not use elevators.</li><li>Structural assessment: visible cracks in load-bearing walls, leaning, displaced foundations are evacuation triggers. Do not re-enter damaged buildings.</li><li>Water may be contaminated after quake — treat all water before drinking.</li></ul>
+    <h4>Trapped under rubble</h4>
+    <p>Cover mouth with cloth. Tap on pipe or wall — searchers listen for rhythmic tapping. Shout only when you hear searchers nearby — conserves energy and oxygen.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">U-02</span><span class="entry-title">Power Grid Failure — What to Prioritise</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Food spoilage timeline</h4>
+    <ul><li>Refrigerator: safe for 4 hours unopened. Keep door shut.</li><li>Freezer: safe 24–48 hours half-full; up to 48h fully packed. Do not refreeze thawed meat.</li></ul>
+    <h4>What to eat first</h4>
+    <ol class="steps"><li>Refrigerator contents — eat perishables first: meat, dairy, cooked food.</li><li>Freezer contents as they thaw (partially frozen still safe).</li><li>Dry and canned goods last — these last indefinitely.</li></ol>
+    <h4>Water security</h4>
+    <p>Fill all available containers and bathtubs immediately — water pressure may fail. Water tower-fed areas can maintain pressure for several hours; pump-fed areas fail almost immediately.</p>
+    <h4>Heat and light</h4>
+    <ul><li>Never use gas appliances (grills, camping stoves) indoors — CO poisoning risk.</li><li>Candles: never leave unattended. Place in a glass vessel.</li><li>Group people together in one room — body heat is significant insulation.</li></ul>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">U-03</span><span class="entry-title">Urban Flooding</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <ul><li>Do not walk through moving water above ankle height — 15cm of fast-moving water can knock an adult off their feet.</li><li>Do not drive through flooded roads — 30cm of water can float most vehicles. "Turn around, don't drown."</li><li>Evacuate vertically (higher floors) if flood is rising and you cannot leave. Get to the roof if necessary.</li><li>Floodwater is sewage-contaminated: treat all skin contact as a biohazard. Wash thoroughly. Treat all water collected from flood for drinking.</li></ul>
+    <h4>Urban water procurement post-flood</h4>
+    <p>Hot water tanks and toilet tanks (not bowls) contain clean water. Water pipes may retain pressure for hours. Collect rainwater. All sources must be boiled or treated.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">U-04</span><span class="entry-title">Civil Unrest — Movement & Safety</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>General principles</h4>
+    <ul><li>The best survival action in civil unrest is usually to stay home and not be in the street.</li><li>If you must move: travel in daylight, avoid crowds, look like a local, carry minimal valuables.</li><li>Identify two exit routes from any building you enter.</li><li>Know the locations of embassies, hospitals, and police stations.</li></ul>
+    <h4>Cover vs concealment</h4>
+    <ul><li><strong>Concealment</strong> hides you but does not protect: bushes, curtains, drywall.</li><li><strong>Cover</strong> protects you: concrete walls, engine block of a vehicle, brick. Get behind cover, not just concealment.</li></ul>
+    <h4>Crowd crush</h4>
+    <p>In a dense, surging crowd: keep arms up and in front of your chest (boxer stance) to protect your lungs from compression. Do not fight against the crowd flow — move with it at 45° toward the edge. If knocked down: get up immediately; protect your head with your arms, draw knees to chest and try to roll upright. Stay near walls and edges to exit.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">U-05</span><span class="entry-title">Vehicle Survival</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Stranded in a vehicle</h4>
+    <ul><li>Stay with the vehicle — it is shelter and visible to rescuers.</li><li>Run the engine only 10 minutes per hour for heat; crack a window to prevent CO buildup.</li><li>Check exhaust is not blocked by snow before running engine.</li><li>Use hazard lights, mirrors, and horn to signal during the day.</li></ul>
+    <h4>Car in water</h4>
+    <ol class="steps"><li>Do not panic — vehicle floats for 30–120 seconds.</li><li>Release seatbelt immediately.</li><li>Open window immediately (electric windows fail once submerged; wind them down before water rises).</li><li>Do not try to open door against water pressure — wait until car is nearly fully submerged and pressure equalises, then push door open.</li><li>Exit through window first if possible.</li></ol>
+    <div class="tip">▸ TIP: Keep a spring-loaded window breaker and seatbelt cutter clipped to your sun visor. The one piece of kit you should always carry in a car.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ COMMS ══ -->
+<section class="guide-section" id="sec-comms">
+  <div class="section-header"><span class="section-icon">📻</span><span class="section-title">Communications</span><span class="section-num">SEC. 13</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CM-01</span><span class="entry-title">Emergency Radio Frequencies by Continent</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Universal / Global</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Notes</th></tr>
+      <tr><td class="freq">121.500 MHz</td><td>Aviation International Distress</td><td>Monitored by all aircraft and COSPAS-SARSAT satellites. Guard frequency — always monitored.</td></tr>
+      <tr><td class="freq">156.800 MHz</td><td>VHF Marine Channel 16</td><td>International maritime distress and calling. All vessels required to monitor when underway.</td></tr>
+      <tr><td class="freq">406.028 MHz</td><td>COSPAS-SARSAT PLB/EPIRB</td><td>Satellite-detected personal locator beacon distress signal. Activates rescue coordination worldwide.</td></tr>
+      <tr><td class="freq">2182 kHz (HF)</td><td>Maritime HF Distress</td><td>Long-range international maritime distress. Effective over thousands of km.</td></tr>
+      <tr><td class="freq">243.000 MHz</td><td>Military Aviation Guard</td><td>NATO military aircraft guard frequency. Also monitored by many SAR platforms.</td></tr>
+    </table>
+
+    <h4>North America</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Continent</th></tr>
+      <tr><td class="freq">27.065 MHz</td><td>CB Channel 9 — Emergency</td><td class="continent">USA / CANADA</td></tr>
+      <tr><td class="freq">155.340 MHz</td><td>National Law Enforcement Interop</td><td class="continent">USA</td></tr>
+      <tr><td class="freq">155.475 MHz</td><td>Fire / EMS mutual aid</td><td class="continent">USA</td></tr>
+      <tr><td class="freq">162.400–162.550 MHz</td><td>NOAA Weather Radio (7 channels)</td><td class="continent">USA</td></tr>
+      <tr><td class="freq">462.5625–467.7125 MHz</td><td>FRS/GMRS — licence-free Ch 1–7</td><td class="continent">USA / CANADA</td></tr>
+      <tr><td class="freq">151.820 / 151.880 / 151.940 / 154.570 / 154.600 MHz</td><td>MURS — licence-free</td><td class="continent">USA</td></tr>
+      <tr><td class="freq">156.525 MHz</td><td>DSC / Marine Ch 70</td><td class="continent">USA / CANADA</td></tr>
+    </table>
+
+    <h4>Europe</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Continent</th></tr>
+      <tr><td class="freq">27.065 MHz</td><td>CB Channel 9 — Emergency (CEPT)</td><td class="continent">ALL EUROPE</td></tr>
+      <tr><td class="freq">446.00625–446.19375 MHz</td><td>PMR446 — licence-free (16 ch)</td><td class="continent">ALL EUROPE</td></tr>
+      <tr><td class="freq">156.525 MHz</td><td>DSC / Marine Ch 70</td><td class="continent">ALL EUROPE</td></tr>
+      <tr><td class="freq">70.450 MHz</td><td>UK National Calling / Emergency (Amateur)</td><td class="continent">UK</td></tr>
+      <tr><td class="freq">433.500 MHz</td><td>ISM / Simplex calling (many devices)</td><td class="continent">EUROPE</td></tr>
+      <tr><td class="freq">161.300 / 161.975 MHz</td><td>AIS ship tracking channels</td><td class="continent">ALL EUROPE</td></tr>
+    </table>
+
+    <h4>Australia & Oceania</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Continent</th></tr>
+      <tr><td class="freq">27.880 MHz</td><td>27 MHz CB Channel 40 — Road emergency</td><td class="continent">AUSTRALIA</td></tr>
+      <tr><td class="freq">477.150 MHz</td><td>UHF CB Channel 5 — Emergency/calling</td><td class="continent">AUSTRALIA</td></tr>
+      <tr><td class="freq">477.400 MHz</td><td>UHF CB Channel 35 — Duplex repeater</td><td class="continent">AUSTRALIA</td></tr>
+      <tr><td class="freq">5695 kHz (HF)</td><td>AMSA rescue coordination</td><td class="continent">AUSTRALIA</td></tr>
+      <tr><td class="freq">406.028 MHz</td><td>PLB — widely used in outback</td><td class="continent">AUS / NZ</td></tr>
+      <tr><td class="freq">156.800 MHz</td><td>Marine Ch 16</td><td class="continent">AUS / NZ / PACIFIC</td></tr>
+    </table>
+
+    <h4>Africa</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Notes</th></tr>
+      <tr><td class="freq">156.800 MHz</td><td>Marine Ch 16</td><td>All coastal nations</td></tr>
+      <tr><td class="freq">121.500 MHz</td><td>Aviation distress</td><td>All nations</td></tr>
+      <tr><td class="freq">2182 kHz (HF)</td><td>Maritime HF distress</td><td>Critical for remote coastlines</td></tr>
+      <tr><td class="freq">5680 kHz (HF)</td><td>SAR coordination HF</td><td>Regional SAR operations</td></tr>
+      <tr><td class="freq">27.065 MHz</td><td>CB Ch 9 (some regions)</td><td>Variable adoption</td></tr>
+      <tr><td class="freq">VHF 156–174 MHz band</td><td>Various national allocations</td><td>Check local country rules</td></tr>
+    </table>
+
+    <h4>Asia</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Notes</th></tr>
+      <tr><td class="freq">156.800 MHz</td><td>Marine Ch 16</td><td>All coastal nations</td></tr>
+      <tr><td class="freq">121.500 MHz</td><td>Aviation distress</td><td>All nations</td></tr>
+      <tr><td class="freq">27.005 MHz</td><td>CB Ch 5 (Japan)</td><td>Japan CB common channel</td></tr>
+      <tr><td class="freq">351.0625–351.1000 MHz</td><td>SimplexPhone / DCR (Japan)</td><td>Licence-free digital</td></tr>
+      <tr><td class="freq">156.525 MHz</td><td>DSC Marine Ch 70</td><td>Major maritime nations</td></tr>
+      <tr><td class="freq">2182 kHz (HF)</td><td>Maritime HF distress</td><td>Extended range distress</td></tr>
+    </table>
+
+    <h4>South America</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Notes</th></tr>
+      <tr><td class="freq">156.800 MHz</td><td>Marine Ch 16</td><td>All coastal nations</td></tr>
+      <tr><td class="freq">121.500 MHz</td><td>Aviation distress</td><td>All nations</td></tr>
+      <tr><td class="freq">27.065 MHz</td><td>CB Ch 9 — Emergency</td><td>Most countries</td></tr>
+      <tr><td class="freq">27.215 MHz</td><td>CB Ch 15 (Brazil calling)</td><td>Brazil-specific common</td></tr>
+      <tr><td class="freq">406.028 MHz</td><td>PLB satellite distress</td><td>Growing adoption</td></tr>
+      <tr><td class="freq">2182 kHz (HF)</td><td>Maritime HF distress</td><td>Amazon river basin HF use</td></tr>
+    </table>
+
+    <h4>Antarctica</h4>
+    <table class="freq-table">
+      <tr><th>Frequency</th><th>Purpose</th><th>Notes</th></tr>
+      <tr><td class="freq">121.500 MHz</td><td>Aviation distress</td><td>All national programs</td></tr>
+      <tr><td class="freq">156.800 MHz</td><td>Marine Ch 16</td><td>All research vessels</td></tr>
+      <tr><td class="freq">406.028 MHz</td><td>PLB/EPIRB</td><td>Mandatory for field teams</td></tr>
+      <tr><td class="freq">HF 4–22 MHz</td><td>Long-range coordination</td><td>Station-specific; coordinated through national Antarctic programs</td></tr>
+    </table>
+
+    <div class="tip">▸ TIP: A PLB (Personal Locator Beacon, 406 MHz) is the single most effective survival communication device — works on every continent including ocean and polar regions. Activate once, triggers global satellite search-and-rescue.</div>
+    <div class="warn">⚠ Using distress frequencies for non-emergency communication is illegal in all jurisdictions and can result in prosecution. False PLB activations cost rescue services thousands — always register your PLB.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CM-02</span><span class="entry-title">NATO Phonetic Alphabet</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <table class="ref-table">
+      <tr><th>Letter</th><th>Word</th><th>Letter</th><th>Word</th><th>Letter</th><th>Word</th></tr>
+      <tr><td>A</td><td>Alpha</td><td>J</td><td>Juliet</td><td>S</td><td>Sierra</td></tr>
+      <tr><td>B</td><td>Bravo</td><td>K</td><td>Kilo</td><td>T</td><td>Tango</td></tr>
+      <tr><td>C</td><td>Charlie</td><td>L</td><td>Lima</td><td>U</td><td>Uniform</td></tr>
+      <tr><td>D</td><td>Delta</td><td>M</td><td>Mike</td><td>V</td><td>Victor</td></tr>
+      <tr><td>E</td><td>Echo</td><td>N</td><td>November</td><td>W</td><td>Whiskey</td></tr>
+      <tr><td>F</td><td>Foxtrot</td><td>O</td><td>Oscar</td><td>X</td><td>X-ray</td></tr>
+      <tr><td>G</td><td>Golf</td><td>P</td><td>Papa</td><td>Y</td><td>Yankee</td></tr>
+      <tr><td>H</td><td>Hotel</td><td>Q</td><td>Quebec</td><td>Z</td><td>Zulu</td></tr>
+      <tr><td>I</td><td>India</td><td>R</td><td>Romeo</td><td>0–9</td><td>Zero thru Niner</td></tr>
+    </table>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CM-03</span><span class="entry-title">Trail Markers & Leave-Behind Messages</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Standard trail marker signals (rocks/sticks)</h4>
+    <ul><li><strong>Trail continues ahead:</strong> Three sticks/rocks in a row pointing forward.</li><li><strong>Turn left/right:</strong> A long stick on the main trail with a shorter stick at 90° pointing the direction.</li><li><strong>Danger / do not proceed:</strong> Cross of sticks across the trail.</li><li><strong>Camp is here:</strong> Rocks arranged in a tight circle.</li><li><strong>I went this way / distress:</strong> Arrow formed from rocks or sticks, visible from the air.</li></ul>
+    <h4>Leave-behind message protocol</h4>
+    <p>If moving camp and a rescuer or teammate might follow: leave a written or carved note at the old campsite shelter entrance containing: date and time of departure, intended direction of travel (bearing if possible), intended destination or landmark, condition of all party members, expected timeline.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">CM-04</span><span class="entry-title">Hand Signals — Two-Person Team</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <table class="ref-table">
+      <tr><th>Signal</th><th>Meaning</th></tr>
+      <tr><td>Fist raised — hold in place</td><td>Stop, freeze, hold position</td></tr>
+      <tr><td>Open palm forward — face out</td><td>Halt (to approach from front)</td></tr>
+      <tr><td>Index finger pointed, circular motion</td><td>Rally here / come to me</td></tr>
+      <tr><td>Index and middle fingers, point in direction</td><td>Move in that direction</td></tr>
+      <tr><td>Hand flat, palm down, wave downward</td><td>Get down / go prone</td></tr>
+      <tr><td>Both arms raised overhead</td><td>I am OK / all clear</td></tr>
+      <tr><td>One arm waved side to side overhead</td><td>Come here (from distance)</td></tr>
+      <tr><td>Both hands crossed at wrists, raised</td><td>Danger / abort</td></tr>
+      <tr><td>Thumbs up</td><td>Understood / good to go</td></tr>
+      <tr><td>Thumbs down</td><td>Negative / abort</td></tr>
+    </table>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ SIGNAL ══ -->
+<section class="guide-section" id="sec-signal">
+  <div class="section-header"><span class="section-icon">📡</span><span class="section-title">Signalling for Rescue</span><span class="section-num">SEC. 14</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">SIG-01</span><span class="entry-title">Universal Distress Signals</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>The universal distress number is <strong>3</strong>. Three of anything — fires, whistle blasts, rock piles — is universally understood as distress.</p>
+    <h4>SOS</h4>
+    <p>Morse: · · · — — — · · · (three short, three long, three short). Use with mirror, torch, whistle, or radio.</p>
+    <h4>Ground-to-air signals (10m+ in open area)</h4>
+    <ul><li><strong>X</strong> — require medical assistance</li><li><strong>V</strong> — need help / rescue</li><li><strong>→</strong> — travelling in this direction</li><li><strong>N</strong> — No</li><li><strong>Y</strong> — Yes</li></ul>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">SIG-02</span><span class="entry-title">Signal Fire</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Prepare a signal fire on high ground in a clearing, ready to light instantly at the sound of aircraft.</p>
+    <ul><li><strong>Daytime:</strong> add green leaves or grass — dense smoke visible against forest. Rubber/plastic produces black smoke visible against snow.</li><li><strong>Night-time:</strong> large bright flame is visible from aircraft. Add dry fuel for maximum flame height.</li></ul>
+    <div class="tip">▸ TIP: Prepare three fires in a triangle 30m apart — the international distress triangle. Light all three simultaneously.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">SIG-03</span><span class="entry-title">Mirror Signalling</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Visible up to 16km; from aircraft at 30+km on a clear day.</p>
+    <ol class="steps"><li>Hold mirror close to your face.</li><li>Aim reflected light at target by creating a V with two fingers at arm's length — target in the V.</li><li>Tilt mirror until reflected spot sits inside the V.</li><li>Sweep slowly across the horizon in aircraft direction — sweep even if you can't see them.</li></ol>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ KNOTS ══ -->
+<section class="guide-section" id="sec-knots">
+  <div class="section-header"><span class="section-icon">🪢</span><span class="section-title">Essential Knots</span><span class="section-num">SEC. 15</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">K-01</span><span class="entry-title">Bowline</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Creates a fixed loop that will not slip or tighten under load. Used for rescue, anchoring, rigging.</p>
+    <p><em>"The rabbit comes out of the hole, goes around the tree, and back down the hole."</em></p>
+    <ol class="steps"><li>Form a small loop in the standing line (the "hole").</li><li>Pass working end (rabbit) up through the loop.</li><li>Take working end around behind the standing line (tree).</li><li>Pass working end back down through the original loop.</li><li>Pull standing line and working end apart to tighten.</li></ol>
+    <div class="tip">▸ Always leave a 15cm tail and add a stopper knot on the tail for safety.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">K-02</span><span class="entry-title">Clove Hitch</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Fastest way to attach a rope to a post or branch. Good for starting lashings. Can slip under side-loading.</p>
+    <ol class="steps"><li>Make a loop around the post; cross working end over standing line.</li><li>Make a second loop and pass working end under itself.</li><li>Pull both ends to tighten.</li></ol>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">K-03</span><span class="entry-title">Sheet Bend</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Joins two ropes of different thickness reliably.</p>
+    <ol class="steps"><li>Form a bight in the thicker rope.</li><li>Pass thinner rope up through the bight from below.</li><li>Take thinner rope around behind both legs of the bight.</li><li>Pass under its own standing part (not through bight again).</li><li>Pull to tighten. Both tails should exit on the same side.</li></ol>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">K-04</span><span class="entry-title">Prusik Hitch</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Friction hitch that grips under load, slides freely when unloaded. Used for ascending ropes and safety backups.</p>
+    <ol class="steps"><li>Form a loop with smaller-diameter cord (prusik loop).</li><li>Wrap loop around main rope 3 times, passing the loop through itself each time.</li><li>Dress wraps neatly — they should sit close together.</li><li>When weight is applied it grips; push up or down with no weight, it slides.</li></ol>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">K-05</span><span class="entry-title">Square Lashing</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Binds two poles at right angles. Foundation of shelter frames, stretchers, and raft construction.</p>
+    <ol class="steps"><li>Start with a clove hitch on one pole.</li><li>Wrap 3–4 times around both poles, alternating over/under.</li><li>Make 2–3 frapping turns between the poles to tighten.</li><li>Finish with a clove hitch on the same or second pole.</li></ol>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ MIND ══ -->
+<section class="guide-section" id="sec-mind">
+  <div class="section-header"><span class="section-icon">🧠</span><span class="section-title">Survival Psychology</span><span class="section-num">SEC. 16</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">PS-01</span><span class="entry-title">The STOP Protocol</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>The most important survival skill is not fire-making or navigation — it is decision-making under stress. STOP is the antidote to panic-driven action.</p>
+    <ul><li><strong>S — Stop:</strong> Halt all movement immediately. Sit down. The worst thing you can do when lost is keep moving randomly — you will travel further from rescuers, exhaust yourself, and consume water.</li><li><strong>T — Think:</strong> What do you know? When were you last certain of your position? What are your resources? What are the hazards? What time is left before dark?</li><li><strong>O — Observe:</strong> Look around. What landmarks can you see? Which direction is the sun? Is there water visible? Wind direction? Any signs of civilisation (power lines, aircraft tracks, smoke)?</li><li><strong>P — Plan:</strong> Based on observation, make one decision and commit to it. Moving to high ground, finding water, building shelter, signalling — prioritise one thing and execute it.</li></ul>
+    <div class="tip">▸ TIP: Most survival deaths are caused by poor decisions in the first 30 minutes of a crisis. STOP before acting.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">PS-02</span><span class="entry-title">Managing Fear & Panic</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Fear is a physiological response that evolved to help you survive — the problem is that the modern stress response is not well calibrated to wilderness emergencies. Panic accelerates decision errors.</p>
+    <h4>Physiological reset techniques</h4>
+    <ul><li><strong>4-7-8 breathing:</strong> Inhale for 4 counts, hold for 7, exhale for 8. The extended exhale activates the parasympathetic nervous system (calms you). Repeat 4 cycles.</li><li><strong>Cold water on wrists and face</strong> activates the dive reflex, rapidly reducing heart rate.</li><li><strong>Name five things you can see, four you can touch, three you can hear</strong> — grounds you in present sensory reality and interrupts a fear spiral.</li></ul>
+    <h4>Managing decision fatigue</h4>
+    <p>Good decisions require mental energy. In a survival situation, reduce decision load: establish a routine (fixed wake time, fixed tasks), prioritise once per day rather than constantly reprioritising, and make irrevocable decisions (camp placement, direction of travel) in the morning when rested.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">PS-03</span><span class="entry-title">Group Dynamics in Crisis</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Leadership and conflict</h4>
+    <p>Groups without clear leadership in crisis tend toward paralysis or splintering — both fatal. Establish a decision-maker early. The most experienced person is not always the most confident person — choose someone who can decide, communicate, and remain calm under pressure.</p>
+    <h4>Role assignment</h4>
+    <p>Give every person a defined task as soon as possible: fire, water, shelter, food, signalling. Purposeful activity combats fear and maintains morale. Idle group members spiral into anxiety and conflict.</p>
+    <h4>The "I" problem</h4>
+    <p>Groups often underperform because individuals hold back (social loafing) or suppress concern to avoid conflict. Establish a rule: anyone can raise a concern at any time without social consequence. Survival groups that allow honest dissent make significantly better decisions.</p>
+    <h4>Handling an injured or incapacitated member</h4>
+    <p>Do not abandon a group member. Their presence — even as a patient — matters for morale and rescue (two people found is more compelling than one). If evacuation is genuinely impossible, leave one person with the incapacitated person and send the rest for help.</p>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">PS-04</span><span class="entry-title">What Separates Survivors</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <p>Research into survival psychology (Laurence Gonzales, <em>Deep Survival</em>; John Leach, <em>Survival Psychology</em>) consistently identifies these traits in people who survive when others do not:</p>
+    <ul><li><strong>Acceptance:</strong> They accept the situation quickly. Denial wastes hours. They say "okay, this is real" and act.</li><li><strong>Engagement with the present:</strong> Survivors focus intensely on the immediate task — not on past mistakes or future fears. They do one thing, well, now.</li><li><strong>Humour:</strong> Documented repeatedly. Survivors who maintain dark humour in adversity are protecting morale. It is not frivolous.</li><li><strong>A reason to live:</strong> People with a strong emotional attachment to someone else — a child, a partner, a purpose — outperform people who are motivated purely by self-preservation.</li><li><strong>Flexibility:</strong> Survivors update their plan when reality doesn't match expectation. Non-survivors rigidly follow a failed plan.</li><li><strong>Prior exposure / training:</strong> The most significant predictor. Skills practiced under stress outperform skills read about. Every training scenario is investment.</li></ul>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ FREE ══ -->
+<section class="guide-section" id="sec-free">
+  <div class="section-header"><span class="section-icon">🆓</span><span class="section-title">Free Resources & Urban Foraging</span><span class="section-num">SEC. 17</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FL-01</span><span class="entry-title">Free Food in Suburban & Urban Areas</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Institutional sources</h4>
+    <ul><li><strong>Food banks:</strong> No questions asked in most countries. UK: Trussell Trust network (find via trusselltrust.org). USA: Feeding America (feedingamerica.org). Usually require a voucher from a referral agency (GP, social worker, school) in the UK; walk-in in many US locations.</li><li><strong>Community fridges:</strong> Unlocked communal refrigerators stocked by local businesses and individuals. No registration, no means test. Find UK locations at hubbub.org.uk/communityfridge. Rapidly expanding globally.</li><li><strong>Meal programmes:</strong> Most mosques, gurdwaras (langar), and many churches serve free meals — anyone welcome regardless of faith. Sikh langar in particular is explicitly unconditional.</li><li><strong>Salvation Army / drop-in centres:</strong> Hot meals, often daily. Find your nearest via salvationarmy.org.uk or similar national sites.</li></ul>
+    <h4>Community sharing apps</h4>
+    <ul><li><strong>OLIO (UK/global):</strong> Neighbours share surplus food. Free. Download app, set radius, request or collect.</li><li><strong>Too Good To Go (Europe/USA):</strong> Cafes, restaurants, bakeries sell end-of-day food at 1/3 price. Not free but ~70% off. Often substantial.</li><li><strong>Freecycle / Freegle (UK):</strong> Online community giving away items including food, seeds, and garden produce.</li><li><strong>Buy Nothing groups (Facebook/app):</strong> Hyperlocal giving communities. Food, toiletries, and supplies available regularly.</li></ul>
+    <h4>Urban foraging</h4>
+    <ul><li><strong>Fruit trees in public spaces:</strong> Many councils plant apple, plum, and pear trees on public land. Fallen fruit is generally fair game. Use Falling Fruit (fallingfruit.org) — maps edible plants globally.</li><li><strong>Allotment overspill:</strong> Allotment holders frequently leave surplus at the gate or on nearby walls — take what's offered.</li><li><strong>Supermarket waste — legal collection:</strong> Some supermarkets have designated skip/bin access for charities and individuals during the day. Marks & Spencer, Tesco, and others partner with apps like Too Good To Go and Olio for unsold stock. Check local arrangements.</li></ul>
+    <div class="tip">▸ TIP: Most community fridges and food banks are permanently under-resourced. If your situation improves, return the favour.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FL-02</span><span class="entry-title">Charging Devices for Free</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Reliable free charging locations</h4>
+    <ul><li><strong>Public libraries:</strong> Universally available, AC sockets, often USB charging ports at desks. Open 6–7 days a week. Warm, dry, quiet. Usually no purchase required to use. The best single resource for off-grid urban living.</li><li><strong>McDonald's / Burger King / KFC:</strong> Virtually all UK branches have accessible plug sockets and USB ports, often by window seats. Long stay is tolerated with a small purchase; sometimes without.</li><li><strong>Starbucks / Costa / Caffè Nero:</strong> Widespread socket access, stay duration is socially flexible. Order one drink, charge for hours.</li><li><strong>Shopping centre food courts and common areas:</strong> Large centres (Westfield, Trafford Centre, etc.) have charging points in common areas — free, no purchase required.</li><li><strong>Train stations and airports:</strong> Dedicated free charging stations in most major UK/European stations. Also unmanned charging hubs in departure lounges.</li><li><strong>Wetherspoons (UK):</strong> Sockets widely available, cheap food, no time pressure on stay. Often open early morning.</li></ul>
+    <h4>E-bike battery charging</h4>
+    <ul><li>Most libraries, gyms, and leisure centres will allow e-bike battery charging at a plug if you ask — it draws the same power as a laptop.</li><li>Electric vehicle charging stations (Osprey, BP Pulse) cannot charge an e-bike battery directly, but some have 13A socket bollards or hospitality outlets nearby.</li><li>Bike-friendly cafes (particularly along cycle routes) often have charging facilities.</li><li>Many national rail stations now have secure bike storage with sockets.</li></ul>
+    <h4>Outdoor / solar options</h4>
+    <ul><li>A 10W foldable solar panel (£20–30) charges a phone in 2–4 hours of good light. 20W charges a tablet or portable battery in 3–5 hours.</li><li>Clip a small USB solar panel to a backpack while walking — trickle charges as you move.</li><li>Some public parks and urban spaces now have solar-powered charging points (proliferating in UK city centres).</li></ul>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FL-03</span><span class="entry-title">Free Internet Access</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Permanent free access points (no account needed)</h4>
+    <ul><li><strong>Public libraries:</strong> Free WiFi universally. Also free PC terminals with internet access — usually bookable in 1-hour slots, extendable if quiet.</li><li><strong>McDonald's:</strong> Unlimited free WiFi, no purchase required, no time limit enforced in most branches.</li><li><strong>Most fast food chains</strong> (KFC, Subway, Greggs at larger locations): free WiFi standard.</li><li><strong>Shopping centres:</strong> Major centres provide free WiFi in common areas (Westfield: The Cloud; Trafford Centre; Bluewater, etc.).</li><li><strong>Train stations and airports:</strong> Free WiFi at virtually all major UK and EU stations (The Cloud, Network Rail WiFi). 1-hour sessions, often renewable.</li></ul>
+    <h4>Wider free networks</h4>
+    <ul><li><strong>BT WiFi (UK):</strong> BT broadband customers get automatic access to ~5 million BT WiFi hotspots. If you have a BT account (or know someone who does), the login is your broadband username + "@btwifi.com".</li><li><strong>Sky WiFi (UK):</strong> Similar — Sky customers get access to Sky WiFi hotspots automatically.</li><li><strong>eduroam:</strong> Free academic WiFi available at all universities, colleges, and many research libraries globally. Requires an academic affiliation (student, staff, or alumni with active account).</li><li><strong>Council / city WiFi:</strong> Many UK councils provide free public WiFi in town centres and parks (e.g. London BID areas, Bristol City Council WiFi, Manchester city centre). Check local council site.</li></ul>
+    <h4>Mobile data workarounds</h4>
+    <ul><li>Three (UK) and Smarty offer SIM-only plans starting at £5/month with data included — cheaper than most bills.</li><li>GiffGaff goodybags start at £6/month. The PAYG rate is 10p/MB — expensive but available.</li><li>Free SIM cards from all UK networks can be ordered online and will arrive with a small starting credit.</li></ul>
+    <div class="tip">▸ TIP: Download offline maps (Google Maps, Maps.me, OsmAnd) and offline pages (Wikipedia, Google Chrome offline) when on free WiFi. Essential for areas with no signal.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FL-04</span><span class="entry-title">Free Physical Resources</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Libraries (beyond books)</h4>
+    <ul><li>Free printing and photocopying (usually small charge per page, but computers are free)</li><li>Free newspaper and magazine reading</li><li>Warm, safe, supervised indoor space — open to all without purchase</li><li>Tool libraries (growing UK network) — borrow drills, saws, camping gear</li><li>Seed libraries — some councils and allotment societies</li><li>Some libraries offer free instrument rental, board game loan, and digital device loan</li></ul>
+    <h4>Clothing and household goods</h4>
+    <ul><li><strong>Freecycle / Freegle:</strong> Free goods, collected locally. Furniture, clothing, tools, food, electronics.</li><li><strong>Buy Nothing Project (Facebook groups):</strong> Extremely active in UK suburbs. Request anything — someone will usually have it.</li><li><strong>Charity shops:</strong> Not free but 20–50p for good clothing. Oxfam, YMCA, Sue Ryder, British Heart Foundation. Some run regular 10p/bag sales.</li><li><strong>Clothing exchanges:</strong> Growing number of community clothing swap events. Check Eventbrite locally.</li></ul>
+    <h4>Hygiene and washing</h4>
+    <ul><li><strong>Sports centres and leisure centres:</strong> YMCA and council-run gyms often have low-cost or free access to showers for members. Many offer free gym trials of 1–7 days.</li><li><strong>Swimming pools:</strong> Many council pools have a pay-to-swim £2–4 rate which includes changing facilities and showers.</li><li><strong>Day centres and drop-ins:</strong> Most towns have a day centre for homeless/vulnerably housed people offering showers, laundry, and locker storage free of charge.</li><li><strong>Laundry:</strong> Some food banks and drop-in centres offer laundry facilities. Otherwise, launderettes start at ~£3–4 for a wash-and-dry.</li></ul>
+    <h4>Healthcare</h4>
+    <ul><li><strong>GP registration:</strong> Free in the UK. You do not need a fixed address to register with a GP — most practices must accept "no fixed abode" patients. Walk-in NHS centres require no registration.</li><li><strong>Dental:</strong> NHS dental treatment is £26.80 for a band 1 (examination and basic treatment) as of 2024. Free for under-18s, pregnant women, and those on income-related benefits. Free dental schools offer supervised treatment — find via nhs.uk.</li><li><strong>Eye tests:</strong> Free for under-16s, over-60s, those on specific benefits, and people with diabetes or glaucoma. Otherwise ~£25–35, but many chains offer free with contact lens trial.</li></ul>
+    <div class="tip">▸ TIP: Citizens Advice Bureau (citizensadvice.org.uk / 0800 144 8848) provides free, expert, in-person advice on benefits, housing, debt, employment, and legal issues. One of the most underused resources available to UK residents.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">FL-05</span><span class="entry-title">Free Shelter & Accommodation Resources</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <h4>Emergency / crisis accommodation (UK)</h4>
+    <ul><li><strong>Council housing emergency application:</strong> If you are homeless or at risk of homelessness within 56 days, your local council has a legal duty to assist. Contact the housing department. Do not wait until you are on the street — you lose options.</li><li><strong>Shelter helpline:</strong> 0808 800 4444 (free, 8am–8pm weekdays, 9am–5pm weekends). Immediate housing advice and crisis support.</li><li><strong>Night shelters and hostels:</strong> Shelter's website (shelter.org.uk) and Streetlink (streetlink.org.uk) locate nearest shelter provision. Salvation Army, St Mungo's, and local YMCA branches operate shelter beds in most cities.</li></ul>
+    <h4>Long-term free and low-cost options</h4>
+    <ul><li><strong>Workaway / Wwoof / HelpX:</strong> Volunteer on organic farms, hostels, community projects. Typically 4–5 hours work per day in exchange for food and accommodation. No money changes hands. Legal and widespread globally. Create a profile at workaway.info.</li><li><strong>House-sitting:</strong> Trusted Housesitters (fee to join) or Nomador — stay in homes for free while owners travel, in exchange for caring for pets or property.</li><li><strong>Couchsurfing (couchsurfing.com):</strong> Free homestay from community members globally. Not a backup plan — a community and a way to travel at zero accommodation cost.</li><li><strong>Canal boat community:</strong> Continuous cruising licence allows living on a narrowboat and moving every 14 days. Boat purchase starts at ~£5000 for a liveable fixer-upper. No council tax, no rent, low mooring fees if continuous cruising.</li></ul>
+    <div class="tip">▸ TIP: In the UK, your local council cannot legally turn away someone who is homeless with children, pregnant, or fleeing domestic violence. These are priority need categories with a legal entitlement to temporary accommodation.</div>
+  </div></div>
+</section>
+
+<!-- ══════════════════════════════════════════ TABLES ══ -->
+<section class="guide-section" id="sec-tables">
+  <div class="section-header"><span class="section-icon">📋</span><span class="section-title">Reference Tables</span><span class="section-num">SEC. 18</span></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">T-01</span><span class="entry-title">Cloud Types & Weather Prediction</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <table class="ref-table">
+      <tr><th>Cloud</th><th>Altitude</th><th>Appearance</th><th>Weather Signal</th></tr>
+      <tr><td>Cirrus</td><td>High (&gt;6km)</td><td>Thin, wispy, white streaks</td><td>Fair now, weather change in 24–48h</td></tr>
+      <tr><td>Cirrostratus</td><td>High</td><td>Thin white sheet, halo around sun/moon</td><td>Rain or snow within 12–24h</td></tr>
+      <tr><td>Altocumulus</td><td>Mid (2–6km)</td><td>Grey/white patches, mackerel sky</td><td>Thunderstorms possible later same day</td></tr>
+      <tr><td>Altostratus</td><td>Mid</td><td>Uniform grey sheet, dims sun</td><td>Prolonged rain within 6–12h</td></tr>
+      <tr><td>Nimbostratus</td><td>Low–Mid</td><td>Dark grey, featureless, no clear base</td><td>Continuous rain/snow — happening now</td></tr>
+      <tr><td>Stratocumulus</td><td>Low (&lt;2km)</td><td>Lumpy grey/white rolls</td><td>Light drizzle possible; generally fair</td></tr>
+      <tr><td>Stratus</td><td>Low</td><td>Uniform low grey sheet, like fog</td><td>Drizzle, overcast; clears by afternoon</td></tr>
+      <tr><td>Cumulus</td><td>Low–Mid</td><td>Cauliflower white, flat base</td><td>Fair, good weather</td></tr>
+      <tr><td>Cumulonimbus</td><td>All heights</td><td>Towering, anvil top, dark base</td><td>Thunderstorm, lightning, heavy rain, hail — imminent</td></tr>
+    </table>
+    <div class="tip">▸ "Red sky at night, shepherd's delight; red sky in morning, shepherd's warning" — atmospheric optics rule: red sunset = dust to the west (weather has passed). Red sunrise = dust to the east (weather coming from west).</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">T-02</span><span class="entry-title">Caloric Content of Wild Foods</span><span class="priority medium">medium</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <table class="ref-table">
+      <tr><th>Food Source</th><th>kcal/100g</th><th>Notes</th></tr>
+      <tr><td>Pine nuts</td><td>673</td><td>Highest-calorie common wild plant food</td></tr>
+      <tr><td>Acorns (dried)</td><td>510</td><td>Must be leached to remove tannins</td></tr>
+      <tr><td>Beechnuts</td><td>488</td><td>Autumn, high fat. Raw in small amounts only</td></tr>
+      <tr><td>Rabbit (lean)</td><td>173</td><td>Very low fat — can cause "rabbit starvation" alone</td></tr>
+      <tr><td>Grubs / larvae</td><td>150–230</td><td>Varies by species; fat-rich larvae higher</td></tr>
+      <tr><td>Salmon / trout</td><td>208</td><td>High fat, excellent caloric density for fish</td></tr>
+      <tr><td>Mussels</td><td>86</td><td>Also high in iron and B12</td></tr>
+      <tr><td>Cattail root (starch)</td><td>89</td><td>Reliable carbohydrate source</td></tr>
+      <tr><td>Nettles</td><td>42</td><td>High in protein for a green; vitamins A, C, K</td></tr>
+      <tr><td>Dandelion greens</td><td>45</td><td>Vitamins A, C; bitter but nutritious</td></tr>
+      <tr><td>Blackberries</td><td>43</td><td>Sugars, Vitamin C, widely available</td></tr>
+      <tr><td>Crab (brown)</td><td>128</td><td>Protein and fat; found in rock pools</td></tr>
+      <tr><td>Chicken of the Woods</td><td>33</td><td>Low calorie but highly digestible protein</td></tr>
+      <tr><td>Earthworms</td><td>90</td><td>Comparable to meat per gram once dried</td></tr>
+    </table>
+    <div class="warn">⚠ "Rabbit starvation" (protein poisoning): consuming lean protein with no fat for more than 2–3 weeks causes severe illness. Always seek fat sources alongside lean meat.</div>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">T-03</span><span class="entry-title">Wound Infection Severity Scale</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <table class="ref-table">
+      <tr><th>Grade</th><th>Signs</th><th>Action</th></tr>
+      <tr><td>0 — Clean</td><td>Wound edges pink/red, no swelling beyond wound edge, no discharge</td><td>Standard dressing changes. Monitor.</td></tr>
+      <tr><td>1 — Mild</td><td>Increased redness extending 1–2cm from wound, mild warmth, slight swelling</td><td>Irrigate thoroughly. Improve dressing hygiene. Watch closely.</td></tr>
+      <tr><td>2 — Moderate</td><td>Pus/cloudy discharge, swelling &gt;2cm, throbbing pain, wound may reopen</td><td>Irrigate and pack open. Apply improvised antiseptic. Seek antibiotics if available.</td></tr>
+      <tr><td>3 — Severe</td><td>Red streaking extending up limb (lymphangitis), lymph node swelling, fever &gt;38°C</td><td>Medical emergency. Infection is systemic. Evacuate immediately. Antibiotics essential.</td></tr>
+      <tr><td>4 — Critical</td><td>High fever (&gt;39°C), confusion, rapid pulse, low blood pressure, grey/mottled skin</td><td>Sepsis. Life-threatening. Evacuate as fast as possible. Keep warm, keep hydrated.</td></tr>
+    </table>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">T-04</span><span class="entry-title">Edibility & Toxicity Quick Reference</span><span class="priority critical">critical</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <div class="warn">⚠ This table is a guide only. Never eat any plant unless you have positively identified it with multiple characteristics — not just this table.</div>
+    <table class="ref-table">
+      <tr><th>Rule</th><th>Applies To</th><th>Exceptions</th></tr>
+      <tr><td>Milky white sap → avoid</td><td>Most plants</td><td>Dandelion (white sap, edible); coconut (white flesh, edible)</td></tr>
+      <tr><td>Almond/bitter smell → avoid</td><td>Leaves, seeds</td><td>Contains cyanogenic compounds. No exceptions for raw consumption.</td></tr>
+      <tr><td>Shiny/waxy red/orange berries → caution</td><td>Temperate plants</td><td>Rose hips (edible); many holly/yew berries are deadly</td></tr>
+      <tr><td>Three-leaf clusters → caution</td><td>Low-growing plants</td><td>Poison ivy/oak: "leaves of three, let it be"</td></tr>
+      <tr><td>Plants in Apiaceae (carrot family, hollow stems, white umbel flowers) → caution</td><td>Temperate wildflowers</td><td>Contains some edible species (wild carrot, hogweed) AND some deadliest UK plants (hemlock, water hemlock). Requires expert ID only.</td></tr>
+      <tr><td>Brightly coloured frogs/insects → avoid contact</td><td>Tropical/subtropical fauna</td><td>Aposematic colouration = toxin warning. Do not touch.</td></tr>
+      <tr><td>Seafood during red/brown water discolouration → avoid</td><td>All shellfish</td><td>No exceptions. Paralytic Shellfish Toxin is not destroyed by cooking.</td></tr>
+      <tr><td>Underground bulbs with garlic smell → edible</td><td>Wild garlic, ramps</td><td>Always confirm leaves match. Death camas (no garlic smell) is deadly and similar in bulb shape.</td></tr>
+    </table>
+  </div></div>
+
+  <div class="entry"><div class="entry-head"><span class="entry-code">T-05</span><span class="entry-title">Critical Numbers to Know</span><span class="priority high">high</span><span class="chevron">▶</span></div>
+  <div class="entry-body">
+    <table class="ref-table">
+      <tr><th>Value</th><th>Significance</th></tr>
+      <tr><td>3 minutes</td><td>Without air (cardiac arrest or airway obstruction)</td></tr>
+      <tr><td>3 hours</td><td>Without shelter in harsh conditions (hypothermia risk)</td></tr>
+      <tr><td>3 days</td><td>Without water</td></tr>
+      <tr><td>3 weeks</td><td>Without food</td></tr>
+      <tr><td>37°C</td><td>Normal core body temperature</td></tr>
+      <tr><td>35°C</td><td>Hypothermia begins</td></tr>
+      <tr><td>40°C</td><td>Heatstroke threshold</td></tr>
+      <tr><td>70°C (internal)</td><td>Safe minimum cooking temperature for meat/fish</td></tr>
+      <tr><td>100°C (1 min)</td><td>Water boiling time to kill pathogens at sea level</td></tr>
+      <tr><td>30 seconds</td><td>Lightning rule: shelter if flash-to-thunder is under 30 seconds</td></tr>
+      <tr><td>3 signals</td><td>Universal distress (fires, whistle blasts, etc.)</td></tr>
+      <tr><td>200m from water</td><td>Minimum camp distance to avoid flooding and insects</td></tr>
+      <tr><td>60cm</td><td>Debris hut wall thickness required for insulation</td></tr>
+      <tr><td>15cm</td><td>Depth to bury human waste (cat hole)</td></tr>
+      <tr><td>60m from water</td><td>Minimum distance for cat hole / waste disposal</td></tr>
+    </table>
+  </div></div>
+</section>
+
+</main>
+
+<div class="status-bar">
+  <span id="clock">--:--</span>
+  <span>18 SECTIONS · 83 GUIDES</span>
+</div>
+
+<script>
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+}
+updateClock(); setInterval(updateClock, 10000);
+
+document.querySelectorAll('.entry-head').forEach(head => {
+  head.addEventListener('click', () => {
+    const entry = head.parentElement;
+    const isOpen = entry.classList.contains('open');
+    const container = entry.closest('.guide-section') || entry.closest('#search-results');
+    if (container) container.querySelectorAll('.entry.open').forEach(e => e.classList.remove('open'));
+    if (!isOpen) entry.classList.add('open');
+  });
+});
+
+const sections = {
+  fire:'sec-fire', water:'sec-water', shelter:'sec-shelter', camp:'sec-camp',
+  food:'sec-food', forage:'sec-forage', craft:'sec-craft', nav:'sec-nav',
+  firstaid:'sec-firstaid', medical:'sec-medical', hazards:'sec-hazards',
+  urban:'sec-urban', comms:'sec-comms', signal:'sec-signal', knots:'sec-knots',
+  mind:'sec-mind', free:'sec-free', tables:'sec-tables'
+};
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.section;
+    document.getElementById('search').value = '';
+    document.getElementById('search-results').classList.remove('active');
+    document.getElementById('search-results').innerHTML = '';
+    Object.values(sections).forEach(id => document.getElementById(id).classList.remove('active'));
+    document.getElementById(sections[key]).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function highlight(text, q) {
+  if (!q) return text;
+  return text.replace(new RegExp(`(${escapeRegex(q)})`, 'gi'), '<mark>$1</mark>');
+}
+
+const allEntries = [...document.querySelectorAll('.entry')];
+
+document.getElementById('search').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  const resultsDiv = document.getElementById('search-results');
+  if (!q) {
+    resultsDiv.classList.remove('active'); resultsDiv.innerHTML = '';
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+      Object.values(sections).forEach(id => document.getElementById(id).classList.remove('active'));
+      document.getElementById(sections[activeTab.dataset.section]).classList.add('active');
+    }
+    return;
+  }
+  Object.values(sections).forEach(id => document.getElementById(id).classList.remove('active'));
+  const matches = allEntries.filter(e => e.textContent.toLowerCase().includes(q));
+  resultsDiv.innerHTML = '';
+  if (!matches.length) {
+    resultsDiv.innerHTML = `<div class="no-results">No results for "${q}"</div>`;
+  } else {
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'font-size:.55rem;letter-spacing:.2em;color:var(--text-dim);text-transform:uppercase;padding:.5rem 0 .75rem;';
+    hdr.textContent = `${matches.length} result${matches.length>1?'s':''} for "${q}"`;
+    resultsDiv.appendChild(hdr);
+    matches.forEach(entry => {
+      const clone = entry.cloneNode(true);
+      clone.classList.add('search-hit'); clone.classList.remove('open');
+      const titleEl = clone.querySelector('.entry-title');
+      if (titleEl) titleEl.innerHTML = highlight(titleEl.textContent, this.value.trim());
+      clone.querySelector('.entry-head').addEventListener('click', () => clone.classList.toggle('open'));
+      resultsDiv.appendChild(clone);
+    });
+  }
+  resultsDiv.classList.add('active');
+});
+</script>
+</body>
+</html>
