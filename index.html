@@ -290,6 +290,42 @@
     .pl-track.active .pl-dot {
       background: var(--orange);
     }
+
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 40px;
+      padding: 20px 0;
+      border-top: 1px solid var(--border);
+    }
+    .pagination button {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--body);
+      padding: 8px 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.12s;
+      font-family: var(--font);
+    }
+    .pagination button:hover:not(:disabled) {
+      border-color: var(--acc);
+      color: var(--acc);
+    }
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .pagination .page-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -527,15 +563,43 @@
     /* ── Views ── */
 
     function HomeView() {
+      const [currentPage, setCurrentPage] = useState(1);
+      const itemsPerPage = 10;
+      const totalPages = Math.ceil(POSTS.length / itemsPerPage);
+      const startIdx = (currentPage - 1) * itemsPerPage;
+      const endIdx = startIdx + itemsPerPage;
+      const currentPosts = POSTS.slice(startIdx, endIdx);
+
+      function goToPage(page) {
+        const p = Math.max(1, Math.min(page, totalPages));
+        setCurrentPage(p);
+      }
+
       return h('div', { className: 'view' },
         h('h1', null, '/ home'),
         h('div', { className: 'post-list' },
-          POSTS.map(function (p, i) {
-            return h('span', { key: i, className: 'post-link' },
+          currentPosts.map(function (p, i) {
+            return h('span', { key: startIdx + i, className: 'post-link' },
               p.date + ' ',
               h('a', { href: p.url }, p.label)
             );
           })
+        ),
+        h('div', { className: 'pagination' },
+          h('button', {
+            onClick: function () { goToPage(currentPage - 1); },
+            disabled: currentPage === 1
+          }, '← Previous'),
+          h('div', { className: 'page-info' },
+            'Page ',
+            h('strong', null, String(currentPage)),
+            ' of ',
+            h('strong', null, String(totalPages))
+          ),
+          h('button', {
+            onClick: function () { goToPage(currentPage + 1); },
+            disabled: currentPage === totalPages
+          }, 'Next →')
         )
       );
     }
