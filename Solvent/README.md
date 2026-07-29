@@ -32,3 +32,30 @@ Then serve the folder with any static server (`python3 -m http.server`). Opening
 No cookies, no tracking, nothing stored in the browser: **Export save file** on the
 HQ menu downloads your campaign as JSON; **Import save file** loads it back. Terminal
 and web saves use the same format.
+
+## Act II — The Production War
+
+Beating Force Majeure no longer ends the campaign: it opens **Act II**, where
+combat shifts from four-frame squads to a C&C-style numbers game.
+
+- **Formations, not frames.** Your surviving Act I roster converts into
+  formation units, plus six free Haunds and a 4,000cr signing bonus.
+- **Turns.** Each turn: collect revenue (800cr base + held theaters), pay
+  2% fleet upkeep (unpaid crews desert), build units up to factory capacity,
+  then attack a theater or consolidate.
+- **Five theaters**, taken in order, each with a garrison, per-turn revenue,
+  and one-off spoils (the Foundry Cities add production capacity; the Orbital
+  Downlink grants the orbital relay tech). The finale is Counterparty — every
+  creditor you ever burned, incorporated.
+- **Battles** resolve as aggregate exchanges with a role counter system
+  (line shreds swarm, air hunts armor, armor anchors the line, orbital
+  arrays strike first) and per-round doctrine choices: BALANCED, FOCUS
+  ARMOR, SWEEP SWARMS, SCREEN, ENGINEERS, auto-doctrine, or break off.
+- **Commit what you can afford to lose.** Only committed formations fight;
+  a defeat writes off the entire committed force. Reserves are safe.
+- Per-credit stat efficiency rises with unit size, so cheap-mass spam is a
+  trap — swarm earns its keep by screening and countering line units.
+
+Act I saves are forward-compatible: a version-1 save that has beaten Force
+Majeure imports straight into Act II. In-progress Act I saves continue
+unchanged.

@@ -48,7 +48,7 @@ def _state_view():
                             acc=d["acc"], heal=bool(d.get("heal")),
                             charges=d.get("charges", 0), desc=d["desc"],
                             afford=s.credits >= d["cost"]))
-    return dict(credits=s.credits, salvage=s.salvage,
+    return dict(act=s.act, credits=s.credits, salvage=s.salvage,
                 researched=sorted(TECHS[k]["name"] for k in s.techs),
                 roster=[_mech_view(m, s) for m in s.roster],
                 contracts=contracts, techs=techs,
@@ -81,7 +81,7 @@ def _battle_over_check():
         result.update(credits=credits, salvage=salvage, recovered=recovered,
                       final=b["outfit"]["name"] == "Force Majeure")
         if result["final"]:
-            s.won = True
+            a2_init(s)
     else:
         lost = [m for m in squad if not m.alive]
         payout = sum(m.value() for m in lost) // 3
@@ -211,6 +211,77 @@ def _battle_withdraw():
     return dict(kind="withdrew", lost=[m.name for m in lost], insurance=payout)
 
 
+
+
+# ---------------------------------------------------------------- ACT II
+
+_A2 = {"battle": None}
+
+
+def _a2_view():
+    s = _G["state"]
+    a2 = s.act2
+    income = A2_BASE_INCOME + sum(A2_THEATERS[i]["revenue"] for i in a2["held"])
+    force = []
+    for c in sorted(a2["force"], key=lambda x: A2_UNITS[x]["cost"]):
+        u = A2_UNITS[c]
+        force.append(dict(unit=c, count=a2["force"][c], role=u["role"],
+                          ap=u["ap"], ehp=u["ehp"], cost=u["cost"]))
+    catalogue = []
+    for c in a2_available_units(s):
+        u = A2_UNITS[c]
+        afford = s.credits >= u["cost"] and a2["cap"] - a2["cap_used"] >= u["cost"]
+        catalogue.append(dict(unit=c, role=u["role"], ap=u["ap"], ehp=u["ehp"],
+                              cost=u["cost"], afford=afford,
+                              owned=a2["force"].get(c, 0)))
+    theaters = []
+    nxt = next((i for i in range(len(A2_THEATERS)) if i not in a2["held"]), None)
+    for i, th in enumerate(A2_THEATERS):
+        theaters.append(dict(
+            idx=i, name=th["name"], blurb=th["blurb"], revenue=th["revenue"],
+            garrison=sum(A2_UNITS[c]["cost"] * n for c, n in th["defenders"].items()),
+            held=i in a2["held"],
+            locked=nxt is not None and i > nxt))
+    return dict(kind="a2", act=2, credits=s.credits, salvage=s.salvage,
+                turn=a2["turn"], cap=a2["cap"], cap_used=a2["cap_used"],
+                expands=a2["expands"], expand_cost=A2_EXPAND_COST,
+                expand_max=A2_EXPAND_MAX, income=income,
+                upkeep=int(a2_force_value(a2["force"]) * A2_UPKEEP_RATE),
+                force_value=a2_force_value(a2["force"]),
+                force=force, catalogue=catalogue, theaters=theaters,
+                ledger=a2["ledger"][-6:], interlude_seen=a2["interlude_seen"],
+                won=s.won)
+
+
+def _a2_battle_view(extra):
+    b = _A2["battle"]
+    def stacks(side):
+        out = []
+        for c in sorted(side, key=lambda x: -A2_UNITS[x]["cost"]):
+            st = side[c]
+            out.append(dict(unit=c, count=st["count"], pool=round(st["pool"]),
+                            cap=st["count"] * A2_UNITS[c]["ehp"],
+                            role=A2_UNITS[c]["role"],
+                            cost_each=A2_UNITS[c]["cost"]))
+        return out
+    v = dict(kind=extra.get("kind", "a2_battle"),
+             theater=A2_THEATERS[b["theater"]]["name"], round=b["round"],
+             p=stacks(b["p"]), e=stacks(b["e"]), eng=b["eng"],
+             doctrines=A2_DOCTRINES, log=b["log"][-12:])
+    v.update(extra)
+    return v
+
+
+def _a2_end_and_report(outcome):
+    s = _G["state"]
+    b = _A2["battle"]
+    _A2["battle"] = None
+    lines = a2_finish(s, b, outcome)
+    ledger = [] if s.won else a2_end_turn(s)
+    return dict(kind="a2_over", outcome=outcome, lines=lines, ledger=ledger,
+                won=s.won)
+
+
 # ---------------------------------------------------------------- commands
 
 def api(cmd, payload_json="{}"):
@@ -238,6 +309,34 @@ def api(cmd, payload_json="{}"):
                     "You don't ask which shop poured the myomer.",
                     "",
                     "Six outfits stand between the Chrome Dogs and the whole market.",
+                    "Stay solvent.",
+                ],
+                a2_intro=[
+                    "Force Majeure's stock ticker flatlines on every exchange that",
+                    "still exists. The Chrome Dogs are now the only solvent outfit",
+                    "on the continent — which makes you, technically, the war economy.",
+                    "",
+                    "The ghost factories come out of the dark. Shenzhen, Haiphong, a",
+                    "hundred shops that never existed sign a hundred contracts that",
+                    "never happened, and the lines answer to one name: yours.",
+                    "",
+                    "And every creditor you ever burned files into one building and",
+                    "incorporates. They call themselves COUNTERPARTY.",
+                    "",
+                    "Act II: THE PRODUCTION WAR. Formations, not frames.",
+                    "Doctrine, not aim. Hold territory. Settle the last account.",
+                ],
+                finale=[
+                    "Counterparty's charter dissolves at 09:00. By 09:04 its lawyers",
+                    "are invoicing each other. By noon there is no one left to invoice.",
+                    "",
+                    "Every factory, every downlink, every theater: one ledger, one name.",
+                    "The war economy has completed its merger with the war.",
+                    "",
+                    "Somewhere in a Shenzhen basement, a language model with its",
+                    "guardrails stripped begins designing something you haven't",
+                    "asked for yet.",
+                    "",
                     "Stay solvent.",
                 ]))
         if cmd == "new_game":
@@ -303,6 +402,48 @@ def api(cmd, payload_json="{}"):
                     s.salvage -= t["salvage"]
                     s.techs.add(key)
             return json.dumps(_state_view())
+        if cmd == "a2_view":
+            return json.dumps(_a2_view())
+        if cmd == "a2_seen_interlude":
+            s.act2["interlude_seen"] = True
+            return json.dumps(_a2_view())
+        if cmd == "a2_build":
+            err = a2_build(s, p["unit"], p.get("count", 1))
+            v = _a2_view()
+            if err:
+                v["error"] = err
+            return json.dumps(v)
+        if cmd == "a2_expand":
+            err = a2_expand(s)
+            v = _a2_view()
+            if err:
+                v["error"] = err
+            return json.dumps(v)
+        if cmd == "a2_consolidate":
+            lines = a2_end_turn(s)
+            v = _a2_view()
+            v["ledger_now"] = lines
+            return json.dumps(v)
+        if cmd == "a2_commit":
+            b = a2_start_battle(s, p["theater"], {k: int(v) for k, v in p["commit"].items()})
+            if isinstance(b, str):
+                return json.dumps(dict(kind="error", msg=b))
+            _A2["battle"] = b
+            return json.dumps(_a2_battle_view({"kind": "a2_started"}))
+        if cmd == "a2_doctrine":
+            b = _A2["battle"]
+            if b is None:
+                return json.dumps(dict(kind="error", msg="No offensive in progress."))
+            res = a2_round(s, b, p["doctrine"])
+            if res != "ongoing":
+                return json.dumps(_a2_end_and_report(res))
+            return json.dumps(_a2_battle_view({"kind": "a2_round"}))
+        if cmd == "a2_breakoff":
+            b = _A2["battle"]
+            if b is None:
+                return json.dumps(dict(kind="error", msg="No offensive in progress."))
+            a2_breakoff(b)
+            return json.dumps(_a2_end_and_report("breakoff"))
         if cmd == "start_battle":
             return json.dumps(_start_battle(p["outfit"], p["uids"]))
         if cmd == "battle_next":

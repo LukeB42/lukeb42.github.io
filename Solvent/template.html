@@ -80,12 +80,12 @@ const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 /* ------------------------------------------------------------- themes */
 // Add your own palette here: seven colors + a glow, one line each.
 const THEMES = {
-  phosphor: { bg:"#060a06", fg:"#9dff9d", dim:"#4e7a4e", hot:"#ff5a5a",
-              gold:"#ffd24d", tech:"#d78cff", sel:"#123a12", glow:"rgba(157,255,157,.35)" },
   ice:      { bg:"#000", fg:"#fff", dim:"#48708a", hot:"#ff6a7a",
               gold:"#ffd24d", tech:"#c9a0ff", sel:"#0f2a3a", glow:"rgba(154,220,255,.35)" },
+  phosphor: { bg:"#060a06", fg:"#9dff9d", dim:"#4e7a4e", hot:"#ff5a5a",
+              gold:"#ffd24d", tech:"#d78cff", sel:"#123a12", glow:"rgba(157,255,157,.35)" },
 };
-const DEFAULT_THEME = "phosphor";   // change this to make your theme the default
+const DEFAULT_THEME = "ice";   // change this to make your theme the default
 function applyTheme(name) {
   const t = THEMES[name] || THEMES[DEFAULT_THEME];
   const r = document.documentElement.style;
@@ -225,6 +225,7 @@ function notice(title, lines, then) {
 
 function showHQ() {
   refresh();
+  if (VIEW.act === 2) return showA2HQ();
   if (VIEW.won) return showVictory();
   if (VIEW.game_over) return showGameOver();
   const nxt = VIEW.contracts.find(c => !c.beaten && !c.locked);
@@ -467,7 +468,7 @@ function battleOver(r) {
     const lines = [`Contract fulfilled. Payment: ${r.credits.toLocaleString()}cr. Salvage: ${r.salvage} tons.`];
     if (r.recovered && r.recovered.length)
       lines.push(`Downed frames dragged home at 1 HP: ${r.recovered.join(", ")}.`);
-    notice("CONTRACT COMPLETE", lines, () => r.final ? showVictory() : showHQ());
+    notice("CONTRACT COMPLETE", lines, () => r.final ? showA2Transition() : showHQ());
   } else {
     const lines = ["The Dogs are wiped off the field. No pay. No salvage."];
     if (r.lost && r.lost.length) {
@@ -508,6 +509,170 @@ function showGameOver() {
   ], showTitle);
 }
 
+
+/* ---------------- ACT II: THE PRODUCTION WAR ---------------- */
+function showA2Transition() {
+  refresh();
+  notice("MARKET DOMINANCE", META.a2_intro, () => { api("a2_seen_interlude"); showA2HQ(); });
+}
+const cr = n => n.toLocaleString() + "cr";
+
+function showA2HQ() {
+  refresh();
+  const v = api("a2_view");
+  if (v.won) return showA2Finale();
+  const held = v.theaters.filter(t => t.held).map(t => t.name).join(", ") || "none";
+  const lines = [
+    `Turn ${v.turn}   Revenue ${cr(v.income)}/turn   Upkeep ${cr(v.upkeep)}/turn`,
+    `Force value ${cr(v.force_value)}   Capacity ${cr(v.cap - v.cap_used)} / ${cr(v.cap)} this turn`,
+    `Held: ${held}`, ""
+  ].concat(v.ledger).map(esc);
+  draw("HQ — THE PRODUCTION WAR", lines, [
+    { label: "War room", detail: "Pick a theater and commit formations." },
+    { label: "Production", detail: "Feed the lines." },
+    { label: `Expand factories (${cr(v.expand_cost)}, +1,000 capacity)`,
+      enabled: v.expands < v.expand_max && v.credits >= v.expand_cost,
+      detail: `${v.expand_max - v.expands} expansions remaining.` },
+    { label: "R&D lab", detail: "The tree still grows." },
+    { label: "Consolidate (end turn)", detail: "Collect revenue, pay upkeep, reset capacity." },
+    { label: "Export save file" },
+    { label: "Import save file" },
+  ], (i) => {
+    if (i === 0) showA2WarRoom();
+    else if (i === 1) showA2Production();
+    else if (i === 2) { const r = api("a2_expand"); r.error ? notice("PRODUCTION", [r.error], showA2HQ) : showA2HQ(); }
+    else if (i === 3) showRnd();
+    else if (i === 4) notice("CONSOLIDATION", api("a2_consolidate").ledger_now, showA2HQ);
+    else if (i === 5) exportSave();
+    else importSave();
+  }, null);
+}
+
+function showA2Production() {
+  const v = api("a2_view");
+  refresh();
+  const lines = [`Capacity ${cr(v.cap - v.cap_used)} of ${cr(v.cap)} left this turn. Enter builds one unit.`, ""]
+    .concat(v.force.map(f =>
+      `${String(f.count).padStart(3)}x ${pad(f.unit, 17)} ${pad(f.role, 8)} ap ${String(f.ap).padStart(3)}  hp ${String(f.ehp).padStart(3)}`))
+    .map(esc);
+  draw("PRODUCTION", lines, v.catalogue.map(c => ({
+    label: `${pad(c.unit, 17)} ${pad(c.role, 8)} ap ${String(c.ap).padStart(3)}  hp ${String(c.ehp).padStart(3)}  ${String(c.cost).padStart(5)}cr   (own ${c.owned})`,
+    enabled: c.afford, unit: c.unit,
+  })), (i, it) => {
+    const keep = menuState.sel;
+    const r = api("a2_build", { unit: it.unit, count: 1 });
+    if (r.error) return notice("PRODUCTION", [r.error], showA2Production);
+    showA2Production();
+    menuState.sel = keep; renderMenu();
+  }, showA2HQ);
+}
+
+function showA2WarRoom() {
+  const v = api("a2_view");
+  refresh();
+  draw("WAR ROOM", ["Intelligence estimates. Bring more than they have.", ""].map(esc),
+    v.theaters.map(t => ({
+      label: `${t.held ? "[HELD]  " : (t.locked ? "[LOCKED]" : "[OPEN]  ")} ${pad(t.name, 20)} garrison ~${cr(t.garrison)}   +${cr(t.revenue)}/turn`,
+      enabled: !t.held && !t.locked, detail: t.blurb, idx: t.idx,
+    })), (i, it) => showA2Commit(it.idx, {}, 0), showA2HQ);
+}
+
+function showA2Commit(tidx, commit, cur) {
+  const v = api("a2_view");
+  refresh();
+  const units = v.force;
+  const cval = units.reduce((a, u) => a + (commit[u.unit] || 0) * u.cost, 0);
+  const anyCombat = units.some(u => (commit[u.unit] || 0) > 0 && u.role !== "support");
+  const items = units.map(u => ({
+    label: `${String(commit[u.unit] || 0).padStart(3)}/${String(u.count).padEnd(3)} ${pad(u.unit, 17)} ${pad(u.role, 8)} (${u.cost}cr)`,
+    u,
+  }));
+  items.push({ label: "[ Commit everything ]", all: true });
+  items.push({ label: `[ Launch offensive (${cr(cval)} committed) ]`, enabled: anyCombat, launch: true });
+  draw(`COMMIT — ${api("a2_view").theaters[tidx].name.toUpperCase()}`,
+    ["Committed formations fight; reserves stay safe.",
+     "A defeat writes off everything committed.", ""].map(esc),
+    items, (i, it) => {
+    if (it.launch) {
+      const r = api("a2_commit", { theater: tidx, commit });
+      if (r.kind === "error") return notice("COMMIT", [r.msg], () => showA2Commit(tidx, commit, i));
+      return a2Battle(r);
+    }
+    if (it.all) units.forEach(u => commit[u.unit] = u.count);
+    else commit[it.u.unit] = ((commit[it.u.unit] || 0) + 1) % (it.u.count + 1);
+    showA2Commit(tidx, commit, i);
+  }, showA2WarRoom);
+  menuState.sel = cur || 0; renderMenu();
+}
+
+function a2StackLines(b) {
+  const row = (s, cls) => s.count > 0
+    ? `<span class="${cls}">  ${String(s.count).padStart(3)}x ${pad(esc(s.unit), 17)} ${bar(s.pool, s.cap, 16)}</span>`
+    : `<span class="dim">   -- ${pad(esc(s.unit), 17)} [ WIPED ]</span>`;
+  return [`<span class="hot">COUNTERPARTY GARRISON</span>`]
+    .concat(b.e.map(s => row(s, "hot")))
+    .concat(["", `<span class="ok">CHROME DOGS</span>`])
+    .concat(b.p.map(s => row(s, "ok")))
+    .concat([""]).concat(b.log.map(l => `<span class="dim">${esc(l)}</span>`));
+}
+
+function a2Battle(b) {
+  if (b.kind === "a2_over") { AUTO = null; return a2Over(b); }
+  refresh();
+  if (AUTO) {
+    const pool = b.p.reduce((a, s) => a + s.pool, 0);
+    const cap = b.p.reduce((a, s) => a + s.cap, 0) || 1;
+    if (pool / cap < 0.4) AUTO = null;
+    if (AUTO) {
+      draw(`OFFENSIVE / ${b.theater.toUpperCase()}  r${b.round}`,
+           a2StackLines(b).concat(["", `<span class="gold">AUTO-DOCTRINE — q to take command</span>`]),
+           null, null, null);
+      setTimeout(() => {
+        if (!AUTO) return a2Battle(Object.assign({}, b, { kind: "a2_round" }));
+        const val = (ss, role) => ss.filter(s => s.role === role)
+          .reduce((a, s) => a + s.count * s.cost_each, 0);
+        const tot = b.e.reduce((a, s) => a + s.count * s.cost_each, 0) || 1;
+        let d = "BALANCED";
+        if (b.eng > 0 && pool / cap < 0.6) d = "ENGINEERS";
+        else if (val(b.e, "armor") / tot > 0.35) d = "FOCUS ARMOR";
+        else if (val(b.e, "swarm") / tot > 0.5) d = "SWEEP SWARMS";
+        a2Battle(api("a2_doctrine", { doctrine: d }));
+      }, 550);
+      return;
+    }
+  }
+  const items = b.doctrines.map(d => ({
+    label: d + (d === "ENGINEERS" ? `  (${b.eng} charges)` : ""),
+    enabled: d !== "ENGINEERS" || b.eng > 0, d,
+  }));
+  items.push({ label: "Auto-doctrine  (until losses mount, q to cancel)", auto: true });
+  items.push({ label: "Break off  (rearguard pays 10%)", breakoff: true });
+  draw(`OFFENSIVE / ${b.theater.toUpperCase()}  r${b.round}`,
+       a2StackLines(b).concat(["", `<span class="gold">Doctrine for round ${b.round + 1}:</span>`]),
+       items, (i, it) => {
+    if (it.auto) { AUTO = { a2: true }; return a2Battle(b); }
+    if (it.breakoff) return a2Battle(api("a2_breakoff"));
+    a2Battle(api("a2_doctrine", { doctrine: it.d }));
+  }, null);
+}
+
+function a2Over(r) {
+  refresh();
+  const title = r.outcome === "won" ? "THEATER TAKEN"
+    : (r.outcome === "lost" ? "OFFENSIVE ANNIHILATED" : "WITHDRAWAL");
+  notice(title, r.lines, () => {
+    if (r.won) return showA2Finale();
+    notice("CONSOLIDATION", r.ledger, showA2HQ);
+  });
+}
+
+function showA2Finale() {
+  refresh();
+  notice("FINAL SETTLEMENT",
+    META.finale.concat(["", `Final ledger: ${VIEW.credits.toLocaleString()} credits, ${VIEW.salvage} tons of salvage.`]),
+    showTitle);
+}
+
 /* ---------------- save files ---------------- */
 function exportSave() {
   const data = api("export_save").save;
@@ -528,7 +693,8 @@ function importSave() {
     f.text().then(t => {
       try {
         VIEW = api("import_save", { save: JSON.parse(t) });
-        notice("SAVE LOADED", ["The ledger is restored. Back to work."], showHQ);
+        notice("SAVE LOADED", ["The ledger is restored. Back to work."],
+               VIEW.act === 2 ? showA2HQ : showHQ);
       } catch (e) {
         notice("SAVE ERROR", ["That file did not parse as a Solvent campaign."], showTitle);
       }
