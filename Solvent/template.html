@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLVENT — a Chrome Dogs operation, by Float64</title>
+<style>
+  :root {
+    --bg: #060a06; --fg: #9dff9d; --dim: #4e7a4e; --hot: #ff5a5a;
+    --gold: #ffd24d; --tech: #d78cff; --sel: #123a12;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    display: flex; justify-content: center;
+  }
+  #crt {
+    width: min(960px, 100vw); min-height: 100vh; padding: 14px 16px 40px;
+    text-shadow: 0 0 6px rgba(157,255,157,.35);
+  }
+  #crt::after { /* faint scanlines */
+    content: ""; pointer-events: none; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.18) 2px 3px);
+  }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .hdr { color: var(--fg); font-weight: 700; letter-spacing: .1em; }
+  .bar { color: var(--dim); }
+  .money { color: var(--gold); float: right; }
+  .dim { color: var(--dim); }
+  .hot { color: var(--hot); }
+  .gold { color: var(--gold); }
+  .tech { color: var(--tech); }
+  .menu { margin-top: 8px; }
+  .mi { padding: 2px 6px; cursor: pointer; border-left: 2px solid transparent; }
+  .mi.sel { background: var(--sel); border-left-color: var(--fg); }
+  .mi.off { color: var(--dim); cursor: default; }
+  .mi .cur { display: inline-block; width: 1.2em; }
+  .detail { color: var(--dim); margin: 6px 0 0 8px; min-height: 1.4em; }
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; padding: 6px 16px;
+          background: var(--bg); color: var(--dim); border-top: 1px solid #123a12; }
+  .log { color: var(--dim); margin-top: 8px; }
+  .log .new { color: var(--fg); }
+  #boot { color: var(--dim); }
+  a { color: var(--gold); }
+  @media (max-width: 640px) { body { font-size: 12px; } #crt { padding: 8px; } }
+</style>
+</head>
+<body>
+<div id="crt">
+  <pre id="screen"><span id="boot">SOLVENT bootloader
+initializing python runtime (first load fetches ~12 MB; cached after)...</span></pre>
+  <div id="menu" class="menu"></div>
+  <pre id="detail" class="detail"></pre>
+</div>
+<div class="foot">arrows/jk move &nbsp; enter select &nbsp; q back &nbsp; (or click)</div>
+
+<script type="text/x-python" id="py-logic">
+__PY_LOGIC__
+</script>
+<script type="text/x-python" id="py-api">
+__PY_API__
+</script>
+
+<script>
+/* ============================================================== bootstrap */
+// To play fully offline / self-hosted: download a Pyodide release
+// (https://github.com/pyodide/pyodide/releases -> pyodide-0.26.4.tar.bz2),
+// unpack it next to this file as ./pyodide/, and change PYODIDE_BASE to "./pyodide/".
+const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+
+let api = null;
+async function boot() {
+  if (window.__SOLVENT_TEST_PYAPI__) {   // test harness injects a ready runtime
+    const pyapi = window.__SOLVENT_TEST_PYAPI__;
+    api = (cmd, payload = {}) => JSON.parse(pyapi(cmd, JSON.stringify(payload)));
+    META = api("meta");
+    showTitle();
+    return;
+  }
+  const s = document.createElement("script");
+  s.src = PYODIDE_BASE + "pyodide.js";
+  s.onload = async () => {
+    const py = await loadPyodide({ indexURL: PYODIDE_BASE });
+    py.runPython(document.getElementById("py-logic").textContent);
+    py.runPython(document.getElementById("py-api").textContent);
+    const pyapi = py.globals.get("api");
+    api = (cmd, payload = {}) => JSON.parse(pyapi(cmd, JSON.stringify(payload)));
+    META = api("meta");
+    showTitle();
+  };
+  s.onerror = () => {
+    document.getElementById("boot").textContent =
+      "Could not load the Python runtime. If you are offline, vendor Pyodide " +
+      "locally (see the comment at the top of this file's script).";
+  };
+  document.head.appendChild(s);
+}
+
+/* ============================================================== rendering */
+const $screen = document.getElementById("screen");
+const $menu = document.getElementById("menu");
+const $detail = document.getElementById("detail");
+let META = null;
+let VIEW = null;            // last state view
+let menuState = null;       // {items, sel, onSelect, onBack}
+
+const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const pad = (t, n) => String(t).padEnd(n);
+const bar = (hp, max, w = 20) => {
+  const f = max ? Math.round(w * hp / max) : 0;
+  return "[" + "#".repeat(f) + ".".repeat(w - f) + "]";
+};
+function screenHTML(title, lines) {
+  const money = VIEW ? `Credits ${VIEW.credits.toLocaleString()}   Salvage ${VIEW.salvage}` : "";
+  let h = `<span class="hdr">S O L V E N T</span> <span class="dim">| ${esc(title)}</span>` +
+          `<span class="money">${esc(money)}</span>\n` +
+          `<span class="bar">${"-".repeat(86)}</span>\n`;
+  h += lines.join("\n");
+  return h;
+}
+function draw(title, lines, items, onSelect, onBack, detailFor) {
+  $screen.innerHTML = screenHTML(title, lines);
+  menuState = items ? { items, sel: 0, onSelect, onBack, detailFor } : { onBack };
+  renderMenu();
+}
+function renderMenu() {
+  if (!menuState || !menuState.items) { $menu.innerHTML = ""; $detail.textContent = ""; return; }
+  $menu.innerHTML = menuState.items.map((it, i) => {
+    const cls = "mi" + (i === menuState.sel ? " sel" : "") + (it.enabled === false ? " off" : "");
+    const cur = i === menuState.sel ? "&gt;" : "&nbsp;";
+    return `<div class="${cls}" data-i="${i}"><span class="cur">${cur}</span>${it.html || esc(it.label)}</div>`;
+  }).join("");
+  const it = menuState.items[menuState.sel];
+  $detail.textContent = (it && it.detail) || "";
+  [...$menu.children].forEach(el => {
+    el.onclick = () => {
+      const i = +el.dataset.i;
+      if (menuState.items[i].enabled === false) return;
+      menuState.sel = i; renderMenu(); activate();
+    };
+  });
+}
+function move(d) {
+  if (!menuState || !menuState.items) return;
+  const n = menuState.items.length;
+  menuState.sel = (menuState.sel + d + n) % n;
+  renderMenu();
+}
+function activate() {
+  if (!menuState || !menuState.items) return;
+  const it = menuState.items[menuState.sel];
+  if (!it || it.enabled === false) return;
+  menuState.onSelect(menuState.sel, it);
+}
+document.addEventListener("keydown", e => {
+  if (["ArrowUp","ArrowDown","Enter","Escape"].includes(e.key)) e.preventDefault();
+  if (e.key === "ArrowUp" || e.key === "k") move(-1);
+  else if (e.key === "ArrowDown" || e.key === "j") move(1);
+  else if (e.key === "Enter") activate();
+  else if (e.key === "q" || e.key === "Escape") menuState && menuState.onBack && menuState.onBack();
+});
+
+/* ============================================================== screens */
+function refresh() { VIEW = api("view"); }
+
+function showTitle() {
+  const art = [
+"  ____   ___  _ __     _______ _   _ _____ ",
+" / ___| / _ \\| |\\ \\   / / ____| \\ | |_   _|",
+" \\___ \\| | | | | \\ \\ / /|  _| |  \\| | | |  ",
+"  ___) | |_| | |__\\ V / | |___| |\\  | | |  ",
+" |____/ \\___/|_____\\_/  |_____|_| \\_| |_|  ",
+"", "        a Chrome Dogs operation", "            by Float64", ""].map(esc);
+  VIEW = null;
+  draw("", art, [
+    { label: "New campaign" },
+    { label: "Import save file" },
+  ], (i) => {
+    if (i === 0) { VIEW = api("new_game"); showIntro(); }
+    else importSave();
+  }, null);
+}
+
+function showIntro() {
+  draw("OFF THE BOOKS", META.intro.map(esc), [{ label: "[ take the contract ]" }],
+       () => showHQ(), () => showHQ());
+}
+
+function notice(title, lines, then) {
+  draw(title, lines.map(esc), [{ label: "[ continue ]" }], then, then);
+}
+
+function showHQ() {
+  refresh();
+  if (VIEW.won) return showVictory();
+  if (VIEW.game_over) return showGameOver();
+  const nxt = VIEW.contracts.find(c => !c.beaten && !c.locked);
+  draw("HQ — CHROME DOGS", [], [
+    { label: "Contract board", detail: nxt ? `Next target: ${nxt.name}` : "" },
+    { label: "Hangar", detail: "Build, repair, and refit your frames." },
+    { label: "R&D lab", detail: "Invest war prizes into technology." },
+    { label: "Export save file", detail: "Download your campaign as a .json file." },
+    { label: "Import save file", detail: "Load a previously exported campaign." },
+  ], i => [showContracts, showHangar, showRnd, exportSave, importSave][i](), null);
+}
+
+/* ---------------- hangar ---------------- */
+function mechLine(m) {
+  const hl = Object.entries(m.heal_left || {}).map(([w, n]) => ` (${n} chg)`).join("");
+  return `${pad(m.name, 15)} ${pad(m.chassis, 11)} ${bar(m.hp, m.max_hp)} ` +
+         `${String(m.hp).padStart(3)}/${String(m.max_hp).padEnd(3)} ${m.weapons.join("/") || "(unarmed)"}${hl}`;
+}
+function showHangar() {
+  refresh();
+  const items = VIEW.roster.map(m => ({
+    label: mechLine(m),
+    detail: `Repair ${m.repair_cost}cr  Armor ${m.armor}  Speed ${m.speed}  Evade ${m.evade}`,
+    uid: m.uid,
+  }));
+  const total = VIEW.roster.reduce((a, m) => a + m.repair_cost, 0);
+  items.push({ label: "Commission new frame", detail: "Quadcopters to orbital lasers, budget permitting." });
+  items.push({ label: `Repair all (${total}cr)`, enabled: total > 0 && VIEW.credits >= total });
+  draw("HANGAR", [`<span class="dim">Roster: ${VIEW.roster.length} frames (max 4 deploy per contract)</span>`],
+    items, (i, it) => {
+      if (it.uid) showMech(it.uid);
+      else if (i === VIEW.roster.length) showBuy();
+      else { api("repair_all"); showHangar(); }
+    }, showHQ);
+}
+function showMech(uid) {
+  refresh();
+  const m = VIEW.roster.find(x => x.uid === uid);
+  if (!m) return showHangar();
+  const hard = VIEW.shop_chassis.concat().find(c => c.name === m.chassis);
+  const hp = m.weapons.length;
+  const hpts = (hard ? hard.hardpoints : hp);
+  draw(`HANGAR / ${m.name.toUpperCase()}`, [
+    esc(`${m.name} — ${m.chassis}.`),
+    esc(`HP ${m.hp}/${m.max_hp}   Armor ${m.armor}   Speed ${m.speed}   Evade ${m.evade}`),
+    esc(`Loadout: ${m.weapons.join(", ") || "none"}`),
+  ], [
+    { label: `Repair (${m.repair_cost}cr)`, enabled: m.repair_cost > 0 && VIEW.credits >= m.repair_cost },
+    { label: `Fit weapon (${hp}/${hpts} hardpoints)`, enabled: hp < hpts },
+    { label: "Strip a weapon (50% refund)", enabled: m.weapons.length > 1 },
+    { label: `Scrap frame (+${Math.floor(m.value / 3)}cr)`, enabled: VIEW.roster.length > 1 },
+  ], i => {
+    if (i === 0) { api("repair", { uid }); showMech(uid); }
+    else if (i === 1) showFit(uid);
+    else if (i === 2) showStrip(uid);
+    else {
+      draw(`HANGAR / ${m.name.toUpperCase()}`,
+           [esc(`Scrap ${m.name} for ${Math.floor(m.value / 3)}cr? This is permanent.`)],
+           [{ label: "Keep it" }, { label: "Scrap it" }],
+           (j) => { if (j === 1) { api("scrap", { uid }); showHangar(); } else showMech(uid); },
+           () => showMech(uid));
+    }
+  }, showHangar);
+}
+function showFit(uid) {
+  refresh();
+  const items = VIEW.shop_weapons.map(w => ({
+    label: `${pad(w.name, 16)} ${w.heal ? `${w.lo}-${w.hi} repair, ${w.charges} chg` :
+            `${w.lo}-${w.hi} dmg  ${w.acc}% acc`}  ${w.cost}cr`,
+    enabled: w.afford, detail: w.desc, w: w.name,
+  }));
+  draw("FIT WEAPON", [], items, (i, it) => { api("fit", { uid, weapon: it.w }); showMech(uid); }, () => showMech(uid));
+}
+function showStrip(uid) {
+  refresh();
+  const m = VIEW.roster.find(x => x.uid === uid);
+  draw("STRIP WEAPON", [], m.weapons.map((w, idx) => ({ label: w, idx })),
+    (i, it) => { api("strip", { uid, index: it.idx }); showMech(uid); }, () => showMech(uid));
+}
+function showBuy() {
+  refresh();
+  const items = VIEW.shop_chassis.map(c => ({
+    label: `${pad(c.name, 11)} ${String(c.hp).padStart(3)}hp ${c.armor}arm ` +
+           `${String(c.speed).padStart(2)}spd ${String(c.evade).padStart(2)}evd ${c.hardpoints}pt  ${c.cost}cr`,
+    enabled: c.afford, detail: c.desc, c: c.name,
+  }));
+  draw("COMMISSION FRAME", [], items, (i, it) => { api("buy", { chassis: it.c }); showHangar(); }, showHangar);
+}
+
+/* ---------------- R&D ---------------- */
+function showRnd() {
+  refresh();
+  const done = VIEW.researched.join(", ") || "none";
+  if (!VIEW.techs.length)
+    return notice("R&D LAB", ["The tree is complete. The lab techs are playing cards."], showHQ);
+  draw("R&D LAB", [
+    `<span class="dim">Sink contract money and battlefield salvage into the tech tree.</span>`,
+    `<span class="tech">Researched: ${esc(done)}</span>`,
+  ], VIEW.techs.map(t => ({
+    label: `${pad(t.name, 24)} ${String(t.credits).padStart(5)}cr + ${String(t.salvage).padStart(2)} salvage`,
+    enabled: t.afford, detail: t.desc, key: t.key,
+  })), (i, it) => { api("research", { key: it.key }); showRnd(); }, showHQ);
+}
+
+/* ---------------- contracts & deploy ---------------- */
+function showContracts() {
+  refresh();
+  draw("CONTRACT BOARD", [
+    `<span class="dim">Beaten contracts can be re-run for reduced pay (grind money, risk frames).</span>`,
+  ], VIEW.contracts.map((c, idx) => ({
+    label: `${c.beaten ? "[CLEARED]" : c.locked ? "[LOCKED] " : "[OPEN]   "} T${c.tier}  ` +
+           `${pad(c.name, 24)} ${String(c.credits).padStart(5)}cr  ${String(c.salvage).padStart(2)} salvage`,
+    enabled: !c.locked, detail: c.blurb, idx,
+  })), (i, it) => showDeploy(it.idx), showHQ);
+}
+function showDeploy(outfitIdx, chosen) {
+  refresh();
+  chosen = chosen || new Set();
+  const ready = VIEW.roster.filter(m => m.alive && m.weapons.length);
+  if (!ready.length) return notice("DEPLOY", ["No combat-ready frames. Fit weapons in the hangar."], showHQ);
+  const items = ready.map(m => ({
+    label: `[${chosen.has(m.uid) ? "x" : " "}] ${mechLine(m)}`, uid: m.uid,
+  }));
+  items.push({ label: `-- Deploy (${chosen.size}/4) --`, enabled: chosen.size > 0 && chosen.size <= 4 });
+  const keep = menuState && menuState.deployCursor != null ? menuState.deployCursor : 0;
+  draw("DEPLOY SQUAD", [
+    `<span class="dim">Toggle frames to deploy. Damaged frames deploy at current HP.</span>`,
+  ], items, (i, it) => {
+    if (it.uid) {
+      chosen.has(it.uid) ? chosen.delete(it.uid) : chosen.size < 4 && chosen.add(it.uid);
+      showDeploy(outfitIdx, chosen);
+      menuState.sel = i; renderMenu();
+    } else {
+      const r = api("start_battle", { outfit: outfitIdx, uids: [...chosen] });
+      if (r.kind === "started") battleLoop(r);
+    }
+  }, showContracts);
+}
+
+/* ---------------- battle ---------------- */
+let BATTLE = null;
+function battleLines(b) {
+  const lines = [];
+  lines.push(`<span class="hot">HOSTILES — ${esc(b.outfit)}</span>`);
+  for (const e of b.enemies)
+    lines.push(e.alive
+      ? `<span class="hot"> ${esc(pad(e.name, 13) + pad(e.chassis, 11) + bar(e.hp, e.max_hp) + " " + String(e.hp).padStart(3) + "/" + pad(e.max_hp, 3) + " " + e.weapons.join("/"))}</span>`
+      : `<span class="dim"> ${esc(pad(e.name, 13) + pad(e.chassis, 11))}[ DESTROYED ]</span>`);
+  lines.push("");
+  lines.push(`<span class="hdr">CHROME DOGS</span>`);
+  for (const m of b.squad)
+    lines.push(m.alive
+      ? ` ${esc(mechLine(m))}${m.braced ? ' <span class="dim">(braced)</span>' : ""}`
+      : `<span class="dim"> ${esc(pad(m.name, 13) + pad(m.chassis, 11))}[ DOWN ]</span>`);
+  lines.push("");
+  const log = b.log || [];
+  lines.push(`<span class="log">${log.map((l, i) =>
+    i >= log.length - 2 ? `<span class="new">${esc(l)}</span>` : esc(l)).join("\n")}</span>`);
+  return lines;
+}
+function battleLoop(b) {
+  BATTLE = b;
+  refresh();
+  if (b.kind === "over") return battleOver(b);
+  if (b.kind === "withdrew") return withdrawDone(b);
+  if (b.kind === "need_player") return battleActionMenu(b);
+  // enemy acted / round marker / started: brief pace, then continue
+  draw(`CONTRACT / ${b.outfit.toUpperCase()}`, battleLines(b), null, null, null);
+  setTimeout(() => battleLoop(api("battle_next")), b.kind === "enemy_acted" ? 350 : 120);
+}
+function battleActionMenu(b) {
+  const items = b.actions.map(a => {
+    if (a.type === "fire") return { label: `Fire ${a.weapon}  (${a.lo}-${a.hi} dmg, ${a.acc}% acc)`, a };
+    if (a.type === "heal") return { label: `Deploy ${a.weapon}  (${a.lo}-${a.hi} repair, revives downed, ${a.left} left)`, enabled: a.enabled, a };
+    return { label: "Brace  (+3 armor, harder to hit until next turn)", a };
+  });
+  draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+       battleLines(b).concat(["", `<span class="gold">${esc(b.unit_name)}'s move:</span>`]),
+       items, (i, it) => {
+    const a = it.a;
+    if (a.type === "brace") return battleLoop(api("battle_player", { type: "brace" }));
+    if (a.type === "fire") {
+      const tg = b.enemies.filter(e => e.alive);
+      draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+           battleLines(b).concat(["", `<span class="gold">Target for ${esc(a.weapon)}:</span>`]),
+           tg.map(e => ({ label: `${pad(e.name, 13)} ${pad(e.chassis, 11)} ${e.hp}/${e.max_hp}hp  armor ${e.armor}`, uid: e.uid })),
+           (j, t) => battleLoop(api("battle_player", { type: "fire", weapon: a.weapon, target: t.uid })),
+           () => battleActionMenu(b));
+    } else {
+      draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+           battleLines(b).concat(["", `<span class="gold">Repair target for ${esc(a.weapon)}:</span>`]),
+           b.squad.map(m => ({
+             label: `${m.alive ? "" : "[DOWN] "}${pad(m.name, 13)} ${pad(m.chassis, 11)} ${m.hp}/${m.max_hp}hp` +
+                    (m.uid === b.unit_uid ? " (self)" : ""), uid: m.uid })),
+           (j, t) => battleLoop(api("battle_player", { type: "heal", weapon: a.weapon, target: t.uid })),
+           () => battleActionMenu(b));
+    }
+  }, () => { // q during your move -> withdrawal prompt
+    draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+         battleLines(b).concat(["", `<span class="hot">Withdraw from the contract? Downed frames are lost.</span>`]),
+         [{ label: "Fight on" }, { label: "Withdraw" }],
+         (i) => i === 0 ? battleActionMenu(b) : battleLoop(api("battle_withdraw")),
+         () => battleActionMenu(b));
+  });
+}
+function battleOver(r) {
+  refresh();
+  if (r.won) {
+    const lines = [`Contract fulfilled. Payment: ${r.credits.toLocaleString()}cr. Salvage: ${r.salvage} tons.`];
+    if (r.recovered && r.recovered.length)
+      lines.push(`Downed frames dragged home at 1 HP: ${r.recovered.join(", ")}.`);
+    notice("CONTRACT COMPLETE", lines, () => r.final ? showVictory() : showHQ());
+  } else {
+    const lines = ["The Dogs are wiped off the field. No pay. No salvage."];
+    if (r.lost && r.lost.length) {
+      lines.push(`Frames lost to enemy salvage crews: ${r.lost.join(", ")}.`);
+      lines.push(`The underwriters pay out a third: ${r.insurance.toLocaleString()}cr against the write-off.`);
+    }
+    notice("CONTRACT FAILED", lines, showHQ);
+  }
+}
+function withdrawDone(r) {
+  const lines = ["The Dogs pull back. No pay, no salvage."];
+  if (r.lost && r.lost.length)
+    lines.push(`Downed frames are left to the scavengers. Insurance pays ${r.insurance.toLocaleString()}cr.`);
+  notice("WITHDRAWAL", lines, showHQ);
+}
+
+/* ---------------- endings ---------------- */
+function showVictory() {
+  refresh();
+  notice("MARKET DOMINANCE", [
+    "Force Majeure's stock ticker flatlines on every exchange that still exists.",
+    "",
+    "The Chrome Dogs are now the only solvent outfit on the continent —",
+    "which makes you, technically, the war economy.",
+    "",
+    "The contracts will keep coming. They always do.",
+    "",
+    `Final ledger: ${VIEW.credits.toLocaleString()} credits, ${VIEW.salvage} tons of salvage.`,
+  ], showTitle);
+}
+function showGameOver() {
+  notice("INSOLVENT", [
+    "No frames. No credits. No collateral.",
+    "",
+    "The Chrome Dogs are dissolved by their creditors and sold for parts.",
+    "Somewhere, an accountant at Force Majeure closes your file.",
+  ], showTitle);
+}
+
+/* ---------------- save files ---------------- */
+function exportSave() {
+  const data = api("export_save").save;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "solvent_save.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showHQ();
+}
+function importSave() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = ".json,application/json";
+  input.onchange = () => {
+    const f = input.files[0];
+    if (!f) return showTitle();
+    f.text().then(t => {
+      try {
+        VIEW = api("import_save", { save: JSON.parse(t) });
+        notice("SAVE LOADED", ["The ledger is restored. Back to work."], showHQ);
+      } catch (e) {
+        notice("SAVE ERROR", ["That file did not parse as a Solvent campaign."], showTitle);
+      }
+    });
+  };
+  input.click();
+}
+
+boot();
+</script>
+</body>
+</html>

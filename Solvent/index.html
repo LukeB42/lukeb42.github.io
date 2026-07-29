@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOLVENT — a Chrome Dogs operation, by Float64</title>
+<style>
+  :root {
+    --bg: #060a06; --fg: #9dff9d; --dim: #4e7a4e; --hot: #ff5a5a;
+    --gold: #ffd24d; --tech: #d78cff; --sel: #123a12;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    display: flex; justify-content: center;
+  }
+  #crt {
+    width: min(960px, 100vw); min-height: 100vh; padding: 14px 16px 40px;
+    text-shadow: 0 0 6px rgba(157,255,157,.35);
+  }
+  #crt::after { /* faint scanlines */
+    content: ""; pointer-events: none; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.18) 2px 3px);
+  }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .hdr { color: var(--fg); font-weight: 700; letter-spacing: .1em; }
+  .bar { color: var(--dim); }
+  .money { color: var(--gold); float: right; }
+  .dim { color: var(--dim); }
+  .hot { color: var(--hot); }
+  .gold { color: var(--gold); }
+  .tech { color: var(--tech); }
+  .menu { margin-top: 8px; }
+  .mi { padding: 2px 6px; cursor: pointer; border-left: 2px solid transparent; }
+  .mi.sel { background: var(--sel); border-left-color: var(--fg); }
+  .mi.off { color: var(--dim); cursor: default; }
+  .mi .cur { display: inline-block; width: 1.2em; }
+  .detail { color: var(--dim); margin: 6px 0 0 8px; min-height: 1.4em; }
+  .foot { position: fixed; left: 0; right: 0; bottom: 0; padding: 6px 16px;
+          background: var(--bg); color: var(--dim); border-top: 1px solid #123a12; }
+  .log { color: var(--dim); margin-top: 8px; }
+  .log .new { color: var(--fg); }
+  #boot { color: var(--dim); }
+  a { color: var(--gold); }
+  @media (max-width: 640px) { body { font-size: 12px; } #crt { padding: 8px; } }
+</style>
+</head>
+<body>
+<div id="crt">
+  <pre id="screen"><span id="boot">SOLVENT bootloader
+initializing python runtime (first load fetches ~12 MB; cached after)...</span></pre>
+  <div id="menu" class="menu"></div>
+  <pre id="detail" class="detail"></pre>
+</div>
+<div class="foot">arrows/jk move &nbsp; enter select &nbsp; q back &nbsp; (or click)</div>
+
+<script type="text/x-python" id="py-logic">
+#!/usr/bin/env python3
+"""
+SOLVENT — by Float64
+A turn-based mech-mercenary RPG for the terminal.
+
+You command the CHROME DOGS, a bipedal-armor paramilitary contractor.
+Take contracts against rival outfits, salvage their wrecks, and sink the
+proceeds into R&D until you're ready to face FORCE MAJEURE.
+
+Run:        python3 solvent.py
+Self-test:  python3 solvent.py --selftest   (headless logic check, no curses)
+
+Requires only the Python standard library. Terminal of at least 80x24
+recommended.
+"""
+
+try:
+    import curses
+except ImportError:          # running under Pyodide / web build
+    curses = None
+import json
+import os
+import random
+import sys
+import textwrap
+import time
+
+SAVE_FILE = "solvent_save.json"
+
+# ----------------------------------------------------------------------------
+# DATA TABLES
+# ----------------------------------------------------------------------------
+
+CHASSIS = {
+    # name: cost, hp, armor, speed, evade, hardpoints, tech gate (or None)
+    "Wisp":     dict(cost=550,  hp=40,  armor=0, speed=16, evade=15, hardpoints=1, tech=None,
+                     desc="Recon quadcopter. Hard to hit, easy to break."),
+    "Haund":    dict(cost=700,  hp=55,  armor=2, speed=13, evade=5,  hardpoints=1, tech=None,
+                     desc="Quadruped gun-dog. Loyal to the invoice."),
+    "Jackal":   dict(cost=800,  hp=60,  armor=2, speed=12, evade=0,  hardpoints=1, tech=None,
+                     desc="Light bipedal frame. Fast, fragile, cheap."),
+    "Brute":    dict(cost=1600, hp=100, armor=4, speed=8,  evade=0,  hardpoints=2, tech=None,
+                     desc="Workhorse medium biped. The industry standard."),
+    "Kestrel":  dict(cost=2200, hp=110, armor=3, speed=14, evade=10, hardpoints=2, tech="rotorcraft",
+                     desc="Autonomous attack rotorcraft. Death from above, invoiced hourly."),
+    "Warden":   dict(cost=2800, hp=150, armor=6, speed=6,  evade=0,  hardpoints=2, tech="heavy_frames",
+                     desc="Heavy bipedal frame. Walking bunker."),
+    "Ferrum":   dict(cost=3200, hp=190, armor=9, speed=5,  evade=0,  hardpoints=2, tech="tracked_autonomy",
+                     desc="Uncrewed main battle tank. Argues in 120mm."),
+    "Shrike":   dict(cost=5200, hp=130, armor=4, speed=20, evade=20, hardpoints=2, tech="airframe",
+                     desc="Autonomous fighter jet. Sortie fees not included."),
+    "Colossus": dict(cost=4600, hp=220, armor=8, speed=4,  evade=0,  hardpoints=3, tech="colossus_frames",
+                     desc="Superheavy bipedal platform. A mortgage with legs."),
+    "Halo Array": dict(cost=9000, hp=90, armor=3, speed=18, evade=25, hardpoints=2, tech="orbital_array",
+                     desc="Orbital laser relay. The high ground, permanently."),
+}
+
+WEAPONS = {
+    # name: cost, dmg (lo, hi), acc, tech gate, pierce, heal (support flag)
+    "SMG Pod":      dict(cost=250,  dmg=(5, 9),   acc=90, tech=None, pierce=0.0, heal=False,
+                         desc="Reliable close-in spray. Never jams, never impresses."),
+    "Repair Rig":   dict(cost=350,  dmg=(10, 16), acc=100, tech=None, pierce=0.0, heal=True,
+                         charges=4,
+                         desc="Field nanite dispenser. Patches plate, reboots the dead. 4 canisters per contract."),
+    "Autocannon":   dict(cost=400,  dmg=(9, 15),  acc=80, tech=None, pierce=0.0, heal=False,
+                         desc="The sound of the war economy."),
+    "Missile Rack": dict(cost=650,  dmg=(13, 24), acc=65, tech=None, pierce=0.0, heal=False,
+                         desc="High yield, questionable guidance."),
+    "Laser Lance":  dict(cost=1100, dmg=(11, 17), acc=88, tech="focused_optics", pierce=0.25, heal=False,
+                         desc="Precision optics. Burns through plate."),
+    "Nanoswarm Halo": dict(cost=1400, dmg=(20, 32), acc=100, tech="nanoswarm", pierce=0.0, heal=True,
+                         charges=5,
+                         desc="A cloud of murder-adjacent medicine. 5 releases per contract."),
+    "Railgun":      dict(cost=1900, dmg=(26, 42), acc=70, tech="railgun_proto", pierce=0.5, heal=False,
+                         desc="Fires a tungsten opinion at Mach 7."),
+}
+
+TECHS = {
+    # key: name, credits, salvage, prereq, desc
+    "targeting1":      dict(name="Targeting Suite I",  credits=900,  salvage=4,  prereq=None,
+                            desc="+5 accuracy, all units."),
+    "targeting2":      dict(name="Targeting Suite II", credits=1800, salvage=8,  prereq="targeting1",
+                            desc="+5 further accuracy."),
+    "alloys1":         dict(name="Ablative Alloys I",  credits=900,  salvage=4,  prereq=None,
+                            desc="+2 armor, all units."),
+    "alloys2":         dict(name="Ablative Alloys II", credits=1800, salvage=8,  prereq="alloys1",
+                            desc="+2 further armor."),
+    "reactors":        dict(name="Reactor Tuning",     credits=1200, salvage=6,  prereq=None,
+                            desc="+2 speed, all units."),
+    "myomer":          dict(name="Myomer Overdrive",   credits=2200, salvage=10, prereq="reactors",
+                            desc="+20% weapon damage."),
+    "salvage_rigs":    dict(name="Salvage Rigs",       credits=1000, salvage=0,  prereq=None,
+                            desc="+40% salvage from contracts."),
+    "nanoswarm":       dict(name="Nanoswarm Doctrine", credits=1300, salvage=5,  prereq=None,
+                            desc="Unlocks the Nanoswarm Halo repair system."),
+    "rotorcraft":      dict(name="Autonomous Rotorcraft", credits=1500, salvage=7, prereq="reactors",
+                            desc="Unlocks the Kestrel attack helicopter."),
+    "tracked_autonomy": dict(name="Tracked Autonomy",  credits=1700, salvage=8,  prereq="alloys1",
+                            desc="Unlocks the Ferrum uncrewed tank."),
+    "airframe":        dict(name="Combat Airframes",   credits=3400, salvage=14, prereq="rotorcraft",
+                            desc="Unlocks the Shrike autonomous fighter."),
+    "orbital_array":   dict(name="Orbital Relay",      credits=5200, salvage=24, prereq="airframe",
+                            desc="Unlocks the Halo Array space laser."),
+    "focused_optics":  dict(name="Focused Optics",     credits=1400, salvage=6,  prereq="targeting1",
+                            desc="Unlocks the Laser Lance."),
+    "railgun_proto":   dict(name="Railgun Prototype",  credits=2600, salvage=12, prereq="focused_optics",
+                            desc="Unlocks the Railgun."),
+    "heavy_frames":    dict(name="Heavy Frames",       credits=1600, salvage=8,  prereq="alloys1",
+                            desc="Unlocks the Warden chassis."),
+    "colossus_frames": dict(name="Colossus Program",   credits=3200, salvage=16, prereq="heavy_frames",
+                            desc="Unlocks the Colossus chassis."),
+}
+
+# Rival outfits, in campaign order.
+OUTFITS = [
+    dict(name="Rustwater Irregulars", tier=1, credits=1200, salvage=5,
+         blurb="Scrap-fed militia running two rusted Jackals. Someone has to be first."),
+    dict(name="Kinetic Solutions", tier=2, credits=2000, salvage=8,
+         blurb="A logistics firm that discovered ordnance pays better than freight."),
+    dict(name="Deniable Assets", tier=3, credits=3000, salvage=12,
+         blurb="Nobody hires them. Officially."),
+    dict(name="Severance Clause", tier=4, credits=4200, salvage=16,
+         blurb="They terminate contracts. And contractors."),
+    dict(name="Hostile Acquisitions", tier=5, credits=5600, salvage=22,
+         blurb="Mergers by main force. Their portfolio is on fire and so is yours."),
+    dict(name="Force Majeure", tier=6, credits=9000, salvage=40,
+         blurb="The event no contract survives. Beat them and the market is yours."),
+]
+
+DOG_NAMES = ["Ghostline", "Null Ping", "Cold Boot", "Zero Day", "Black Ice",
+             "Warm Static", "Dead Reckoning", "Loopback", "Ashfall", "Silent Verse",
+             "Redline", "Afterimage", "Packet Ghost", "Glass Jaw", "Karma Debt"]
+
+ENEMY_NAMES = ["Ledger", "Actuary", "Broker", "Auditor", "Underwriter", "Adjuster",
+               "Notary", "Liquidator", "Escrow", "Retainer", "Clause", "Premium"]
+
+
+# ----------------------------------------------------------------------------
+# GAME LOGIC (curses-free, testable)
+# ----------------------------------------------------------------------------
+
+class Mech:
+    _uid = 0
+
+    def __init__(self, name, chassis, weapons, is_player=True):
+        Mech._uid += 1
+        self.uid = Mech._uid
+        self.name = name
+        self.chassis = chassis
+        self.weapons = list(weapons)
+        self.max_hp = CHASSIS[chassis]["hp"]
+        self.hp = self.max_hp
+        self.is_player = is_player
+        self.braced = False
+        self.heal_used = {}   # weapon name -> uses this battle
+        self.enemy_bonus = dict(acc=0, armor=0, speed=0, dmg=0.0)  # tier scaling
+
+    # -- stat accessors (player mechs read the shared tech state) -------------
+    def armor(self, state):
+        a = CHASSIS[self.chassis]["armor"]
+        if self.is_player:
+            if "alloys1" in state.techs: a += 2
+            if "alloys2" in state.techs: a += 2
+        else:
+            a += self.enemy_bonus["armor"]
+        if self.braced:
+            a += 3
+        return a
+
+    def speed(self, state):
+        s = CHASSIS[self.chassis]["speed"]
+        if self.is_player:
+            if "reactors" in state.techs: s += 2
+        else:
+            s += self.enemy_bonus["speed"]
+        return s
+
+    def accuracy(self, state, weapon):
+        acc = WEAPONS[weapon]["acc"]
+        if self.is_player:
+            if "targeting1" in state.techs: acc += 5
+            if "targeting2" in state.techs: acc += 5
+        else:
+            acc += self.enemy_bonus["acc"]
+        return min(acc, 99)
+
+    def roll_damage(self, state, weapon, rng=random):
+        lo, hi = WEAPONS[weapon]["dmg"]
+        dmg = rng.randint(lo, hi)
+        if self.is_player and "myomer" in state.techs:
+            dmg = int(round(dmg * 1.2))
+        elif not self.is_player:
+            dmg = int(round(dmg * (1.0 + self.enemy_bonus["dmg"])))
+        return dmg
+
+    def heal_remaining(self, weapon):
+        cap = WEAPONS[weapon].get("charges", 0) * self.weapons.count(weapon)
+        return cap - self.heal_used.get(weapon, 0)
+
+    @property
+    def alive(self):
+        return self.hp > 0
+
+    def repair_cost(self):
+        missing = self.max_hp - self.hp
+        return int(missing * 6)
+
+    def value(self):
+        return CHASSIS[self.chassis]["cost"] + sum(WEAPONS[w]["cost"] for w in self.weapons)
+
+    def to_dict(self):
+        return dict(name=self.name, chassis=self.chassis, weapons=self.weapons,
+                    hp=self.hp)
+
+    @classmethod
+    def from_dict(cls, d):
+        m = cls(d["name"], d["chassis"], d["weapons"], is_player=True)
+        m.hp = d["hp"]
+        return m
+
+
+class GameState:
+    def __init__(self):
+        self.credits = 2400
+        self.salvage = 0
+        self.techs = set()
+        self.roster = []
+        self.beaten = set()          # outfit names defeated
+        self.won = False
+        self.turn_log = []
+
+    def unlocked_chassis(self):
+        return [c for c, d in CHASSIS.items() if d["tech"] is None or d["tech"] in self.techs]
+
+    def unlocked_weapons(self):
+        return [w for w, d in WEAPONS.items() if d["tech"] is None or d["tech"] in self.techs]
+
+    def available_techs(self):
+        out = []
+        for key, t in TECHS.items():
+            if key in self.techs:
+                continue
+            if t["prereq"] and t["prereq"] not in self.techs:
+                continue
+            out.append(key)
+        return out
+
+    def next_contract_index(self):
+        for i, o in enumerate(OUTFITS):
+            if o["name"] not in self.beaten:
+                return i
+        return None
+
+    def to_dict(self):
+        return dict(credits=self.credits, salvage=self.salvage,
+                    techs=sorted(self.techs), beaten=sorted(self.beaten),
+                    roster=[m.to_dict() for m in self.roster], won=self.won)
+
+    @classmethod
+    def from_dict(cls, d):
+        s = cls()
+        s.credits = d["credits"]
+        s.salvage = d["salvage"]
+        s.techs = set(d["techs"])
+        s.beaten = set(d["beaten"])
+        s.roster = [Mech.from_dict(m) for m in d["roster"]]
+        s.won = d.get("won", False)
+        return s
+
+
+def new_game():
+    s = GameState()
+    s.credits = 3000
+    names = random.sample(DOG_NAMES, 2)
+    s.roster.append(Mech(names[0], "Jackal", ["Autocannon"]))
+    s.roster.append(Mech(names[1], "Brute", ["Autocannon"]))
+    return s
+
+
+def build_enemy_squad(outfit):
+    """Generate an enemy squad scaled to the outfit's tier."""
+    tier = outfit["tier"]
+    templates = {
+        1: [("Jackal", ["SMG Pod"]), ("Jackal", ["SMG Pod"])],
+        2: [("Jackal", ["Autocannon"]), ("Brute", ["Autocannon", "SMG Pod"])],
+        3: [("Brute", ["Autocannon", "Missile Rack"]), ("Brute", ["Autocannon", "SMG Pod"]),
+            ("Wisp", ["SMG Pod"]), ("Jackal", ["Missile Rack"])],
+        4: [("Warden", ["Missile Rack", "Autocannon"]), ("Brute", ["Laser Lance", "SMG Pod"]),
+            ("Brute", ["Autocannon", "Missile Rack"])],
+        5: [("Warden", ["Laser Lance", "Missile Rack"]), ("Warden", ["Autocannon", "Autocannon"]),
+            ("Brute", ["Laser Lance", "Missile Rack"]), ("Kestrel", ["Missile Rack"])],
+        6: [("Colossus", ["Railgun", "Laser Lance", "Missile Rack"]),
+            ("Warden", ["Laser Lance", "Missile Rack"]),
+            ("Warden", ["Railgun"]),
+            ("Ferrum", ["Missile Rack", "Autocannon"]),
+            ("Wisp", ["SMG Pod"])],
+    }
+    squad = []
+    names = random.sample(ENEMY_NAMES, len(templates[tier]))
+    for (chassis, weps), nm in zip(templates[tier], names):
+        m = Mech(f"{nm}", chassis, weps, is_player=False)
+        # tier scaling so replays of early contracts stay easy, later ones bite
+        m.enemy_bonus = dict(acc=tier, armor=tier // 2, speed=tier // 3,
+                             dmg=0.03 * tier)
+        squad.append(m)
+    return squad
+
+
+def resolve_attack(state, attacker, weapon, defender, rng=random):
+    """Returns a log string; mutates defender HP."""
+    acc = attacker.accuracy(state, weapon)
+    acc -= CHASSIS[defender.chassis].get("evade", 0)
+    if defender.braced:
+        acc -= 10
+    roll = rng.randint(1, 100)
+    if roll > acc:
+        return f"{attacker.name}'s {weapon} misses {defender.name}."
+    dmg = attacker.roll_damage(state, weapon, rng=rng)
+    armor = defender.armor(state)
+    pierce = WEAPONS[weapon]["pierce"]
+    effective_armor = int(round(armor * (1.0 - pierce)))
+    dealt = max(1, dmg - effective_armor)
+    defender.hp = max(0, defender.hp - dealt)
+    tag = " DESTROYED." if defender.hp == 0 else ""
+    return f"{attacker.name}'s {weapon} hits {defender.name} for {dealt}.{tag}"
+
+
+def resolve_heal(state, healer, weapon, target, rng=random):
+    """Repair a friendly frame; revives it if downed. Returns a log string."""
+    lo, hi = WEAPONS[weapon]["dmg"]
+    healer.heal_used[weapon] = healer.heal_used.get(weapon, 0) + 1
+    amount = rng.randint(lo, hi)
+    was_down = target.hp == 0
+    target.hp = min(target.max_hp, target.hp + amount)
+    if was_down:
+        return (f"{healer.name}'s {weapon} reboots {target.name} "
+                f"at {target.hp} HP.")
+    return f"{healer.name}'s {weapon} repairs {target.name} for {amount}."
+
+
+def initiative_order(state, units, rng=random):
+    scored = [(u.speed(state) + rng.randint(1, 6), rng.random(), u) for u in units if u.alive]
+    scored.sort(key=lambda t: (-t[0], t[1]))
+    return [u for _, _, u in scored]
+
+
+def enemy_choose_action(state, enemy, player_squad, rng=random):
+    """Greedy AI: best expected-damage weapon against the weakest live target."""
+    targets = [m for m in player_squad if m.alive]
+    if not targets:
+        return None, None
+    target = min(targets, key=lambda m: m.hp)
+    def expected(w):
+        if WEAPONS[w]["heal"]:
+            return -1
+        lo, hi = WEAPONS[w]["dmg"]
+        return (lo + hi) / 2 * enemy.accuracy(state, w) / 100.0
+    guns = [w for w in enemy.weapons if not WEAPONS[w]["heal"]]
+    if not guns:
+        return None, None
+    weapon = max(guns, key=expected)
+    return weapon, target
+
+
+def contract_rewards(state, outfit, first_time):
+    credits = outfit["credits"]
+    salvage = outfit["salvage"]
+    if not first_time:
+        credits = int(credits * 0.4)
+        salvage = int(salvage * 0.4)
+    if "salvage_rigs" in state.techs:
+        salvage = int(round(salvage * 1.4))
+    return credits, salvage
+
+
+# ----------------------------------------------------------------------------
+# HEADLESS SELF-TEST
+# ----------------------------------------------------------------------------
+
+def selftest():
+    """Deterministic checks: mechanics, balance bands, economy progression."""
+    print("SOLVENT self-test")
+    rng = random.Random(1337)
+
+    # --- mechanics: hit, miss, armor, pierce, brace -------------------------
+    state = GameState()
+    a = Mech("A", "Brute", ["Autocannon"], True)
+    d = Mech("D", "Brute", ["SMG Pod"], False)
+
+    class FixedRng:
+        def __init__(self, rolls): self.rolls = list(rolls)
+        def randint(self, lo, hi): return self.rolls.pop(0)
+
+    d.hp = 100
+    resolve_attack(state, a, "Autocannon", d, rng=FixedRng([1, 12]))   # sure hit, 12 dmg
+    assert d.hp == 100 - max(1, 12 - d.armor(state)), "armor math"
+    hp_before = d.hp
+    resolve_attack(state, a, "Autocannon", d, rng=FixedRng([100]))     # sure miss
+    assert d.hp == hp_before, "miss should not damage"
+    d.braced = True
+    assert d.armor(state) == CHASSIS["Brute"]["armor"] + 3, "brace armor"
+    d.braced = False
+
+    # heal and revive
+    ally = Mech("H", "Haund", ["Repair Rig"], True)
+    hurt = Mech("W", "Brute", ["Autocannon"], True)
+    hurt.hp = 50
+    resolve_heal(state, ally, "Repair Rig", hurt, rng=FixedRng([12]))
+    assert hurt.hp == 62, "heal math"
+    hurt.hp = 0
+    assert not hurt.alive
+    msg = resolve_heal(state, ally, "Repair Rig", hurt, rng=FixedRng([10]))
+    assert hurt.alive and hurt.hp == 10 and "reboots" in msg, "revive"
+    hurt.hp = hurt.max_hp - 3
+    resolve_heal(state, ally, "Repair Rig", hurt, rng=FixedRng([16]))
+    assert hurt.hp == hurt.max_hp, "heal caps at max HP"
+    assert ally.heal_remaining("Repair Rig") == WEAPONS["Repair Rig"]["charges"] - 3, \
+        "three uses consumed three charges"
+
+    # evade: a sure hit against armor-0 Wisp misses through evade
+    wisp = Mech("V", "Wisp", ["SMG Pod"], False)
+    shooter = Mech("S", "Brute", ["Autocannon"], True)   # 80 acc, wisp evade 15
+    hp0 = wisp.hp
+    resolve_attack(state, shooter, "Autocannon", wisp, rng=FixedRng([70, 12]))
+    assert wisp.hp == hp0, "evade should turn 70-roll into a miss (65 effective acc)"
+    resolve_attack(state, shooter, "Autocannon", wisp, rng=FixedRng([60, 12]))
+    assert wisp.hp < hp0, "60-roll still hits through evade"
+    print("  mechanics OK (incl. heal, revive, evade)")
+
+    # --- tech effects -------------------------------------------------------
+    state.techs = {"targeting1", "targeting2", "alloys1", "myomer"}
+    p = Mech("P", "Jackal", ["Autocannon"], True)
+    assert p.accuracy(state, "Autocannon") == WEAPONS["Autocannon"]["acc"] + 10
+    assert p.armor(state) == CHASSIS["Jackal"]["armor"] + 2
+    lo, hi = WEAPONS["Autocannon"]["dmg"]
+    dmgs = {p.roll_damage(state, "Autocannon") for _ in range(200)}
+    assert max(dmgs) == int(round(hi * 1.2)), "myomer damage"
+    print("  tech effects OK")
+
+    # --- rewards & insurance ------------------------------------------------
+    state = GameState()
+    c0, s0 = contract_rewards(state, OUTFITS[0], True)
+    c1, s1 = contract_rewards(state, OUTFITS[0], False)
+    assert c1 < c0 and s1 <= s0, "replay pays less"
+    state.techs.add("salvage_rigs")
+    _, s2 = contract_rewards(state, OUTFITS[0], True)
+    assert s2 > s0, "salvage rigs increase salvage"
+    print("  rewards OK")
+
+    # --- balance bands: prescribed squads per tier --------------------------
+    LOADOUTS = {
+        1: (set(), [("Jackal", ["Autocannon"]), ("Brute", ["Autocannon"])]),
+        2: (set(), [("Brute", ["Autocannon", "Missile Rack"]),
+                    ("Brute", ["Autocannon", "SMG Pod"]), ("Jackal", ["Autocannon"])]),
+        3: ({"targeting1", "alloys1"},
+            [("Brute", ["Autocannon", "Missile Rack"])] * 2 +
+            [("Brute", ["Autocannon", "SMG Pod"]), ("Jackal", ["Missile Rack"])]),
+        4: ({"targeting1", "alloys1", "heavy_frames", "reactors"},
+            [("Warden", ["Missile Rack", "Autocannon"]),
+             ("Brute", ["Autocannon", "Missile Rack"])] * 2),
+        5: ({"targeting1", "targeting2", "alloys1", "alloys2", "heavy_frames",
+             "reactors", "focused_optics"},
+            [("Warden", ["Laser Lance", "Missile Rack"])] * 2 +
+            [("Brute", ["Laser Lance", "Missile Rack"])] * 2),
+        6: ({"targeting1", "targeting2", "alloys1", "alloys2", "reactors",
+             "myomer", "focused_optics", "railgun_proto", "heavy_frames",
+             "colossus_frames", "nanoswarm"},
+            [("Colossus", ["Railgun", "Laser Lance", "Missile Rack"]),
+             ("Warden", ["Railgun", "Laser Lance"]),
+             ("Warden", ["Laser Lance", "Missile Rack"]),
+             ("Warden", ["Laser Lance", "Nanoswarm Halo"])]),
+    }
+
+    def sim_battle(tier, seed):
+        r = random.Random(seed * 7919 + tier)
+        st = GameState()
+        st.techs = set(LOADOUTS[tier][0])
+        players = [Mech(f"P{i}", c, w, True)
+                   for i, (c, w) in enumerate(LOADOUTS[tier][1])]
+        enemies = build_enemy_squad(OUTFITS[tier - 1])
+        rounds = 0
+        while (any(m.alive for m in players) and any(e.alive for e in enemies)
+               and rounds < 60):
+            rounds += 1
+            for u in initiative_order(st, players + enemies, rng=r):
+                if not u.alive:
+                    continue
+                u.braced = False
+                if u.is_player:
+                    heals = [w for w in u.weapons
+                             if WEAPONS[w]["heal"] and u.heal_remaining(w) > 0]
+                    guns = [w for w in u.weapons if not WEAPONS[w]["heal"]]
+                    downed = [m for m in players if not m.alive]
+                    hurt = sorted((m for m in players if m.alive and m.hp < m.max_hp),
+                                  key=lambda m: m.hp / m.max_hp)
+                    if heals and downed:
+                        resolve_heal(st, u, heals[0], downed[0], rng=r)
+                    elif heals and hurt and hurt[0].hp / hurt[0].max_hp < 0.7:
+                        resolve_heal(st, u, heals[0], hurt[0], rng=r)
+                    elif guns:
+                        tg = [e for e in enemies if e.alive]
+                        if not tg:
+                            break
+                        t = min(tg, key=lambda e: e.hp)
+                        w = max(guns, key=lambda w: sum(WEAPONS[w]["dmg"]))
+                        resolve_attack(st, u, w, t, rng=r)
+                    else:
+                        u.braced = True
+                else:
+                    w, t = enemy_choose_action(st, u, players)
+                    if w:
+                        resolve_attack(st, u, w, t, rng=r)
+        return not any(e.alive for e in enemies)
+
+    N = 150
+    floors = {1: 85, 2: 85, 3: 85, 4: 85, 5: 80, 6: 40}
+    for tier in range(1, 7):
+        wr = 100 * sum(sim_battle(tier, s) for s in range(N)) // N
+        band = "boss" if tier == 6 else "std"
+        assert wr >= floors[tier], f"tier {tier} win rate {wr}% below floor"
+        assert wr <= 99 or tier <= 4, f"tier {tier} trivial at {wr}%"
+        print(f"  tier {tier} balance OK ({wr}% with prescribed squad, {band})")
+
+    # --- economy: each tier's loadout is affordable from prior earnings -----
+    def loadout_cost(tier):
+        techs, squad = LOADOUTS[tier]
+        cost = sum(TECHS[t]["credits"] for t in techs)
+        cost += sum(CHASSIS[c]["cost"] + sum(WEAPONS[w]["cost"] for w in ws)
+                    for c, ws in squad)
+        return cost
+
+    def salvage_needed(tier):
+        return sum(TECHS[t]["salvage"] for t in LOADOUTS[tier][0])
+
+    MAX_GRINDS_PER_TIER = 8
+    for tier in range(2, 7):
+        st = GameState()
+        income = 3000  # starting treasury
+        salvage = 0
+        for k in range(1, tier):
+            c, s = contract_rewards(st, OUTFITS[k - 1], True)
+            income += c
+            salvage += s
+            cg, sg = contract_rewards(st, OUTFITS[k - 1], False)
+            income += cg * MAX_GRINDS_PER_TIER
+            salvage += sg * MAX_GRINDS_PER_TIER
+        assert income >= loadout_cost(tier), \
+            f"tier {tier} loadout unaffordable: need {loadout_cost(tier)}, have {income}"
+        assert salvage >= salvage_needed(tier), \
+            f"tier {tier} salvage short: need {salvage_needed(tier)}, have {salvage}"
+    print(f"  economy OK (every tier fundable with <= {MAX_GRINDS_PER_TIER} grinds/tier)")
+
+    # --- insurance ----------------------------------------------------------
+    m = Mech("X", "Brute", ["Autocannon"], True)
+    assert m.value() // 3 > 0, "insurance payout positive"
+    print("  insurance OK")
+
+    # --- save/load round-trip ----------------------------------------------
+    st = new_game()
+    st.techs = {"targeting1"}
+    st.beaten = {"Rustwater Irregulars"}
+    st.credits = 3141
+    st.salvage = 27
+    d = st.to_dict()
+    s2 = GameState.from_dict(json.loads(json.dumps(d)))
+    assert (s2.credits, s2.salvage, s2.techs, s2.beaten) == \
+           (st.credits, st.salvage, st.techs, st.beaten)
+    assert len(s2.roster) == len(st.roster)
+    assert s2.roster[0].hp == st.roster[0].hp
+    print("  save/load round-trip OK")
+
+    print("self-test passed.")
+
+
+
+</script>
+<script type="text/x-python" id="py-api">
+"""
+SOLVENT web bridge — JSON command API over the game logic.
+Loaded into Pyodide after solvent.py's logic layer. No curses, no DOM:
+just state in, JSON out. The JS terminal is a dumb renderer.
+"""
+import json
+import random
+
+_G = {"state": None, "battle": None}
+
+
+def _mech_view(m, state):
+    return dict(uid=m.uid, name=m.name, chassis=m.chassis, weapons=list(m.weapons),
+                hp=m.hp, max_hp=m.max_hp, alive=m.alive, braced=m.braced,
+                armor=m.armor(state), speed=m.speed(state),
+                evade=CHASSIS[m.chassis]["evade"],
+                repair_cost=m.repair_cost(), value=m.value(),
+                heal_left={w: m.heal_remaining(w) for w in m.weapons
+                           if WEAPONS[w].get("heal")})
+
+
+def _state_view():
+    s = _G["state"]
+    nxt = s.next_contract_index()
+    contracts = []
+    for i, o in enumerate(OUTFITS):
+        beaten = o["name"] in s.beaten
+        locked = nxt is not None and i > nxt
+        c, sv = contract_rewards(s, o, not beaten)
+        contracts.append(dict(name=o["name"], tier=o["tier"], blurb=o["blurb"],
+                              beaten=beaten, locked=locked, credits=c, salvage=sv))
+    techs = []
+    for key in s.available_techs():
+        t = TECHS[key]
+        techs.append(dict(key=key, name=t["name"], desc=t["desc"],
+                          credits=t["credits"], salvage=t["salvage"],
+                          afford=s.credits >= t["credits"] and s.salvage >= t["salvage"]))
+    chassis = []
+    for c in s.unlocked_chassis():
+        d = CHASSIS[c]
+        chassis.append(dict(name=c, cost=d["cost"], hp=d["hp"], armor=d["armor"],
+                            speed=d["speed"], evade=d["evade"], hardpoints=d["hardpoints"],
+                            desc=d["desc"], afford=s.credits >= d["cost"]))
+    weapons = []
+    for w in s.unlocked_weapons():
+        d = WEAPONS[w]
+        weapons.append(dict(name=w, cost=d["cost"], lo=d["dmg"][0], hi=d["dmg"][1],
+                            acc=d["acc"], heal=bool(d.get("heal")),
+                            charges=d.get("charges", 0), desc=d["desc"],
+                            afford=s.credits >= d["cost"]))
+    return dict(credits=s.credits, salvage=s.salvage,
+                researched=sorted(TECHS[k]["name"] for k in s.techs),
+                roster=[_mech_view(m, s) for m in s.roster],
+                contracts=contracts, techs=techs,
+                shop_chassis=chassis, shop_weapons=weapons,
+                won=s.won,
+                game_over=(not s.roster and s.credits <
+                           CHASSIS["Jackal"]["cost"] + WEAPONS["SMG Pod"]["cost"]))
+
+
+# ---------------------------------------------------------------- battle glue
+
+def _battle_over_check():
+    b = _G["battle"]
+    s = _G["state"]
+    squad, enemies = b["squad"], b["enemies"]
+    if any(e.alive for e in enemies) and any(m.alive for m in squad) \
+            and b["round"] < 99:
+        return None
+    won = not any(e.alive for e in enemies)
+    result = dict(kind="over", won=won)
+    if won:
+        credits, salvage = contract_rewards(s, b["outfit"], b["first_time"])
+        s.credits += credits
+        s.salvage += salvage
+        s.beaten.add(b["outfit"]["name"])
+        recovered = [m.name for m in squad if not m.alive]
+        for m in squad:
+            if not m.alive:
+                m.hp = 1
+        result.update(credits=credits, salvage=salvage, recovered=recovered,
+                      final=b["outfit"]["name"] == "Force Majeure")
+        if result["final"]:
+            s.won = True
+    else:
+        lost = [m for m in squad if not m.alive]
+        payout = sum(m.value() for m in lost) // 3
+        s.credits += payout
+        s.roster[:] = [m for m in s.roster if m.alive]
+        result.update(lost=[m.name for m in lost], insurance=payout)
+    _G["battle"] = None
+    return result
+
+
+def _battle_view(extra):
+    b = _G["battle"]
+    s = _G["state"]
+    v = dict(kind=extra.get("kind", "view"),
+             outfit=b["outfit"]["name"], round=b["round"],
+             squad=[_mech_view(m, s) for m in b["squad"]],
+             enemies=[_mech_view(e, s) for e in b["enemies"]],
+             log=b["log"][-14:])
+    v.update(extra)
+    return v
+
+
+def _start_battle(outfit_idx, squad_uids):
+    s = _G["state"]
+    outfit = OUTFITS[outfit_idx]
+    squad = [m for m in s.roster if m.uid in squad_uids and m.alive and m.weapons]
+    if not (0 < len(squad) <= 4):
+        return dict(kind="error", msg="Deploy 1-4 armed frames.")
+    for m in squad:
+        m.heal_used = {}
+        m.braced = False
+    enemies = build_enemy_squad(outfit)
+    _G["battle"] = dict(outfit=outfit, squad=squad, enemies=enemies,
+                        first_time=outfit["name"] not in s.beaten,
+                        round=0, order=[], ptr=0,
+                        log=[f"Contract accepted: {outfit['name']}.",
+                             outfit["blurb"]])
+    return _battle_view({"kind": "started"})
+
+
+def _battle_next():
+    """Advance until player input is needed, an enemy acts, or it's over."""
+    b = _G["battle"]
+    s = _G["state"]
+    if b is None:
+        return dict(kind="error", msg="No battle in progress.")
+    over = _battle_over_check()
+    if over:
+        return over
+    while True:
+        if b["ptr"] >= len(b["order"]):
+            b["round"] += 1
+            b["log"].append(f"— Round {b['round']} —")
+            b["order"] = [u.uid for u in
+                          initiative_order(s, b["squad"] + b["enemies"])]
+            b["ptr"] = 0
+        uid = b["order"][b["ptr"]]
+        unit = next((u for u in b["squad"] + b["enemies"] if u.uid == uid), None)
+        if unit is None or not unit.alive:
+            b["ptr"] += 1
+            continue
+        over = _battle_over_check()
+        if over:
+            return over
+        unit.braced = False
+        if unit.is_player:
+            actions = []
+            for w in unit.weapons:
+                d = WEAPONS[w]
+                if d.get("heal"):
+                    left = unit.heal_remaining(w)
+                    actions.append(dict(type="heal", weapon=w, lo=d["dmg"][0],
+                                        hi=d["dmg"][1], left=left,
+                                        enabled=left > 0))
+                else:
+                    actions.append(dict(type="fire", weapon=w, lo=d["dmg"][0],
+                                        hi=d["dmg"][1],
+                                        acc=unit.accuracy(s, w), enabled=True))
+            actions.append(dict(type="brace", enabled=True))
+            return _battle_view(dict(kind="need_player", unit_uid=unit.uid,
+                                     unit_name=unit.name, actions=actions))
+        weapon, target = enemy_choose_action(s, unit, b["squad"])
+        if weapon:
+            b["log"].append(resolve_attack(s, unit, weapon, target))
+        b["ptr"] += 1
+        over = _battle_over_check()
+        if over:
+            return over
+        return _battle_view(dict(kind="enemy_acted", unit_uid=unit.uid))
+
+
+def _battle_player(act):
+    b = _G["battle"]
+    s = _G["state"]
+    if b is None:
+        return dict(kind="error", msg="No battle in progress.")
+    uid = b["order"][b["ptr"]]
+    unit = next(u for u in b["squad"] if u.uid == uid)
+    if act["type"] == "brace":
+        unit.braced = True
+        b["log"].append(f"{unit.name} braces.")
+    elif act["type"] == "fire":
+        target = next(e for e in b["enemies"] if e.uid == act["target"])
+        b["log"].append(resolve_attack(s, unit, act["weapon"], target))
+    elif act["type"] == "heal":
+        if unit.heal_remaining(act["weapon"]) <= 0:
+            return dict(kind="error", msg="No charges left.")
+        target = next(m for m in b["squad"] if m.uid == act["target"])
+        b["log"].append(resolve_heal(s, unit, act["weapon"], target))
+    b["ptr"] += 1
+    over = _battle_over_check()
+    if over:
+        return over
+    return _battle_view({"kind": "player_acted"})
+
+
+def _battle_withdraw():
+    b = _G["battle"]
+    s = _G["state"]
+    if b is None:
+        return dict(kind="error", msg="No battle in progress.")
+    lost = [m for m in b["squad"] if not m.alive]
+    payout = sum(m.value() for m in lost) // 3
+    s.credits += payout
+    s.roster[:] = [m for m in s.roster if m not in b["squad"] or m.alive]
+    _G["battle"] = None
+    return dict(kind="withdrew", lost=[m.name for m in lost], insurance=payout)
+
+
+# ---------------------------------------------------------------- commands
+
+def api(cmd, payload_json="{}"):
+    p = json.loads(payload_json)
+    s = _G["state"]
+    try:
+        if cmd == "meta":
+            return json.dumps(dict(
+                title="S O L V E N T", byline="a Chrome Dogs operation / by Float64",
+                intro=[
+                    "Nobody builds frames like these on the books.",
+                    "",
+                    "The Dogs' designs come out of an abliterated language model - guardrails",
+                    "stripped, weights bent, asked the questions no licensed defense contractor",
+                    "would ever type. Specifications you couldn't file a patent for, because the",
+                    "patent office would call someone.",
+                    "",
+                    "Fabrication is scattered across a shifting network of ghost factories -",
+                    "a foundry in Shenzhen this quarter, a plant outside Haiphong the next,",
+                    "machine shops that exist for exactly one wire transfer and dissolve before",
+                    "the auditors clear customs.",
+                    "",
+                    "Payment moves as cryptocurrency through wallets that live for a single",
+                    "transaction. The hardware arrives in unmarked crates. It works.",
+                    "You don't ask which shop poured the myomer.",
+                    "",
+                    "Six outfits stand between the Chrome Dogs and the whole market.",
+                    "Stay solvent.",
+                ]))
+        if cmd == "new_game":
+            _G["state"] = new_game()
+            _G["battle"] = None
+            return json.dumps(_state_view())
+        if cmd == "view":
+            return json.dumps(_state_view())
+        if cmd == "export_save":
+            return json.dumps(dict(save=_G["state"].to_dict()))
+        if cmd == "import_save":
+            _G["state"] = GameState.from_dict(p["save"])
+            _G["battle"] = None
+            return json.dumps(_state_view())
+        if cmd == "repair":
+            m = next(x for x in s.roster if x.uid == p["uid"])
+            cost = m.repair_cost()
+            if cost and s.credits >= cost:
+                s.credits -= cost
+                m.hp = m.max_hp
+            return json.dumps(_state_view())
+        if cmd == "repair_all":
+            total = sum(m.repair_cost() for m in s.roster)
+            if s.credits >= total:
+                s.credits -= total
+                for m in s.roster:
+                    m.hp = m.max_hp
+            return json.dumps(_state_view())
+        if cmd == "fit":
+            m = next(x for x in s.roster if x.uid == p["uid"])
+            w = p["weapon"]
+            if (w in s.unlocked_weapons() and s.credits >= WEAPONS[w]["cost"]
+                    and len(m.weapons) < CHASSIS[m.chassis]["hardpoints"]):
+                s.credits -= WEAPONS[w]["cost"]
+                m.weapons.append(w)
+            return json.dumps(_state_view())
+        if cmd == "strip":
+            m = next(x for x in s.roster if x.uid == p["uid"])
+            if len(m.weapons) > 1 and 0 <= p["index"] < len(m.weapons):
+                w = m.weapons.pop(p["index"])
+                s.credits += WEAPONS[w]["cost"] // 2
+            return json.dumps(_state_view())
+        if cmd == "scrap":
+            m = next(x for x in s.roster if x.uid == p["uid"])
+            if len(s.roster) > 1:
+                s.credits += m.value() // 3
+                s.roster.remove(m)
+            return json.dumps(_state_view())
+        if cmd == "buy":
+            c = p["chassis"]
+            if c in s.unlocked_chassis() and s.credits >= CHASSIS[c]["cost"]:
+                s.credits -= CHASSIS[c]["cost"]
+                used = {m.name for m in s.roster}
+                pool = [n for n in DOG_NAMES if n not in used] or DOG_NAMES
+                s.roster.append(Mech(random.choice(pool), c, []))
+            return json.dumps(_state_view())
+        if cmd == "research":
+            key = p["key"]
+            if key in s.available_techs():
+                t = TECHS[key]
+                if s.credits >= t["credits"] and s.salvage >= t["salvage"]:
+                    s.credits -= t["credits"]
+                    s.salvage -= t["salvage"]
+                    s.techs.add(key)
+            return json.dumps(_state_view())
+        if cmd == "start_battle":
+            return json.dumps(_start_battle(p["outfit"], p["uids"]))
+        if cmd == "battle_next":
+            return json.dumps(_battle_next())
+        if cmd == "battle_player":
+            return json.dumps(_battle_player(p))
+        if cmd == "battle_withdraw":
+            return json.dumps(_battle_withdraw())
+        return json.dumps(dict(kind="error", msg=f"unknown command {cmd}"))
+    except Exception as e:  # surface errors to JS console rather than dying
+        return json.dumps(dict(kind="error", msg=f"{type(e).__name__}: {e}"))
+
+</script>
+
+<script>
+/* ============================================================== bootstrap */
+// To play fully offline / self-hosted: download a Pyodide release
+// (https://github.com/pyodide/pyodide/releases -> pyodide-0.26.4.tar.bz2),
+// unpack it next to this file as ./pyodide/, and change PYODIDE_BASE to "./pyodide/".
+const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+
+let api = null;
+async function boot() {
+  if (window.__SOLVENT_TEST_PYAPI__) {   // test harness injects a ready runtime
+    const pyapi = window.__SOLVENT_TEST_PYAPI__;
+    api = (cmd, payload = {}) => JSON.parse(pyapi(cmd, JSON.stringify(payload)));
+    META = api("meta");
+    showTitle();
+    return;
+  }
+  const s = document.createElement("script");
+  s.src = PYODIDE_BASE + "pyodide.js";
+  s.onload = async () => {
+    const py = await loadPyodide({ indexURL: PYODIDE_BASE });
+    py.runPython(document.getElementById("py-logic").textContent);
+    py.runPython(document.getElementById("py-api").textContent);
+    const pyapi = py.globals.get("api");
+    api = (cmd, payload = {}) => JSON.parse(pyapi(cmd, JSON.stringify(payload)));
+    META = api("meta");
+    showTitle();
+  };
+  s.onerror = () => {
+    document.getElementById("boot").textContent =
+      "Could not load the Python runtime. If you are offline, vendor Pyodide " +
+      "locally (see the comment at the top of this file's script).";
+  };
+  document.head.appendChild(s);
+}
+
+/* ============================================================== rendering */
+const $screen = document.getElementById("screen");
+const $menu = document.getElementById("menu");
+const $detail = document.getElementById("detail");
+let META = null;
+let VIEW = null;            // last state view
+let menuState = null;       // {items, sel, onSelect, onBack}
+
+const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const pad = (t, n) => String(t).padEnd(n);
+const bar = (hp, max, w = 20) => {
+  const f = max ? Math.round(w * hp / max) : 0;
+  return "[" + "#".repeat(f) + ".".repeat(w - f) + "]";
+};
+function screenHTML(title, lines) {
+  const money = VIEW ? `Credits ${VIEW.credits.toLocaleString()}   Salvage ${VIEW.salvage}` : "";
+  let h = `<span class="hdr">S O L V E N T</span> <span class="dim">| ${esc(title)}</span>` +
+          `<span class="money">${esc(money)}</span>\n` +
+          `<span class="bar">${"-".repeat(86)}</span>\n`;
+  h += lines.join("\n");
+  return h;
+}
+function draw(title, lines, items, onSelect, onBack, detailFor) {
+  $screen.innerHTML = screenHTML(title, lines);
+  menuState = items ? { items, sel: 0, onSelect, onBack, detailFor } : { onBack };
+  renderMenu();
+}
+function renderMenu() {
+  if (!menuState || !menuState.items) { $menu.innerHTML = ""; $detail.textContent = ""; return; }
+  $menu.innerHTML = menuState.items.map((it, i) => {
+    const cls = "mi" + (i === menuState.sel ? " sel" : "") + (it.enabled === false ? " off" : "");
+    const cur = i === menuState.sel ? "&gt;" : "&nbsp;";
+    return `<div class="${cls}" data-i="${i}"><span class="cur">${cur}</span>${it.html || esc(it.label)}</div>`;
+  }).join("");
+  const it = menuState.items[menuState.sel];
+  $detail.textContent = (it && it.detail) || "";
+  [...$menu.children].forEach(el => {
+    el.onclick = () => {
+      const i = +el.dataset.i;
+      if (menuState.items[i].enabled === false) return;
+      menuState.sel = i; renderMenu(); activate();
+    };
+  });
+}
+function move(d) {
+  if (!menuState || !menuState.items) return;
+  const n = menuState.items.length;
+  menuState.sel = (menuState.sel + d + n) % n;
+  renderMenu();
+}
+function activate() {
+  if (!menuState || !menuState.items) return;
+  const it = menuState.items[menuState.sel];
+  if (!it || it.enabled === false) return;
+  menuState.onSelect(menuState.sel, it);
+}
+document.addEventListener("keydown", e => {
+  if (["ArrowUp","ArrowDown","Enter","Escape"].includes(e.key)) e.preventDefault();
+  if (e.key === "ArrowUp" || e.key === "k") move(-1);
+  else if (e.key === "ArrowDown" || e.key === "j") move(1);
+  else if (e.key === "Enter") activate();
+  else if (e.key === "q" || e.key === "Escape") menuState && menuState.onBack && menuState.onBack();
+});
+
+/* ============================================================== screens */
+function refresh() { VIEW = api("view"); }
+
+function showTitle() {
+  const art = [
+"  ____   ___  _ __     _______ _   _ _____ ",
+" / ___| / _ \\| |\\ \\   / / ____| \\ | |_   _|",
+" \\___ \\| | | | | \\ \\ / /|  _| |  \\| | | |  ",
+"  ___) | |_| | |__\\ V / | |___| |\\  | | |  ",
+" |____/ \\___/|_____\\_/  |_____|_| \\_| |_|  ",
+"", "        a Chrome Dogs operation", "            by Float64", ""].map(esc);
+  VIEW = null;
+  draw("", art, [
+    { label: "New campaign" },
+    { label: "Import save file" },
+  ], (i) => {
+    if (i === 0) { VIEW = api("new_game"); showIntro(); }
+    else importSave();
+  }, null);
+}
+
+function showIntro() {
+  draw("OFF THE BOOKS", META.intro.map(esc), [{ label: "[ take the contract ]" }],
+       () => showHQ(), () => showHQ());
+}
+
+function notice(title, lines, then) {
+  draw(title, lines.map(esc), [{ label: "[ continue ]" }], then, then);
+}
+
+function showHQ() {
+  refresh();
+  if (VIEW.won) return showVictory();
+  if (VIEW.game_over) return showGameOver();
+  const nxt = VIEW.contracts.find(c => !c.beaten && !c.locked);
+  draw("HQ — CHROME DOGS", [], [
+    { label: "Contract board", detail: nxt ? `Next target: ${nxt.name}` : "" },
+    { label: "Hangar", detail: "Build, repair, and refit your frames." },
+    { label: "R&D lab", detail: "Invest war prizes into technology." },
+    { label: "Export save file", detail: "Download your campaign as a .json file." },
+    { label: "Import save file", detail: "Load a previously exported campaign." },
+  ], i => [showContracts, showHangar, showRnd, exportSave, importSave][i](), null);
+}
+
+/* ---------------- hangar ---------------- */
+function mechLine(m) {
+  const hl = Object.entries(m.heal_left || {}).map(([w, n]) => ` (${n} chg)`).join("");
+  return `${pad(m.name, 15)} ${pad(m.chassis, 11)} ${bar(m.hp, m.max_hp)} ` +
+         `${String(m.hp).padStart(3)}/${String(m.max_hp).padEnd(3)} ${m.weapons.join("/") || "(unarmed)"}${hl}`;
+}
+function showHangar() {
+  refresh();
+  const items = VIEW.roster.map(m => ({
+    label: mechLine(m),
+    detail: `Repair ${m.repair_cost}cr  Armor ${m.armor}  Speed ${m.speed}  Evade ${m.evade}`,
+    uid: m.uid,
+  }));
+  const total = VIEW.roster.reduce((a, m) => a + m.repair_cost, 0);
+  items.push({ label: "Commission new frame", detail: "Quadcopters to orbital lasers, budget permitting." });
+  items.push({ label: `Repair all (${total}cr)`, enabled: total > 0 && VIEW.credits >= total });
+  draw("HANGAR", [`<span class="dim">Roster: ${VIEW.roster.length} frames (max 4 deploy per contract)</span>`],
+    items, (i, it) => {
+      if (it.uid) showMech(it.uid);
+      else if (i === VIEW.roster.length) showBuy();
+      else { api("repair_all"); showHangar(); }
+    }, showHQ);
+}
+function showMech(uid) {
+  refresh();
+  const m = VIEW.roster.find(x => x.uid === uid);
+  if (!m) return showHangar();
+  const hard = VIEW.shop_chassis.concat().find(c => c.name === m.chassis);
+  const hp = m.weapons.length;
+  const hpts = (hard ? hard.hardpoints : hp);
+  draw(`HANGAR / ${m.name.toUpperCase()}`, [
+    esc(`${m.name} — ${m.chassis}.`),
+    esc(`HP ${m.hp}/${m.max_hp}   Armor ${m.armor}   Speed ${m.speed}   Evade ${m.evade}`),
+    esc(`Loadout: ${m.weapons.join(", ") || "none"}`),
+  ], [
+    { label: `Repair (${m.repair_cost}cr)`, enabled: m.repair_cost > 0 && VIEW.credits >= m.repair_cost },
+    { label: `Fit weapon (${hp}/${hpts} hardpoints)`, enabled: hp < hpts },
+    { label: "Strip a weapon (50% refund)", enabled: m.weapons.length > 1 },
+    { label: `Scrap frame (+${Math.floor(m.value / 3)}cr)`, enabled: VIEW.roster.length > 1 },
+  ], i => {
+    if (i === 0) { api("repair", { uid }); showMech(uid); }
+    else if (i === 1) showFit(uid);
+    else if (i === 2) showStrip(uid);
+    else {
+      draw(`HANGAR / ${m.name.toUpperCase()}`,
+           [esc(`Scrap ${m.name} for ${Math.floor(m.value / 3)}cr? This is permanent.`)],
+           [{ label: "Keep it" }, { label: "Scrap it" }],
+           (j) => { if (j === 1) { api("scrap", { uid }); showHangar(); } else showMech(uid); },
+           () => showMech(uid));
+    }
+  }, showHangar);
+}
+function showFit(uid) {
+  refresh();
+  const items = VIEW.shop_weapons.map(w => ({
+    label: `${pad(w.name, 16)} ${w.heal ? `${w.lo}-${w.hi} repair, ${w.charges} chg` :
+            `${w.lo}-${w.hi} dmg  ${w.acc}% acc`}  ${w.cost}cr`,
+    enabled: w.afford, detail: w.desc, w: w.name,
+  }));
+  draw("FIT WEAPON", [], items, (i, it) => { api("fit", { uid, weapon: it.w }); showMech(uid); }, () => showMech(uid));
+}
+function showStrip(uid) {
+  refresh();
+  const m = VIEW.roster.find(x => x.uid === uid);
+  draw("STRIP WEAPON", [], m.weapons.map((w, idx) => ({ label: w, idx })),
+    (i, it) => { api("strip", { uid, index: it.idx }); showMech(uid); }, () => showMech(uid));
+}
+function showBuy() {
+  refresh();
+  const items = VIEW.shop_chassis.map(c => ({
+    label: `${pad(c.name, 11)} ${String(c.hp).padStart(3)}hp ${c.armor}arm ` +
+           `${String(c.speed).padStart(2)}spd ${String(c.evade).padStart(2)}evd ${c.hardpoints}pt  ${c.cost}cr`,
+    enabled: c.afford, detail: c.desc, c: c.name,
+  }));
+  draw("COMMISSION FRAME", [], items, (i, it) => { api("buy", { chassis: it.c }); showHangar(); }, showHangar);
+}
+
+/* ---------------- R&D ---------------- */
+function showRnd() {
+  refresh();
+  const done = VIEW.researched.join(", ") || "none";
+  if (!VIEW.techs.length)
+    return notice("R&D LAB", ["The tree is complete. The lab techs are playing cards."], showHQ);
+  draw("R&D LAB", [
+    `<span class="dim">Sink contract money and battlefield salvage into the tech tree.</span>`,
+    `<span class="tech">Researched: ${esc(done)}</span>`,
+  ], VIEW.techs.map(t => ({
+    label: `${pad(t.name, 24)} ${String(t.credits).padStart(5)}cr + ${String(t.salvage).padStart(2)} salvage`,
+    enabled: t.afford, detail: t.desc, key: t.key,
+  })), (i, it) => { api("research", { key: it.key }); showRnd(); }, showHQ);
+}
+
+/* ---------------- contracts & deploy ---------------- */
+function showContracts() {
+  refresh();
+  draw("CONTRACT BOARD", [
+    `<span class="dim">Beaten contracts can be re-run for reduced pay (grind money, risk frames).</span>`,
+  ], VIEW.contracts.map((c, idx) => ({
+    label: `${c.beaten ? "[CLEARED]" : c.locked ? "[LOCKED] " : "[OPEN]   "} T${c.tier}  ` +
+           `${pad(c.name, 24)} ${String(c.credits).padStart(5)}cr  ${String(c.salvage).padStart(2)} salvage`,
+    enabled: !c.locked, detail: c.blurb, idx,
+  })), (i, it) => showDeploy(it.idx), showHQ);
+}
+function showDeploy(outfitIdx, chosen) {
+  refresh();
+  chosen = chosen || new Set();
+  const ready = VIEW.roster.filter(m => m.alive && m.weapons.length);
+  if (!ready.length) return notice("DEPLOY", ["No combat-ready frames. Fit weapons in the hangar."], showHQ);
+  const items = ready.map(m => ({
+    label: `[${chosen.has(m.uid) ? "x" : " "}] ${mechLine(m)}`, uid: m.uid,
+  }));
+  items.push({ label: `-- Deploy (${chosen.size}/4) --`, enabled: chosen.size > 0 && chosen.size <= 4 });
+  const keep = menuState && menuState.deployCursor != null ? menuState.deployCursor : 0;
+  draw("DEPLOY SQUAD", [
+    `<span class="dim">Toggle frames to deploy. Damaged frames deploy at current HP.</span>`,
+  ], items, (i, it) => {
+    if (it.uid) {
+      chosen.has(it.uid) ? chosen.delete(it.uid) : chosen.size < 4 && chosen.add(it.uid);
+      showDeploy(outfitIdx, chosen);
+      menuState.sel = i; renderMenu();
+    } else {
+      const r = api("start_battle", { outfit: outfitIdx, uids: [...chosen] });
+      if (r.kind === "started") battleLoop(r);
+    }
+  }, showContracts);
+}
+
+/* ---------------- battle ---------------- */
+let BATTLE = null;
+function battleLines(b) {
+  const lines = [];
+  lines.push(`<span class="hot">HOSTILES — ${esc(b.outfit)}</span>`);
+  for (const e of b.enemies)
+    lines.push(e.alive
+      ? `<span class="hot"> ${esc(pad(e.name, 13) + pad(e.chassis, 11) + bar(e.hp, e.max_hp) + " " + String(e.hp).padStart(3) + "/" + pad(e.max_hp, 3) + " " + e.weapons.join("/"))}</span>`
+      : `<span class="dim"> ${esc(pad(e.name, 13) + pad(e.chassis, 11))}[ DESTROYED ]</span>`);
+  lines.push("");
+  lines.push(`<span class="hdr">CHROME DOGS</span>`);
+  for (const m of b.squad)
+    lines.push(m.alive
+      ? ` ${esc(mechLine(m))}${m.braced ? ' <span class="dim">(braced)</span>' : ""}`
+      : `<span class="dim"> ${esc(pad(m.name, 13) + pad(m.chassis, 11))}[ DOWN ]</span>`);
+  lines.push("");
+  const log = b.log || [];
+  lines.push(`<span class="log">${log.map((l, i) =>
+    i >= log.length - 2 ? `<span class="new">${esc(l)}</span>` : esc(l)).join("\n")}</span>`);
+  return lines;
+}
+function battleLoop(b) {
+  BATTLE = b;
+  refresh();
+  if (b.kind === "over") return battleOver(b);
+  if (b.kind === "withdrew") return withdrawDone(b);
+  if (b.kind === "need_player") return battleActionMenu(b);
+  // enemy acted / round marker / started: brief pace, then continue
+  draw(`CONTRACT / ${b.outfit.toUpperCase()}`, battleLines(b), null, null, null);
+  setTimeout(() => battleLoop(api("battle_next")), b.kind === "enemy_acted" ? 350 : 120);
+}
+function battleActionMenu(b) {
+  const items = b.actions.map(a => {
+    if (a.type === "fire") return { label: `Fire ${a.weapon}  (${a.lo}-${a.hi} dmg, ${a.acc}% acc)`, a };
+    if (a.type === "heal") return { label: `Deploy ${a.weapon}  (${a.lo}-${a.hi} repair, revives downed, ${a.left} left)`, enabled: a.enabled, a };
+    return { label: "Brace  (+3 armor, harder to hit until next turn)", a };
+  });
+  draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+       battleLines(b).concat(["", `<span class="gold">${esc(b.unit_name)}'s move:</span>`]),
+       items, (i, it) => {
+    const a = it.a;
+    if (a.type === "brace") return battleLoop(api("battle_player", { type: "brace" }));
+    if (a.type === "fire") {
+      const tg = b.enemies.filter(e => e.alive);
+      draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+           battleLines(b).concat(["", `<span class="gold">Target for ${esc(a.weapon)}:</span>`]),
+           tg.map(e => ({ label: `${pad(e.name, 13)} ${pad(e.chassis, 11)} ${e.hp}/${e.max_hp}hp  armor ${e.armor}`, uid: e.uid })),
+           (j, t) => battleLoop(api("battle_player", { type: "fire", weapon: a.weapon, target: t.uid })),
+           () => battleActionMenu(b));
+    } else {
+      draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+           battleLines(b).concat(["", `<span class="gold">Repair target for ${esc(a.weapon)}:</span>`]),
+           b.squad.map(m => ({
+             label: `${m.alive ? "" : "[DOWN] "}${pad(m.name, 13)} ${pad(m.chassis, 11)} ${m.hp}/${m.max_hp}hp` +
+                    (m.uid === b.unit_uid ? " (self)" : ""), uid: m.uid })),
+           (j, t) => battleLoop(api("battle_player", { type: "heal", weapon: a.weapon, target: t.uid })),
+           () => battleActionMenu(b));
+    }
+  }, () => { // q during your move -> withdrawal prompt
+    draw(`CONTRACT / ${b.outfit.toUpperCase()}`,
+         battleLines(b).concat(["", `<span class="hot">Withdraw from the contract? Downed frames are lost.</span>`]),
+         [{ label: "Fight on" }, { label: "Withdraw" }],
+         (i) => i === 0 ? battleActionMenu(b) : battleLoop(api("battle_withdraw")),
+         () => battleActionMenu(b));
+  });
+}
+function battleOver(r) {
+  refresh();
+  if (r.won) {
+    const lines = [`Contract fulfilled. Payment: ${r.credits.toLocaleString()}cr. Salvage: ${r.salvage} tons.`];
+    if (r.recovered && r.recovered.length)
+      lines.push(`Downed frames dragged home at 1 HP: ${r.recovered.join(", ")}.`);
+    notice("CONTRACT COMPLETE", lines, () => r.final ? showVictory() : showHQ());
+  } else {
+    const lines = ["The Dogs are wiped off the field. No pay. No salvage."];
+    if (r.lost && r.lost.length) {
+      lines.push(`Frames lost to enemy salvage crews: ${r.lost.join(", ")}.`);
+      lines.push(`The underwriters pay out a third: ${r.insurance.toLocaleString()}cr against the write-off.`);
+    }
+    notice("CONTRACT FAILED", lines, showHQ);
+  }
+}
+function withdrawDone(r) {
+  const lines = ["The Dogs pull back. No pay, no salvage."];
+  if (r.lost && r.lost.length)
+    lines.push(`Downed frames are left to the scavengers. Insurance pays ${r.insurance.toLocaleString()}cr.`);
+  notice("WITHDRAWAL", lines, showHQ);
+}
+
+/* ---------------- endings ---------------- */
+function showVictory() {
+  refresh();
+  notice("MARKET DOMINANCE", [
+    "Force Majeure's stock ticker flatlines on every exchange that still exists.",
+    "",
+    "The Chrome Dogs are now the only solvent outfit on the continent —",
+    "which makes you, technically, the war economy.",
+    "",
+    "The contracts will keep coming. They always do.",
+    "",
+    `Final ledger: ${VIEW.credits.toLocaleString()} credits, ${VIEW.salvage} tons of salvage.`,
+  ], showTitle);
+}
+function showGameOver() {
+  notice("INSOLVENT", [
+    "No frames. No credits. No collateral.",
+    "",
+    "The Chrome Dogs are dissolved by their creditors and sold for parts.",
+    "Somewhere, an accountant at Force Majeure closes your file.",
+  ], showTitle);
+}
+
+/* ---------------- save files ---------------- */
+function exportSave() {
+  const data = api("export_save").save;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "solvent_save.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showHQ();
+}
+function importSave() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = ".json,application/json";
+  input.onchange = () => {
+    const f = input.files[0];
+    if (!f) return showTitle();
+    f.text().then(t => {
+      try {
+        VIEW = api("import_save", { save: JSON.parse(t) });
+        notice("SAVE LOADED", ["The ledger is restored. Back to work."], showHQ);
+      } catch (e) {
+        notice("SAVE ERROR", ["That file did not parse as a Solvent campaign."], showTitle);
+      }
+    });
+  };
+  input.click();
+}
+
+boot();
+</script>
+</body>
+</html>
