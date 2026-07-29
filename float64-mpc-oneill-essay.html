@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess, Not Reflex: What a Quantum MPC Paper Teaches Us About Walking in a Spinning City</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #ffffff;
+    --panel:   #ffffff;
+    --border:  #e0e4ea;
+    --acc:     #00bfff;
+    --orange:  #ff8c00;
+    --body:    #333333;
+    --head:    #1a1a1a;
+    --muted:   #777777;
+    --font:    "Courier New", monospace;
+    --read:    "Source Sans 3", sans-serif;
+  }
+
+  html, body { background: var(--bg); color: var(--body); font-family: var(--read); }
+  body{ line-height: 1.8; font-size: 18px; }
+  a { color: var(--acc); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ── Brand row — copied exactly from float64co.github.io ── */
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 28px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .brand {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: italic;
+    font-variation-settings: "wdth" 100;
+    font-size: 36px;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  @media (max-width: 480px) {
+    .brand { font-size: 24px; }
+  }
+  .brand #float64 {
+    font-weight: bold;
+    color: white;
+    background-color: #87CEEB;
+    padding: 5px 10px;
+    font-style: italic;
+  }
+  .brand #welcome {
+    color: white;
+    background-color: black;
+    padding: 5px 10px;
+    font-style: normal;
+  }
+
+  /* ── Page frame ── */
+  .wrap{ max-width: 640px; margin: 0 auto; padding: 0 24px 100px; text-align: center; }
+
+  header.masthead{ padding: 48px 24px 32px; text-align: center; }
+  .kicker{
+    font-family: var(--font);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  h1.title{
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    margin: 10px 0 16px;
+    color: var(--head);
+  }
+  .dek{
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 46ch;
+    margin: 0 auto;
+  }
+
+  /* ── Body typography ── */
+  main{ padding-top: 44px; }
+
+  h2{
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--head);
+    margin: 56px 0 18px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  h2 .idx{ color: var(--acc); margin-right: 8px; }
+
+  h3{
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--head);
+    margin: 30px 0 10px;
+  }
+
+  p{ margin: 0 0 18px; color: var(--body); text-align: left; }
+  strong{ color: var(--head); }
+
+  .lede{ font-size: 18px; }
+
+  blockquote{
+    margin: 28px auto;
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-style: italic;
+    font-size: 15.5px;
+    max-width: 50ch;
+    text-align: center;
+  }
+
+  .stat-row{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    margin: 30px 0 34px;
+  }
+  .stat{ padding: 18px 10px; border-left: 1px solid var(--border); }
+  .stat:first-child{ border-left: none; }
+  .stat .num{
+    font-family: "IBM Plex Sans", sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--acc);
+    display: block;
+  }
+  .stat .lbl{
+    font-family: var(--font);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  ol.stages{ counter-reset: stage; list-style: none; padding: 0; margin: 20px 0; text-align: left; }
+  ol.stages li{
+    counter-increment: stage;
+    position: relative;
+    padding: 4px 0 20px 44px;
+    border-left: 1px solid var(--border);
+    margin-left: 14px;
+  }
+  ol.stages li:last-child{ border-left: 1px solid transparent; padding-bottom: 0; }
+  ol.stages li::before{
+    content: counter(stage);
+    position: absolute;
+    left: -14px;
+    top: 2px;
+    width: 27px;
+    height: 27px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid var(--acc);
+    color: var(--acc);
+    font-family: var(--font);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ol.stages b{ color: var(--head); }
+
+  .callout{
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 4px;
+    margin: 26px 0;
+    font-size: 15px;
+    color: var(--body);
+    text-align: left;
+  }
+  .callout .lbl{
+    display: block;
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--orange);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  footer{
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  @media (max-width: 560px){
+    header.masthead{ padding: 36px 20px 24px; }
+    h1.title{ font-size: 24px; }
+    .stat-row{ grid-template-columns: 1fr; }
+    .stat{ border-left: none; border-top: 1px solid var(--border); }
+    .stat:first-child{ border-top: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <div class="brand">
+    <span id="float64">Float64</span><span id="welcome">Amplifier</span>
+  </div>
+</div>
+
+<header class="masthead">
+  <p class="kicker">Field notes · control theory</p>
+  <h1 class="title">Chess, Not Reflex — What a Quantum MPC Paper Teaches Us About Walking in a Spinning City</h1>
+  <p class="dek">A plain-language walk through <a href="https://arxiv.org/abs/2607.24992">arXiv:2607.24992</a>, and what its control philosophy has to say about bipedal, thrust-assisted robots working an O'Neill cylinder.</p>
+</header>
+
+<div class="wrap">
+<main>
+
+<p class="lede">Somewhere in a Sandia National Laboratories preprint about quantum circuits, there's an idea that has nothing to do with qubits at all. It's an idea about how to make a decision when you can only see a little way ahead, and it happens to be the exact same idea that keeps a two-legged robot upright. This essay is about that idea — where it comes from in the paper, and where it leads once you point it at a rotating space habitat.</p>
+
+<h2><span class="idx">01</span>Two ways to play a game you can't fully see</h2>
+
+<p>The paper in question, <em>"A Model Predictive Control-Inspired Quantum Algorithm,"</em> by Dominic Messina, Alicia Magann, Mohan Sarovar, and Helen Durand, is real — posted to arXiv on July 27, 2026, out of Wayne State University and Sandia. It lives squarely in quantum computing, but its engine is borrowed wholesale from an older, more familiar discipline: the control theory that flies rockets, runs chemical plants, and walks robots.</p>
+
+<p>Picture a game where you press one button at a time, and every press locks in forever. You're trying to reach the lowest, best possible ending. Two old strategies exist for this. The first plans the entire sequence up front, using a helper that guesses and checks — powerful in principle, but on a big enough game the helper gets lost on a flat, bumpy map and never finds its way. The second strategy doesn't plan at all: it peeks at the screen after every press and applies a simple downhill rule. It's safe and steady, but it needs an enormous number of presses, and it can wander into an ending that's merely fine rather than good.</p>
+
+<p>The paper's contribution is a third way — a chess player rather than a planner or a reflex. Look ahead a handful of moves using a mental model of the game, plan the best short sequence, but only actually press the first button. Then peek at the real screen and re-plan from there. Control engineers call this a <strong>receding horizon</strong>, and it's the defining trick of Model Predictive Control, or MPC.</p>
+
+<p>Three details make the chess player trustworthy. Its mental model doesn't need to be perfect, because it re-checks reality after every single move — errors get corrected before they compound. It carries a built-in guarantee: the authors add a rule forcing its imagined final position to match what the old reflex strategy would have reached anyway, which proves, mathematically, that the chess player never ends up worse off. And it comes with a dial: look further ahead and you play better, but thinking costs more, so the paper leans on approximations (Pauli propagation, classical shadows) to keep that dial affordable. Tested on graph-partitioning and magnetism problems, the approach reached good answers in shallower circuits than the pure-reflex method it was compared against.</p>
+
+<h2><span class="idx">02</span>Why a quantum paper is secretly a robotics paper</h2>
+
+<p>Here's the detail that matters for anyone building robots: MPC did not originate in quantum computing. It has run chemical plants for decades and is now the dominant framework for how modern legged robots walk. The paper's authors imported an established control idea into a new domain — which means the borrowing runs just as well in the other direction. Strip out the qubits, and what's left is a design pattern that a robotics team can lift directly.</p>
+
+<p>Whole-body controllers for bipeds already do a version of exactly what the paper describes. They don't optimize the robot's true, absurdly complex dynamics in real time — instead they lean on simplified stand-ins like the Linear Inverted Pendulum or a centroidal rigid-body model, the same trade-off the paper makes when it swaps exact quantum simulation for a truncated, approximate one. Both fields hit the identical wall: a richer model predicts better, but it costs more than the clock allows. Both solve it the same way — plan a short horizon, execute one step, re-plan — and both lean on terminal constraints to convert "probably fine" into "provably won't fail," whether failure means underperforming a baseline or falling on your face.</p>
+
+<blockquote>The honest version of the connection: the paper's quantum mechanics won't run on a robot. Its control philosophy already does.</blockquote>
+
+<h2><span class="idx">03</span>The physics of the cylinder you're actually building</h2>
+
+<p>None of this matters until it's grounded in real numbers, so here's what a classic O'Neill cylinder — radius roughly 3.2 kilometers, spinning at about half a revolution per minute to hold 1 g at the rim — actually does to something walking around inside it.</p>
+
+<div class="stat-row">
+  <div class="stat"><span class="num">≈1.7%</span><span class="lbl">of g from Coriolis at 1.5 m/s walking speed</span></div>
+  <div class="stat"><span class="num">≈0.06%</span><span class="lbl">head-to-foot gravity difference, 2 m tall</span></div>
+  <div class="stat"><span class="num">→0 g</span><span class="lbl">effective gravity as radius shrinks toward the hub</span></div>
+</div>
+
+<p>Ordinary walking at the rim of a large cylinder turns out to be gentle. The sideways Coriolis push at a normal walking pace comes to less than two percent of body weight — background noise, not a design constraint. The gradient between your head and your feet is even smaller. What does change, sharply and unavoidably, is gravity itself as you move inward: it scales with radius, so it falls toward zero near the spin axis, where the non-rotating docking hub sits. Shrink the habitat instead of the person — down to a 100-meter radius — and the same gradient climbs to around two percent, closing in on the comfort limits (roughly two rotations per minute) that habitat designers have used for half a century.</p>
+
+<h2><span class="idx">04</span>Mapping the paper onto a robot in that cylinder</h2>
+
+<h3>The receding horizon becomes the walking clock</h3>
+<p>A humanoid walking from the rim toward the hub crosses a continuously changing gravity field, which means its footstep timing — set by an inverted-pendulum "clock" — is constantly out of date. That's precisely the situation a receding horizon exists for: re-plan every step using the gravity you actually have right now, not the gravity you had ten meters ago. The paper's terminal-constraint proof is a template for guaranteeing that kind of controller degrades gracefully as g drops, instead of failing suddenly.</p>
+
+<h3>The truncation trade-off is the same trade-off</h3>
+<p>The paper's central bargain — truncate the model aggressively, let feedback cover the gap, but know where truncation finally breaks — is also the central bargain in choosing how much rotating-frame physics (Coriolis terms, centrifugal terms) a real-time robot controller can afford to carry. Given how small those terms are at the rim of a large cylinder, a simple template model may be entirely sufficient there; the paper's caution about aggressive truncation is really a warning about the hub, not the rim.</p>
+
+<h3>Terminal constraints are fall-avoidance</h3>
+<p>Where the paper adds a terminal constraint to guarantee it won't underperform a trusted baseline, a legged robot's terminal constraint guarantees it won't fall. Near a vacuum worksite or the low-gravity core, that's not an abstraction — it's the difference between a recoverable stumble and a lost robot.</p>
+
+<h3>Thrust-assist is a control-allocation problem MPC already solves</h3>
+<p>Thruster-assisted bipeds already exist on Earth. Caltech's LEONARDO stands under a meter tall and balances using leg joints together with four shoulder-mounted propellers; Northeastern's Harpy pairs thrusters with a capture-point controller solved through quadratic programming. In a rotating habitat, the natural extension is a robot whose legs carry load where gravity is meaningful and whose thrusters take over balance authority as gravity fades near the hub, or during fast turns where Coriolis coupling briefly matters more. MPC is the natural place to decide, several steps ahead, whether the next moment calls for a footstep or a thruster pulse — the same look-ahead-then-commit structure the paper builds for choosing quantum gates. One hardware caveat travels along with it: LEONARDO and Harpy both use aerodynamic propellers, which do nothing in vacuum, so a construction-zone robot would need cold-gas thrusters or reaction wheels instead — a swap in actuator, not in control logic.</p>
+
+<h3>Offloading the thinking</h3>
+<p>The paper hands its expensive look-ahead to high-performance computing rather than doing it on a laptop. A habitat robot planning a complex maneuver could do the same — offload a long horizon to a local compute node while keeping a short, safe horizon onboard as a fallback the moment latency runs over budget.</p>
+
+<div class="callout">
+  <span class="lbl">Where the analogy stops</span>
+  The paper never mentions gravity, robots, or space — everything above is an extension of its method, not its subject matter. And the reassuring numbers above cut both ways: at the rim of a large cylinder, ordinary terrestrial walking controllers may need little modification at all. The exotic control earns its cost specifically in the hub, in small-radius modules, during fast maneuvers, and in vacuum construction work.
+</div>
+
+<h2><span class="idx">05</span>A five-stage way to actually use this</h2>
+
+<ol class="stages">
+  <li><b>Borrow the pattern, not the physics.</b> Treat the paper's terminal-constraint proof as a worked example of "guarantee you never do worse than a trusted baseline," reusable directly when layering a spin-gravity controller over a simple, already-trusted fall-safe one.</li>
+  <li><b>Build a rotating-frame template model.</b> Add Coriolis and centrifugal terms to a standard humanoid template (LIP or centroidal), and test across the full gradient from rim to hub. Keep the model simple wherever simulation shows it holding up.</li>
+  <li><b>Prototype thrust-assist as allocation, not replacement.</b> Let MPC decide leg-versus-thruster effort over the horizon, with a defined "traction floor" radius where foot friction can no longer be trusted and thruster authority takes over.</li>
+  <li><b>Split hardware by zone.</b> Propellers where there's air, cold-gas or control-moment gyros where there isn't — a hardware fork underneath one shared control layer.</li>
+  <li><b>Design the compute split with a hard fallback.</b> Long horizons offloaded to habitat compute, a short safe horizon always live onboard, and an automatic drop to the onboard controller the instant round-trip latency exceeds one control period.</li>
+</ol>
+
+<h2><span class="idx">06</span>The honest caveats</h2>
+
+<p>This is a preprint, not yet shown here as peer-reviewed. Two slightly different "classic" O'Neill radii circulate in the literature, differing by about ten percent in spin rate, and the figure used above (3.2 km) is one of them. Nothing about O'Neill cylinders is built yet — everything past the paper itself is design-stage reasoning, offered as a bridge between two fields that happen to share a control philosophy, not as a claim the original authors ever intended to make.</p>
+
+</main>
+
+<footer>
+  float64.co — field notes · arXiv:2607.24992 · written for a roadmap that runs from VSTs to space habitats
+</footer>
+</div>
+
+</body>
+</html>
