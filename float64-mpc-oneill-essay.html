@@ -32,12 +32,14 @@
   .nav {
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 18px 28px;
+    gap: 24px;
+    padding: 10px 28px 10px 0;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
+    flex-wrap: nowrap;
   }
   .brand {
+    flex-shrink: 0;
     font-family: "IBM Plex Sans", sans-serif;
     font-optical-sizing: auto;
     font-weight: 900;
@@ -51,18 +53,13 @@
   @media (max-width: 480px) {
     .brand { font-size: 24px; }
   }
+  .brand a:hover{ text-decoration: none; }
   .brand #float64 {
     font-weight: bold;
     color: white;
-    background-color: #87CEEB;
-    padding: 5px 10px;
-    font-style: italic;
-  }
-  .brand #welcome {
-    color: white;
     background-color: black;
     padding: 5px 10px;
-    font-style: normal;
+    font-style: italic;
   }
 
   /* ── Page frame ── */
@@ -228,7 +225,7 @@
 
 <div class="nav">
   <div class="brand">
-    <span id="float64">Float64</span><span id="welcome">Amplifier</span>
+    <a href="/"><span id="float64">Float64</span></a>
   </div>
 </div>
 
