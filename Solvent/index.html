@@ -54,7 +54,7 @@ initializing python runtime (first load fetches ~12 MB; cached after)...</span><
   <div id="menu" class="menu"></div>
   <pre id="detail" class="detail"></pre>
 </div>
-<div class="foot">arrows/jk move &nbsp; enter select &nbsp; q back &nbsp; (or click)</div>
+<div class="foot">arrows/jk move &nbsp; enter select &nbsp; q/backspace back &nbsp; (or click)</div>
 
 <script type="text/x-python" id="py-logic">
 #!/usr/bin/env python3
@@ -1045,11 +1045,11 @@ function activate() {
   menuState.onSelect(menuState.sel, it);
 }
 document.addEventListener("keydown", e => {
-  if (["ArrowUp","ArrowDown","Enter","Escape"].includes(e.key)) e.preventDefault();
+  if (["ArrowUp","ArrowDown","Enter","Escape","Backspace"].includes(e.key)) e.preventDefault();
   if (e.key === "ArrowUp" || e.key === "k") move(-1);
   else if (e.key === "ArrowDown" || e.key === "j") move(1);
   else if (e.key === "Enter") activate();
-  else if (e.key === "q" || e.key === "Escape") menuState && menuState.onBack && menuState.onBack();
+  else if (e.key === "q" || e.key === "Escape" || e.key === "Backspace") menuState && menuState.onBack && menuState.onBack();
 });
 
 /* ============================================================== screens */
