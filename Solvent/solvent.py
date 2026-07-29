@@ -644,7 +644,7 @@ class UI:
                 if items[sel][1]:
                     return sel
                 curses.flash()
-            elif k in (ord('q'), 27):
+            elif k in (ord('q'), 27, curses.KEY_BACKSPACE, 127, 8):
                 return None
 
     def notice(self, state, title, lines, wait=True):
@@ -982,7 +982,7 @@ def screen_battle(ui, state, outfit, squad):
                 if items[sel][1]:
                     return sel
                 curses.flash()
-            elif k in (ord('q'), 27):
+            elif k in (ord('q'), 27, curses.KEY_BACKSPACE, 127, 8):
                 return None
 
     while any(m.alive for m in squad) and any(e.alive for e in enemies) and rounds < 99:
