@@ -2,10 +2,13 @@
  * vertex.js  —  single-file library combining:
  *
  *   1. VQuery    — DOM layer (hn.js-inspired, jQuery surface-compatible)
- *   2. Reconciler — Fiber-based React clone (pomb.us architecture + hooks)
- *   3. template  — Mustache template engine + component loader (Vertex.template)
- *   4. Router    — Backbone-style hash router (class-based + singleton)
- *   5. Glue      — useHash hook, unified Vertex namespace
+ *   2. template  — full Mustache template engine + component loader (Vertex.template)
+ *   3. Router    — Backbone-style hash router (class-based + singleton)
+ *   4. Glue      — unified Vertex namespace
+ *
+ * This build deliberately has no React-style component layer (no virtual
+ * DOM, no fiber reconciler, no hooks) — rendering is Mustache templates
+ * only, Ractive.load-style: fetch a template, bind data, mount it.
  *
  * jQuery compatibility: if jQuery / $ already exist on the page they are
  * left completely untouched.  Use  Vertex.$v()  or  V$()  for the Vertex
@@ -576,570 +579,18 @@ function (global) {
   VQuery.parseJSON  = function (s) { return JSON.parse(s); };
 
   /* ═══════════════════════════════════════════════════════════════════════════
-     §2  FIBER RECONCILER  —  React clone
-         Architecture: pomb.us  |  Hooks: useState, useReducer, useEffect,
-         useMemo, useCallback, useRef, useContext, useHash
-  ═══════════════════════════════════════════════════════════════════════════ */
-
-  /* Effect tags */
-  var PLACEMENT = 'P';
-  var UPDATE    = 'U';
-  var DELETION  = 'D';
-
-  /* Scheduler state */
-  var nextUnit       = null; /* next fiber unit of work             */
-  var wipRoot        = null; /* work-in-progress root               */
-  var curRoot        = null; /* last committed root                 */
-  var deletions      = [];   /* fibers to delete in next commit     */
-  var wipFiber       = null; /* currently rendering function fiber  */
-  var hookIdx        = 0;    /* hook cursor for current fiber       */
-  var pendingEffects = [];   /* effects deferred until after commit */
-
-  /* ── scheduler ─────────────────────────────────────────────────────────── */
-
-  var scheduled = false; /* dedup: at most one ric() in flight at a time */
-
-  function scheduleWork() {
-    if (scheduled) return;
-    scheduled = true;
-    ric(workLoop);
-  }
-
-  function workLoop(deadline) {
-    scheduled = false;
-    while (nextUnit && deadline.timeRemaining() > 1) {
-      nextUnit = performUnit(nextUnit);
-    }
-    if (!nextUnit && wipRoot) commitRoot();
-    if (nextUnit) scheduleWork();
-  }
-
-  /* ── per-fiber work ─────────────────────────────────────────────────────── */
-
-  function performUnit(fiber) {
-    if (typeof fiber.type === 'function') {
-      updateFunctionComponent(fiber);
-    } else {
-      updateHostComponent(fiber);
-    }
-    /* Depth-first: child → sibling → uncle */
-    if (fiber.child) return fiber.child;
-    var next = fiber;
-    while (next) {
-      if (next.sibling) return next.sibling;
-      next = next.parent;
-    }
-    return null;
-  }
-
-  function updateFunctionComponent(fiber) {
-    wipFiber = fiber;
-    hookIdx  = 0;
-    wipFiber.hooks        = [];
-    wipFiber._ctxProvide  = null; /* cleared; Provider component may set this */
-
-    var output   = fiber.type(fiber.props);
-
-    /* If the component was a Provider it will have tagged _ctxProvide.
-       Build the new contextMap by layering its values over the parent's map.
-       Children reconciled below will inherit this updated map. */
-    if (fiber._ctxProvide) {
-      fiber.contextMap = Object.assign({}, fiber.contextMap, fiber._ctxProvide);
-      fiber._ctxProvide = null;
-    }
-
-    /* Support returning arrays (Fragment) or null */
-    var children = flattenChildren(output);
-    reconcileChildren(fiber, children);
-  }
-
-  function updateHostComponent(fiber) {
-    if (!fiber.dom) fiber.dom = createDom(fiber);
-    reconcileChildren(fiber, fiber.props.children || []);
-  }
-
-  function flattenChildren(output) {
-    var arr = Array.isArray(output) ? output : [output];
-    var result = [];
-    for (var i = 0; i < arr.length; i++) {
-      if (arr[i] === null || arr[i] === undefined || arr[i] === false) continue;
-      if (Array.isArray(arr[i])) {
-        var inner = flattenChildren(arr[i]);
-        for (var j = 0; j < inner.length; j++) result.push(inner[j]);
-      } else {
-        result.push(arr[i]);
-      }
-    }
-    return result;
-  }
-
-  /* ── DOM helpers ─────────────────────────────────────────────────────────── */
-
-  function createDom(fiber) {
-    var dom = fiber.type === 'TEXT_ELEMENT'
-      ? document.createTextNode('')
-      : document.createElement(fiber.type);
-    patchDom(dom, {}, fiber.props);
-    /* Wire ref immediately for newly-created DOM nodes */
-    if (fiber.props && fiber.props.ref && fiber.props.ref !== null &&
-        typeof fiber.props.ref === 'object') {
-      fiber.props.ref.current = dom;
-    }
-    return dom;
-  }
-
-  /* 'on' prefix check without a function call — hot path */
-  function isEventProp(k) {
-    return k.charCodeAt(0) === 111 && k.charCodeAt(1) === 110 && k.length > 2;
-  }
-
-  /* Exclude 'ref' — it's handled in commitWork, not as a DOM property */
-  function isRealProp(k) { return k !== 'children' && k !== 'ref' && !isEventProp(k); }
-
-  /**
-   * setStableListener — attach a proxy listener once; on updates just swap
-   * the target function in place.  Eliminates removeEventListener /
-   * addEventListener churn on every re-render (the single biggest DOM cost
-   * for lists with inline callbacks).
-   */
-  function setStableListener(dom, evName, fn) {
-    if (!dom._vxev) dom._vxev = {};
-    if (evName in dom._vxev) {
-      dom._vxev[evName] = fn;           /* update target — proxy stays attached */
-    } else {
-      dom._vxev[evName] = fn;
-      /* IIFE captures evName so the closure is correct in loops */
-      (function (name) {
-        dom.addEventListener(name, function (e) {
-          if (dom._vxev[name]) dom._vxev[name](e);
-        });
-      }(evName));
-    }
-  }
-
-  function patchDom(dom, prev, next) {
-    var k;
-    /* Pass 1 — remove stale non-event props; null out dropped event targets */
-    for (k in prev) {
-      if (!isRealProp(k)) {
-        if (isEventProp(k)) {
-          if (!(k in next) && dom._vxev) dom._vxev[k.slice(2).toLowerCase()] = null;
-        }
-        continue;
-      }
-      if (!(k in next)) {
-        if      (k === 'className') dom.className    = '';
-        else if (k === 'style')     dom.style.cssText = '';
-        else                         dom[k]           = '';
-      }
-    }
-    /* Pass 2 — apply new / changed props; install or update event targets */
-    for (k in next) {
-      if (!isRealProp(k)) {
-        if (isEventProp(k)) {
-          setStableListener(dom, k.slice(2).toLowerCase(), next[k]);
-        }
-        continue;
-      }
-      if (prev[k] === next[k]) continue;
-      if      (k === 'className')                            dom.className = next[k];
-      else if (k === 'style' && typeof next[k] === 'object') Object.assign(dom.style, next[k]);
-      else                                                    dom[k] = next[k];
-    }
-  }
-
-  /* ── reconciliation ──────────────────────────────────────────────────────── */
-
-  function reconcileChildren(fiber, elements) {
-    /* Build lookup structures from old children in one pass */
-    var oldFiber = fiber.alternate && fiber.alternate.child;
-    var keyMap   = null;   /* key  → oldFiber (keyed children)    */
-    var byPos    = [];     /* index → oldFiber (unkeyed children)  */
-    var scan     = oldFiber;
-    while (scan) {
-      var sk = scan.props && scan.props.key;
-      if (sk != null) {
-        if (!keyMap) keyMap = {};
-        keyMap[String(sk)] = scan;
-      } else {
-        byPos.push(scan);
-      }
-      scan = scan.sibling;
-    }
-
-    var posIdx = 0;
-    var prev   = null;
-
-    for (var i = 0; i < elements.length; i++) {
-      var el    = elements[i];
-      var elKey = el && el.props && el.props.key;
-      var old   = null;
-
-      if (elKey != null) {
-        /* Keyed: O(1) hash lookup */
-        var sKey = String(elKey);
-        if (keyMap && keyMap[sKey]) { old = keyMap[sKey]; delete keyMap[sKey]; }
-      } else {
-        /* Unkeyed: consume next positional old fiber */
-        old = byPos[posIdx++] || null;
-      }
-
-      var sameType = old && el && old.type === el.type;
-      var newFiber;
-
-      if (sameType) {
-        newFiber = {
-          type: old.type, props: el.props, dom: old.dom,
-          parent: fiber, contextMap: fiber.contextMap || null,
-          alternate: old, effectTag: UPDATE, hooks: []
-        };
-      } else {
-        if (old) { old.effectTag = DELETION; deletions.push(old); }
-        newFiber = {
-          type: el.type, props: el.props, dom: null,
-          parent: fiber, contextMap: fiber.contextMap || null,
-          alternate: null, effectTag: PLACEMENT, hooks: []
-        };
-      }
-
-      if (i === 0)  fiber.child   = newFiber;
-      else if (prev) prev.sibling = newFiber;
-      prev = newFiber;
-    }
-
-    /* Delete remaining unkeyed old fibers (list shrank) */
-    for (; posIdx < byPos.length; posIdx++) {
-      byPos[posIdx].effectTag = DELETION;
-      deletions.push(byPos[posIdx]);
-    }
-    /* Delete remaining keyed old fibers (keys disappeared) */
-    if (keyMap) {
-      for (var mk in keyMap) {
-        keyMap[mk].effectTag = DELETION;
-        deletions.push(keyMap[mk]);
-      }
-    }
-
-    if (prev) prev.sibling = null;
-  }
-
-  /* ── commit phase ─────────────────────────────────────────────────────────── */
-
-  /* Walk up from fiber.parent to find the nearest ancestor with a real DOM node */
-  function nearestDom(fiber) {
-    var f = fiber.parent;
-    while (f && !f.dom) f = f.parent;
-    return f ? f.dom : null;
-  }
-
-  /* Move any effects accumulated on a fiber into the global pending list */
-  function flushFiberEffects(fiber) {
-    if (!fiber._pendingEffects) return;
-    for (var _ei = 0; _ei < fiber._pendingEffects.length; _ei++) {
-      pendingEffects.push(fiber._pendingEffects[_ei]);
-    }
-    delete fiber._pendingEffects;
-  }
-
-  function commitRoot() {
-    /* Deletions need their own parent-DOM lookup since they may be detached */
-    deletions.forEach(function (f) { commitWork(f, nearestDom(f)); });
-    if (wipRoot.child) commitWork(wipRoot.child, wipRoot.dom);
-    curRoot = wipRoot;
-    wipRoot = null;
-
-    /* Run all queued effects now that the DOM is fully updated */
-    var toRun = pendingEffects.splice(0);
-    for (var _ri = 0; _ri < toRun.length; _ri++) {
-      var item = toRun[_ri];
-      if (typeof item.oldCleanup === 'function') item.oldCleanup();
-      var cleanup = item.effect();
-      item.hook.cleanup = typeof cleanup === 'function' ? cleanup : null;
-    }
-  }
-
-  /*
-   * commitWork(startFiber, startParentDom)
-   *
-   * Iterative pre-order walk using an explicit stack.  Avoids call-stack
-   * overflow on deep trees.  parentDom is carried per-frame so host vs
-   * function-component fibers thread correctly without any upward walks.
-   *
-   * Stack frames: { fiber, parentDom }
-   * Sibling pushed before child so child is popped (processed) first.
-   */
-  function commitWork(startFiber, startParentDom) {
-    var stack = [{ f: startFiber, p: startParentDom }];
-    while (stack.length) {
-      var frame     = stack.pop();
-      var fiber     = frame.f;
-      var parentDom = frame.p;
-      if (!fiber) continue;
-
-      if (fiber.effectTag === PLACEMENT && fiber.dom && parentDom) {
-        parentDom.appendChild(fiber.dom);
-      } else if (fiber.effectTag === UPDATE && fiber.dom) {
-        patchDom(fiber.dom, fiber.alternate.props, fiber.props);
-        /* Re-wire ref on update in case the ref object itself changed */
-        if (fiber.props && fiber.props.ref && typeof fiber.props.ref === 'object') {
-          fiber.props.ref.current = fiber.dom;
-        }
-      } else if (fiber.effectTag === DELETION) {
-        commitDeletion(fiber, parentDom);
-        flushFiberEffects(fiber);
-        continue; /* deleted subtree fully handled by commitDeletion */
-      }
-
-      flushFiberEffects(fiber);
-
-      /* Children of a host fiber attach to fiber.dom;
-         children of a function fiber inherit parentDom unchanged */
-      var childParent = fiber.dom || parentDom;
-      /* Push sibling first — LIFO means child is processed before sibling */
-      if (fiber.sibling) stack.push({ f: fiber.sibling, p: parentDom  });
-      if (fiber.child)   stack.push({ f: fiber.child,   p: childParent });
-    }
-  }
-
-  function commitDeletion(fiber, parentDom) {
-    removeFiberDom(fiber, parentDom);
-    cleanupEffectTree(fiber);
-  }
-
-  /* Walk down the first-child chain to find and remove the first real DOM node */
-  function removeFiberDom(fiber, parentDom) {
-    var f = fiber;
-    while (f) {
-      if (f.dom) {
-        if (parentDom) parentDom.removeChild(f.dom);
-        return;
-      }
-      f = f.child;
-    }
-  }
-
-  /* Walk down the first-child chain, running effect cleanups at each level.
-     Siblings are NOT followed — each sibling deletion is a separate entry
-     in the deletions array and will be visited by commitRoot independently. */
-  function cleanupEffectTree(fiber) {
-    var f = fiber;
-    while (f) {
-      var hooks = f.hooks;
-      if (hooks) {
-        for (var hi = 0; hi < hooks.length; hi++) {
-          if (hooks[hi] && typeof hooks[hi].cleanup === 'function') {
-            hooks[hi].cleanup();
-          }
-        }
-      }
-      f = f.child;
-    }
-  }
-
-  /* ── trigger re-render ───────────────────────────────────────────────────── */
-
-  function scheduleUpdate() {
-    if (!curRoot) return;
-    wipRoot   = { dom: curRoot.dom, props: curRoot.props, alternate: curRoot };
-    nextUnit  = wipRoot;
-    deletions = [];
-    scheduleWork();
-  }
-
-  /* ── public createElement / render ──────────────────────────────────────── */
-
-  /* Push items from arr into out, recursing into nested arrays, skipping nullish */
-  function flatPush(out, arr) {
-    for (var _i = 0; _i < arr.length; _i++) {
-      var _c = arr[_i];
-      if (_c === null || _c === undefined || _c === false) continue;
-      if (Array.isArray(_c)) { flatPush(out, _c); continue; }
-      out.push(typeof _c === 'object' ? _c : createTextElement(String(_c)));
-    }
-  }
-
-  function createElement(type, props) {
-    var children = [];
-    for (var _a = 2; _a < arguments.length; _a++) {
-      var _ch = arguments[_a];
-      if (_ch === null || _ch === undefined || _ch === false) continue;
-      if (Array.isArray(_ch)) { flatPush(children, _ch); continue; }
-      children.push(typeof _ch === 'object' ? _ch : createTextElement(String(_ch)));
-    }
-    return { type: type, props: Object.assign({}, props, { children: children }) };
-  }
-
-  function createTextElement(text) {
-    return { type: 'TEXT_ELEMENT', props: { nodeValue: text, children: [] } };
-  }
-
-  function render(element, container) {
-    wipRoot   = { dom: container, props: { children: [element] }, alternate: curRoot };
-    nextUnit  = wipRoot;
-    deletions = [];
-    scheduleWork();
-  }
-
-  /* ── hooks ───────────────────────────────────────────────────────────────── */
-
-  function useState(initial) {
-    return useReducer(
-      function (state, action) {
-        return typeof action === 'function' ? action(state) : action;
-      },
-      typeof initial === 'function' ? initial() : initial
-    );
-  }
-
-  function useReducer(reducer, initial) {
-    var oldHook = wipFiber.alternate && wipFiber.alternate.hooks[hookIdx];
-
-    /* The "cell" is a stable object that survives across renders.
-       It holds the pending action queue and the dispatch function so
-       dispatch has a stable identity — passing it as a prop won't
-       trigger unnecessary child re-renders. */
-    var cell = oldHook ? oldHook._cell : { queue: [] };
-
-    var state = oldHook
-      ? oldHook.state
-      : (typeof initial === 'function' ? initial() : initial);
-
-    /* Drain all actions queued since the last render */
-    for (var _qi = 0; _qi < cell.queue.length; _qi++) {
-      state = reducer(state, cell.queue[_qi]);
-    }
-    cell.queue = [];
-
-    /* Create dispatch once per hook lifetime; it closes over the stable cell */
-    if (!cell.dispatch) {
-      cell.dispatch = function (action) {
-        cell.queue.push(action);
-        scheduleUpdate();
-      };
-    }
-
-    var hook = { state: state, _cell: cell };
-    wipFiber.hooks[hookIdx++] = hook;
-    return [hook.state, cell.dispatch];
-  }
-
-  function useEffect(effect, deps) {
-    var oldHook     = wipFiber.alternate && wipFiber.alternate.hooks[hookIdx];
-    var depsChanged = !oldHook
-      || !deps
-      || deps.some(function (d, i) { return d !== (oldHook.deps && oldHook.deps[i]); });
-
-    var hook = { deps: deps, cleanup: oldHook ? oldHook.cleanup : null };
-
-    if (depsChanged) {
-      wipFiber._pendingEffects = wipFiber._pendingEffects || [];
-      wipFiber._pendingEffects.push({
-        effect:     effect,
-        oldCleanup: oldHook ? oldHook.cleanup : null,
-        hook:       hook  /* commitRoot writes the new cleanup back here */
-      });
-    }
-
-    wipFiber.hooks[hookIdx++] = hook;
-  }
-
-  function useMemo(factory, deps) {
-    var oldHook     = wipFiber.alternate && wipFiber.alternate.hooks[hookIdx];
-    var depsChanged = !oldHook
-      || !deps
-      || deps.some(function (d, i) { return d !== (oldHook.deps && oldHook.deps[i]); });
-
-    var hook = {
-      value: depsChanged ? factory() : oldHook.value,
-      deps:  deps
-    };
-    wipFiber.hooks[hookIdx++] = hook;
-    return hook.value;
-  }
-
-  function useCallback(fn, deps) {
-    /* eslint-disable-next-line no-unused-vars */
-    return useMemo(function () { return fn; }, deps);
-  }
-
-  function useRef(initial) {
-    var oldHook = wipFiber.alternate && wipFiber.alternate.hooks[hookIdx];
-    /* Ref object is stable across renders — same object reference always returned */
-    var hook    = oldHook || { current: typeof initial === 'function' ? initial() : initial };
-    wipFiber.hooks[hookIdx++] = hook;
-    return hook;
-  }
-
-  /* Context — per-fiber propagation via contextMap
-   *
-   * Each fiber carries a contextMap (plain object: ctx._id → value).
-   * Providers inject their value into this map; the map is inherited by
-   * all descendant fibers so nested and parallel contexts work correctly.
-   *
-   * Two Providers of the same context in different subtrees are completely
-   * independent. Nested Providers of the same context shadow correctly.
-   */
-  var _ctxIdCounter = 0;
-
-  function createContext(defaultValue) {
-    var id  = _ctxIdCounter++;
-    var ctx = { _id: id, _defaultValue: defaultValue };
-
-    /* Provider — a function component that marks the current fiber so
-       updateFunctionComponent can write id→value into the contextMap
-       before reconciling children. */
-    ctx.Provider = function ProviderComponent(props) {
-      /* Tag this fiber for post-render contextMap update */
-      if (wipFiber) {
-        wipFiber._ctxProvide      = wipFiber._ctxProvide || {};
-        wipFiber._ctxProvide[id]  = props.value;
-      }
-      var children = props.children;
-      return Array.isArray(children) ? (children[0] || null) : (children || null);
-    };
-    ctx.Provider._vxCtxId = id; /* marker so devtools can identify it */
-
-    ctx.Consumer = function ConsumerComponent(props) {
-      var fn  = Array.isArray(props.children) ? props.children[0] : props.children;
-      var val = useContext(ctx);
-      return typeof fn === 'function' ? fn(val) : null;
-    };
-
-    return ctx;
-  }
-
-  function useContext(ctx) {
-    if (wipFiber && wipFiber.contextMap && ctx._id in wipFiber.contextMap) {
-      return wipFiber.contextMap[ctx._id];
-    }
-    return ctx._defaultValue;
-  }
-
-  /* Fragment: returns children to the reconciler as a flat array */
-  function Fragment(props) { return props.children; }
-
-  /* lazy: throws a Promise (Suspense protocol) until module resolves.
-     The single thenable is stored and re-thrown on each render attempt so
-     factory() is called exactly once regardless of how many times the
-     component tries to render before the module arrives. */
-  function lazy(factory) {
-    var status   = 'pending';
-    var Component;
-    var thenable = factory().then(function (mod) {
-      status    = 'resolved';
-      Component = mod.default || mod;
-    });
-    return function LazyWrapper(props) {
-      if (status === 'resolved') return createElement(Component, props);
-      throw thenable; /* re-throw the same promise — no second fetch */
-    };
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════════════
-     §3  TEMPLATE ENGINE  —  Vertex.template
-         Mustache {{ }}, {{{ unescaped }}}, {{#if}}, {{#each}}, two-way
-         data-bind, and Vertex.template.load(url) for remote template loading.
-         Set Vertex.template.load.baseUri to avoid repeating the path prefix.
+     §2  TEMPLATE ENGINE  —  Vertex.template
+         Full Mustache syntax: {{var}} (escaped), {{{var}}} / {{&var}}
+         (unescaped), {{#name}}...{{/name}} sections (arrays loop; truthy
+         objects/scalars push once; falsy/empty skip), {{^name}}...{{/name}}
+         inverted sections, {{! comment }}, {{> partial}} (via the
+         `partials` option), plus this engine's own {{#each}} (explicit,
+         array-only loop) and {{#if}}...{{else}}...{{/if}}. Sections nest to
+         any depth — inner blocks see outer-scope variables via per-key
+         context fallback, the same way real Mustache's context stack works.
+         Two-way data-bind, and Vertex.template.load(url) for remote
+         template loading. Set Vertex.template.load.baseUri to avoid
+         repeating the path prefix.
   ═══════════════════════════════════════════════════════════════════════════ */
 
   /* Single-pass HTML escape — one regex, one string allocation */
@@ -1150,53 +601,32 @@ function (global) {
   }
 
   function resolvePath(obj, path) {
+    /* "." is the implicit-iterator key (loop/section contexts wrap
+       non-object values as {'.': value}) — treat it as a literal
+       single-segment lookup. Feeding it to split('.') would otherwise
+       produce ["", ""] and silently resolve to undefined. */
+    if (path === '.') return obj != null ? obj['.'] : undefined;
     return path.split('.').reduce(function (o, k) {
       return o != null ? o[k] : undefined;
     }, obj);
   }
 
-  function parseTemplate(tmpl, data) {
-    /* {{#each keyPath}} ... {{/each}} */
-    tmpl = tmpl.replace(
-      /\{\{#each\s+([\w.]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g,
-      function (_, key, inner) {
-        var arr = resolvePath(data, key);
-        if (!Array.isArray(arr)) return '';
-        return arr.map(function (item, idx) {
-          var ctx = Object.assign(
-            {},
-            data,
-            typeof item === 'object' && item !== null ? item : { '.': item },
-            { '@index': idx }
-          );
-          return parseTemplate(inner, ctx);
-        }).join('');
-      }
-    );
-
-    /* {{#if keyPath}} ... {{else}} ... {{/if}} */
-    tmpl = tmpl.replace(
-      /\{\{#if\s+([\w.]+)\s*\}\}([\s\S]*?)(?:\{\{else\}\}([\s\S]*?))?\{\{\/if\}\}/g,
-      function (_, key, truthy, falsy) {
-        return resolvePath(data, key)
-          ? parseTemplate(truthy, data)
-          : parseTemplate(falsy || '', data);
-      }
-    );
-
-    /* {{{ unescaped }}} — @ allowed for @index, @key, etc. */
-    tmpl = tmpl.replace(/\{\{\{([@\w.]+)\}\}\}/g, function (_, key) {
-      var v = resolvePath(data, key);
-      return v !== undefined ? String(v) : '';
-    });
-
-    /* {{ escaped }} */
-    tmpl = tmpl.replace(/\{\{([@\w.]+)\}\}/g, function (_, key) {
-      var v = resolvePath(data, key);
-      return v !== undefined ? escHtml(v) : '';
-    });
-
-    return tmpl;
+  /**
+   * parseTemplate(tmpl, data, partials?) — render without new Function().
+   *
+   * This used to be an independent regex-replace chain, and it had a real
+   * bug: a non-greedy /{{#each}}...{{/each}}/ match cannot handle nested
+   * loops — the FIRST {{/each}} it finds closes the match, which for
+   * {{#each o}}{{#each i}}...{{/each}}{{/each}} is the INNER loop's closer,
+   * not the outer one's. It corrupted output on any nested loop.
+   *
+   * It's now a thin wrapper over the same tokenizeTemplate() AST the
+   * compiled path uses (see compileTemplate below), walked directly by
+   * renderNodes() instead of being turned into JS source. Both paths are
+   * driven by one parser, so there is exactly one place nesting can break.
+   */
+  function parseTemplate(tmpl, data, partials) {
+    return renderNodes(tokenizeTemplate(tmpl), data, partials);
   }
 
   /* ── Template compiler ──────────────────────────────────────────────────── */
@@ -1204,16 +634,34 @@ function (global) {
   /*
    * tokenizeTemplate(src) → token AST
    *
-   * Token types: text | var | raw | each | if
-   *   each → { type:'each', key, children:[] }
-   *   if   → { type:'if',   key, truthy:[], falsy:[] }
+   * Token types: text | var | raw | comment | each | if | section | inverted | partial
+   *   each     → { type:'each',     key, children:[] }               — {{#each x}}...{{/each}}, array-only
+   *   if       → { type:'if',       key, truthy:[], falsy:[] }        — {{#if x}}...{{else}}...{{/if}}
+   *   section  → { type:'section',  key, children:[] }                — {{#x}}...{{/x}}, full Mustache section:
+   *                                                                      array → loop; truthy object/scalar →
+   *                                                                      single render with pushed context;
+   *                                                                      falsy/empty array → skipped
+   *   inverted → { type:'inverted', key, children:[] }                — {{^x}}...{{/x}}, renders only when
+   *                                                                      x is falsy or an empty array
+   *   partial  → { type:'partial',  key }                             — {{> name}}, resolved against the
+   *                                                                      partials map passed to render
+   *
+   * `each` and `if` are kept as distinct node types (not folded into
+   * `section`) so their existing narrower contracts don't change: `each`
+   * is a silent no-op on anything that isn't an array, and `if` always
+   * needs the boolean/else framing rather than a context push.
+   *
+   * Closing tags are resolved structurally (a stack), not by matching the
+   * name in {{/name}} against the name in the corresponding {{#name}} —
+   * {{#foo}}...{{/bar}} closes the same way {{#foo}}...{{/foo}} would.
+   * This is deliberately more lenient than the Mustache spec.
    */
   function tokenizeTemplate(src) {
-    var re = /\{\{\{([@\w.]+)\}\}\}|\{\{#each\s+([\w.]+)\s*\}\}|\{\{\/each\}\}|\{\{#if\s+([\w.]+)\s*\}\}|\{\{else\}\}|\{\{\/if\}\}|\{\{([@\w.]+)\}\}/g;
-    var root    = [];
-    var stack   = [root];   /* stack of child arrays */
-    var ifStack = [];       /* stack of current {{#if}} nodes */
-    var last    = 0;
+    var re = /\{\{\{([@\w.]+)\}\}\}|\{\{!\s*[\s\S]*?\s*\}\}|\{\{#each\s+([\w.]+)\s*\}\}|\{\{\/each\}\}|\{\{#if\s+([\w.]+)\s*\}\}|\{\{else\}\}|\{\{\/if\}\}|\{\{>\s*([\w.]+)\s*\}\}|\{\{\^\s*([\w.]+)\s*\}\}|\{\{#\s*([\w.]+)\s*\}\}|\{\{\/\s*([\w.]+)\s*\}\}|\{\{&\s*([@\w.]+)\s*\}\}|\{\{([@\w.]+)\}\}/g;
+    var root  = [];
+    var stack = [root];   /* stack of child arrays currently being appended to */
+    var opens = [];       /* parallel stack of open {{#if}} nodes, for {{else}} */
+    var last  = 0;
     var m;
 
     while ((m = re.exec(src)) !== null) {
@@ -1222,27 +670,45 @@ function (global) {
       }
       last = re.lastIndex;
 
-      if (m[1]) {                         /* {{{ raw }}} */
+      if (m[1] !== undefined) {                     /* {{{ raw }}} */
         stack[stack.length - 1].push({ type: 'raw', key: m[1] });
-      } else if (m[2]) {                  /* {{#each key}} */
+      } else if (m[0].lastIndexOf('{{!', 0) === 0) {  /* {{! comment }} */
+        stack[stack.length - 1].push({ type: 'comment' });
+      } else if (m[2] !== undefined) {                /* {{#each key}} */
         var eNode = { type: 'each', key: m[2], children: [] };
         stack[stack.length - 1].push(eNode);
         stack.push(eNode.children);
+        opens.push(eNode);
       } else if (m[0] === '{{/each}}') {
-        stack.pop();
-      } else if (m[3]) {                  /* {{#if key}} */
+        stack.pop(); opens.pop();
+      } else if (m[3] !== undefined) {                /* {{#if key}} */
         var iNode = { type: 'if', key: m[3], truthy: [], falsy: [] };
         stack[stack.length - 1].push(iNode);
-        ifStack.push(iNode);
         stack.push(iNode.truthy);
+        opens.push(iNode);
       } else if (m[0] === '{{else}}') {
         stack.pop();
-        stack.push(ifStack[ifStack.length - 1].falsy);
+        stack.push(opens[opens.length - 1].falsy);
       } else if (m[0] === '{{/if}}') {
-        stack.pop();
-        ifStack.pop();
-      } else if (m[4]) {                  /* {{ escaped }} */
-        stack[stack.length - 1].push({ type: 'var', key: m[4] });
+        stack.pop(); opens.pop();
+      } else if (m[4] !== undefined) {                /* {{> partial}} */
+        stack[stack.length - 1].push({ type: 'partial', key: m[4] });
+      } else if (m[5] !== undefined) {                /* {{^key}} inverted-open */
+        var invNode = { type: 'inverted', key: m[5], children: [] };
+        stack[stack.length - 1].push(invNode);
+        stack.push(invNode.children);
+        opens.push(invNode);
+      } else if (m[6] !== undefined) {                /* {{#key}} section-open */
+        var secNode = { type: 'section', key: m[6], children: [] };
+        stack[stack.length - 1].push(secNode);
+        stack.push(secNode.children);
+        opens.push(secNode);
+      } else if (m[7] !== undefined) {                /* {{/key}} generic close (section or inverted) */
+        stack.pop(); opens.pop();
+      } else if (m[8] !== undefined) {                /* {{&key}} unescaped alias */
+        stack[stack.length - 1].push({ type: 'raw', key: m[8] });
+      } else if (m[9] !== undefined) {                /* {{ escaped }} */
+        stack[stack.length - 1].push({ type: 'var', key: m[9] });
       }
     }
 
@@ -1250,6 +716,73 @@ function (global) {
       stack[stack.length - 1].push({ type: 'text', value: src.slice(last) });
     }
     return root;
+  }
+
+  /*
+   * renderNodes(nodes, data, partials?, depth?) → string
+   *
+   * Direct AST interpreter — used both as the CSP-safe fallback (in place
+   * of the old regex-replace parseTemplate) and to render {{> partial}}
+   * bodies from the compiled path, since partials aren't a hot enough path
+   * to justify compiling them too. depth guards against a partial that
+   * (directly or indirectly) includes itself.
+   */
+  function renderNodes(nodes, data, partials, depth) {
+    depth = depth || 0;
+    if (depth > 32) return '';
+    var out = '';
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.type === 'text') {
+        out += n.value;
+      } else if (n.type === 'var') {
+        var v = resolvePath(data, n.key);
+        out += v !== undefined ? escHtml(v) : '';
+      } else if (n.type === 'raw') {
+        var rv = resolvePath(data, n.key);
+        out += rv !== undefined ? String(rv) : '';
+      } else if (n.type === 'comment') {
+        /* no output */
+      } else if (n.type === 'each') {
+        var arr = resolvePath(data, n.key);
+        if (Array.isArray(arr)) {
+          for (var j = 0; j < arr.length; j++) {
+            out += renderNodes(n.children, mergeLoopContext(data, arr[j], j), partials, depth + 1);
+          }
+        }
+      } else if (n.type === 'if') {
+        var cond = resolvePath(data, n.key);
+        out += renderNodes(cond ? n.truthy : n.falsy, data, partials, depth + 1);
+      } else if (n.type === 'section') {
+        var sv = resolvePath(data, n.key);
+        if (Array.isArray(sv)) {
+          for (var k = 0; k < sv.length; k++) {
+            out += renderNodes(n.children, mergeLoopContext(data, sv[k], k), partials, depth + 1);
+          }
+        } else if (sv) {
+          var pushed = (typeof sv === 'object') ? Object.assign({}, data, sv) : Object.assign({}, data, { '.': sv });
+          out += renderNodes(n.children, pushed, partials, depth + 1);
+        }
+      } else if (n.type === 'inverted') {
+        var iv = resolvePath(data, n.key);
+        if (!iv || (Array.isArray(iv) && iv.length === 0)) {
+          out += renderNodes(n.children, data, partials, depth + 1);
+        }
+      } else if (n.type === 'partial') {
+        var partialSrc = partials && partials[n.key];
+        if (typeof partialSrc === 'string') {
+          out += renderNodes(tokenizeTemplate(partialSrc), data, partials, depth + 1);
+        }
+      }
+    }
+    return out;
+  }
+
+  /* Shared by 'each' and array-valued 'section': merge the parent context,
+     the current item (or {'.':item} for non-object items), and @index. */
+  function mergeLoopContext(parentData, item, idx) {
+    var pushed = (typeof item === 'object' && item !== null) ? item : { '.': item };
+    return Object.assign({}, parentData, pushed, { '@index': idx });
   }
 
   /*
@@ -1302,23 +835,51 @@ function (global) {
           code += codegenNodes(n.falsy, dataVar, ctr);
         }
         code += '}' + NL;
+
+      } else if (n.type === 'comment') {
+        /* no output */
+
+      } else if (n.type === 'section') {
+        /* Array -> loop (identical shape to 'each'); truthy non-array ->
+           single push (object's own keys, or {'.':value} for scalars);
+           falsy or empty array -> nothing. The array branch covers empty
+           arrays for free — a zero-length for-loop body just never runs. */
+        var sArr = '_sarr' + uid, sItm = '_sitm' + uid, sIdx = '_sidx' + uid, sCtx = '_sctx' + uid;
+        code += 'var ' + sArr + '=_rp(' + dataVar + ',' + JSON.stringify(n.key) + ');' + NL;
+        code += 'if(Array.isArray(' + sArr + ')){for(var ' + sIdx + '=0;' + sIdx + '<' + sArr + '.length;' + sIdx + '++){' + NL;
+        code += 'var ' + sItm + '=Object.assign({},' + dataVar + ',typeof ' + sArr + '[' + sIdx + ']==="object"&&' + sArr + '[' + sIdx + ']!==null?' + sArr + '[' + sIdx + ']:{".":' + sArr + '[' + sIdx + ']},{"@index":' + sIdx + '});' + NL;
+        code += codegenNodes(n.children, sItm, ctr);
+        code += '}}else if(' + sArr + '){' + NL;
+        code += 'var ' + sCtx + '=(typeof ' + sArr + '==="object")?Object.assign({},' + dataVar + ',' + sArr + '):Object.assign({},' + dataVar + ',{".":' + sArr + '});' + NL;
+        code += codegenNodes(n.children, sCtx, ctr);
+        code += '}' + NL;
+
+      } else if (n.type === 'inverted') {
+        var ivVal = '_ival' + uid;
+        code += 'var ' + ivVal + '=_rp(' + dataVar + ',' + JSON.stringify(n.key) + ');' + NL;
+        code += 'if(!' + ivVal + '||(Array.isArray(' + ivVal + ')&&' + ivVal + '.length===0)){' + NL;
+        code += codegenNodes(n.children, dataVar, ctr);
+        code += '}' + NL;
+
+      } else if (n.type === 'partial') {
+        code += '_o+=_partial(' + JSON.stringify(n.key) + ',' + dataVar + ');' + NL;
       }
     }
     return code;
   }
 
   /*
-   * compileTemplate(src) → function(data, escFn, rpFn) | null
+   * compileTemplate(src) → function(data, escFn, rpFn, partialFn) | null
    *
    * Returns null if new Function() is blocked (e.g. strict CSP).
-   * The caller falls back to parseTemplate() in that case.
+   * The caller falls back to parseTemplate() (via renderNodes) in that case.
    */
   function compileTemplate(src) {
     try {
       var nodes = tokenizeTemplate(src);
       var NL    = '\n';
       var body  = '"use strict";var _o="";' + NL + codegenNodes(nodes, 'data', [0]) + 'return _o;';
-      return new Function('data', '_esc', '_rp', body); /* jshint ignore:line */
+      return new Function('data', '_esc', '_rp', '_partial', body); /* jshint ignore:line */
     } catch (_e) {
       return null;
     }
@@ -1332,6 +893,7 @@ function (global) {
       : (options.el || null);
     this._template = options.template || '';
     this._data     = Object.assign({}, options.data || {});
+    this._partials = options.partials || {};
     this._handlers = {};
 
     /* Compile once at construction time */
@@ -1374,10 +936,19 @@ function (global) {
         } catch (_) { /* non-text inputs throw on selectionStart access */ }
       }
 
-      /* Use the pre-compiled function if available; fall back to regex parser */
+      /* {{> name}} always renders via the direct interpreter, even when the
+         surrounding template is compiled — partials are for composition,
+         not a hot enough path to justify compiling them too. */
+      var partials = this._partials;
+      var renderPartial = function (name, data) {
+        var src = partials[name];
+        return typeof src === 'string' ? renderNodes(tokenizeTemplate(src), data, partials) : '';
+      };
+
+      /* Use the pre-compiled function if available; fall back to the AST interpreter */
       var html = this._compiled
-        ? this._compiled(this._data, escHtml, resolvePath)
-        : parseTemplate(this._template, this._data);
+        ? this._compiled(this._data, escHtml, resolvePath, renderPartial)
+        : renderNodes(tokenizeTemplate(this._template), this._data, partials);
       this._el.innerHTML = html;
       this._bindInputs();
 
@@ -1489,7 +1060,7 @@ function (global) {
   Template.load.baseUri = '';
 
   /* ═══════════════════════════════════════════════════════════════════════════
-     §4  HASH ROUTER  —  Backbone-style
+     §3  HASH ROUTER  —  Backbone-style
          Singleton Router for direct use + RouterClass for class-based syntax.
   ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -1614,57 +1185,11 @@ function (global) {
   };
 
   /* ═══════════════════════════════════════════════════════════════════════════
-     §5  INTEGRATION GLUE
-  ═══════════════════════════════════════════════════════════════════════════ */
-
-  /**
-   * useHash()  —  returns the current URL hash fragment and re-renders the
-   * component whenever it changes.  Use inside any Vertex function component.
-   */
-  function useHash() {
-    function getHash() {
-      return global.location ? global.location.hash.slice(1) : '';
-    }
-
-    var pair   = useState(getHash);
-    var hash   = pair[0];
-    var setHash = pair[1];
-
-    useEffect(function () {
-      function onHashChange() { setHash(getHash()); }
-      if (global.addEventListener) global.addEventListener('hashchange', onHashChange);
-      return function () {
-        if (global.removeEventListener) global.removeEventListener('hashchange', onHashChange);
-      };
-    }, []);
-
-    return hash;
-  }
-
-  /* ═══════════════════════════════════════════════════════════════════════════
-     §6  PUBLIC API  —  Vertex namespace
+     §4  PUBLIC API  —  Vertex namespace
   ═══════════════════════════════════════════════════════════════════════════ */
 
   var Vertex = {
-    /* ── React-compatible surface ── */
-    createElement:     createElement,
-    createTextElement: createTextElement,
-    render:            render,
-    Fragment:          Fragment,
-    lazy:              lazy,
-    createContext:     createContext,
-
-    /* ── Hooks ── */
-    useState:          useState,
-    useReducer:        useReducer,
-    useEffect:         useEffect,
-    useMemo:           useMemo,
-    useCallback:       useCallback,
-    useRef:            useRef,
-    useContext:        useContext,
-    useHash:           useHash,
-
-    /* ── Template engine ── */
+    /* ── Template engine (Mustache, Ractive.load-style) ── */
     template:          Template,
     parseTemplate:     parseTemplate,
 

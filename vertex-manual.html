@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Float64 Vertex</title>
+  <script src="vertex.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap" rel="stylesheet">
@@ -297,6 +298,32 @@
       font-size: 0.82rem;
     }
 
+    /* ── Live demo (Two-way binding) ──────────────────────────────────── */
+    .live-demo {
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      padding: 1rem 1.2rem;
+      margin: 1.2rem 0 1.6rem;
+      font-size: 0.85rem;
+    }
+    .live-demo .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .live-demo .muted { color: var(--muted); font-size: 0.78rem; }
+    .live-demo button {
+      font-family: var(--font-mono); font-size: 0.78rem; padding: 5px 12px; cursor: pointer;
+      background: none; border: 1px solid var(--border); color: var(--body);
+      transition: border-color .12s, color .12s;
+    }
+    .live-demo button:hover, .live-demo button.active-btn { border-color: var(--accent); color: var(--accent); }
+    .live-demo input[type=range] { accent-color: var(--accent); width: 160px; vertical-align: middle; }
+    .live-demo .tmpl-out {
+      border: 1px solid var(--code-border); background: var(--code-bg);
+      padding: 10px 12px; margin-top: 4px; font-size: 0.82rem; line-height: 1.7;
+    }
+    .live-demo .track-row { padding: 3px 0; border-bottom: 1px solid var(--code-border); }
+    .live-demo .track-row:last-child { border: none; }
+    .live-demo .active-row { color: var(--accent); }
+    .live-demo .bar { display: inline-block; height: 9px; background: var(--accent); border-radius: 2px; transition: width .12s; }
+
     /* ── Download badge ────────────────────────────────────────────────── */
     .dl-block {
       display: flex;
@@ -392,11 +419,8 @@
       <li><a href="#templates-dir">Setting a templates directory</a></li>
       <li><a href="#dom">DOM layer — V$ / VQuery</a></li>
       <li><a href="#ajax">AJAX</a></li>
-      <li><a href="#reconciler">Fiber reconciler — createElement &amp; render</a></li>
-      <li><a href="#hooks">Hooks — useState, useEffect, useRef, useMemo, useContext</a></li>
       <li><a href="#template">Template engine — Vertex.template / Mustache</a></li>
       <li><a href="#router">Hash router — Backbone style</a></li>
-      <li><a href="#usehash">useHash — router meets reconciler</a></li>
       <li><a href="#jquery-compat">jQuery compatibility</a></li>
       <li><a href="#api-ref">Quick API reference</a></li>
     </ol>
@@ -408,20 +432,19 @@
   <section id="obtaining">
     <h2 class="sec"><span class="sec-num">01.</span> Obtaining vertex.js</h2>
 
-    <p>Vertex is a 1kloc SPA framework containing everything you need from React, Ractive-Load and jQuery while still being jQuery-compatible.</p>
+    <p>Vertex is a 1kloc library combining a jQuery-compatible DOM layer, a full Mustache template engine (Ractive.load-style — fetch a template, bind data, mount it), and a Backbone-style hash router. It deliberately has no React-style component layer — no virtual DOM, no fiber reconciler, no hooks.</p>
 
     <p>
       vertex.js is a single, self-contained file with no build step and no
-      dependencies. Download it from the Gist below and drop it wherever
+      dependencies. Grab it straight from this site and drop it wherever
       your project serves static assets.
     </p>
 
     <div class="dl-block">
-      <div class="dl-label">gist</div>
+      <div class="dl-label">source</div>
       <div class="dl-url">
-        <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/867cf609e8ec6bcb6700eda7f81c7c60e9ee01c9/vertex.js"
-           target="_blank" rel="noopener">
-          gist.githubusercontent.com/LukeB42/…/vertex.js
+        <a href="/vertex.js" target="_blank" rel="noopener">
+          /vertex.js
         </a>
       </div>
     </div>
@@ -429,8 +452,7 @@
     <p>Or fetch it from the command line:</p>
 
 <pre><span class="c"># save to your project's static directory</span>
-curl -o static/vertex.js \
-  https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/867cf609e8ec6bcb6700eda7f81c7c60e9ee01c9/vertex.js</pre>
+curl -o static/vertex.js https://float64co.github.io/vertex.js</pre>
 
     <p>
       It ships as a UMD module, so it works equally as a plain
@@ -677,182 +699,10 @@ Vertex.<span class="fn">post</span>(<span class="s">"/api/save"</span>, { title:
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
-       § 6  RECONCILER
-  ════════════════════════════════════════════════════════════════════ -->
-  <section id="reconciler">
-    <h2 class="sec"><span class="sec-num">06.</span> Fiber reconciler — createElement &amp; render</h2>
-
-    <p>
-      Vertex's reconciler follows the same fiber architecture described at
-      <a href="https://pomb.us/build-your-own-react/" target="_blank" rel="noopener">pomb.us</a>.
-      The public API is intentionally React-compatible.
-    </p>
-
-    <h3>createElement</h3>
-
-<pre><span class="k">const</span> { createElement: h, render, Fragment } = Vertex;
-
-<span class="c">// Host element</span>
-<span class="fn">h</span>(<span class="s">"div"</span>, { className: <span class="s">"card"</span> },
-  <span class="fn">h</span>(<span class="s">"h2"</span>, <span class="k">null</span>, <span class="s">"Hello"</span>),
-  <span class="fn">h</span>(<span class="s">"p"</span>,  <span class="k">null</span>, <span class="s">"World"</span>)
-)
-
-<span class="c">// Function component</span>
-<span class="k">function</span> <span class="fn">Badge</span>({ label, colour }) {
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"span"</span>, { style: { background: colour } }, label);
-}
-<span class="fn">h</span>(Badge, { label: <span class="s">"Bass"</span>, colour: <span class="s">"#c8ff00"</span> })
-
-<span class="c">// Fragment — renders children with no wrapper element</span>
-<span class="fn">h</span>(Fragment, <span class="k">null</span>,
-  <span class="fn">h</span>(<span class="s">"dt"</span>, <span class="k">null</span>, <span class="s">"BPM"</span>),
-  <span class="fn">h</span>(<span class="s">"dd"</span>, <span class="k">null</span>, <span class="s">"174"</span>)
-)</pre>
-
-    <h3>render</h3>
-
-<pre><span class="c">// Mount your root component once — Vertex handles all subsequent updates</span>
-<span class="k">function</span> <span class="fn">App</span>() {
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"div"</span>, { className: <span class="s">"app"</span> },
-    <span class="fn">h</span>(<span class="s">"h1"</span>, <span class="k">null</span>, <span class="s">"Vertex"</span>)
-  );
-}
-
-Vertex.<span class="fn">render</span>(
-  <span class="fn">h</span>(App, <span class="k">null</span>),
-  document.<span class="fn">getElementById</span>(<span class="s">"root"</span>)
-);</pre>
-
-    <h3>Lazy / async components</h3>
-
-<pre><span class="c">// Vertex.lazy() follows the React.lazy Suspense protocol.
-// The component is fetched once; Vertex re-renders automatically.</span>
-<span class="k">const</span> HeavyChart = Vertex.<span class="fn">lazy</span>(() => <span class="fn">import</span>(<span class="s">"/static/js/chart.js"</span>));
-
-<span class="k">function</span> <span class="fn">Dashboard</span>() {
-  <span class="k">return</span> <span class="fn">h</span>(HeavyChart, { data: chartData });
-}</pre>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       § 7  HOOKS
-  ════════════════════════════════════════════════════════════════════ -->
-  <section id="hooks">
-    <h2 class="sec"><span class="sec-num">07.</span> Hooks</h2>
-
-    <p>
-      All hooks follow React's rules: call them only at the top level of a
-      function component, never inside conditionals or loops.
-    </p>
-
-    <h3>useState</h3>
-
-<pre><span class="k">function</span> <span class="fn">Counter</span>() {
-  <span class="k">const</span> [count, setCount] = Vertex.<span class="fn">useState</span>(0);
-
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"div"</span>, <span class="k">null</span>,
-    <span class="fn">h</span>(<span class="s">"span"</span>, <span class="k">null</span>, String(count)),
-    <span class="fn">h</span>(<span class="s">"button"</span>, { onClick: () => <span class="fn">setCount</span>(c => c + 1) }, <span class="s">"+"</span>),
-    <span class="fn">h</span>(<span class="s">"button"</span>, { onClick: () => <span class="fn">setCount</span>(0) }, <span class="s">"reset"</span>)
-  );
-}</pre>
-
-    <h3>useReducer</h3>
-
-<pre><span class="k">function</span> <span class="fn">reducer</span>(state, action) {
-  <span class="k">switch</span> (action.type) {
-    <span class="k">case</span> <span class="s">"add"</span>:    <span class="k">return</span> { ...state, items: [...state.items, action.item] };
-    <span class="k">case</span> <span class="s">"clear"</span>:  <span class="k">return</span> { ...state, items: [] };
-    <span class="k">default</span>:        <span class="k">return</span> state;
-  }
-}
-
-<span class="k">function</span> <span class="fn">Playlist</span>() {
-  <span class="k">const</span> [state, dispatch] = Vertex.<span class="fn">useReducer</span>(reducer, { items: [] });
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"ul"</span>, <span class="k">null</span>,
-    ...state.items.<span class="fn">map</span>(t => <span class="fn">h</span>(<span class="s">"li"</span>, { key: t.id }, t.title))
-  );
-}</pre>
-
-    <h3>useEffect</h3>
-
-<pre><span class="k">function</span> <span class="fn">AudioPlayer</span>({ src }) {
-  <span class="k">const</span> audioRef = Vertex.<span class="fn">useRef</span>(<span class="k">null</span>);
-
-  <span class="c">// Run once on mount — teardown on unmount</span>
-  Vertex.<span class="fn">useEffect</span>(<span class="k">function</span>() {
-    <span class="k">const</span> ctx = <span class="k">new</span> <span class="fn">AudioContext</span>();
-    audioRef.current = ctx;
-    <span class="k">return</span> () => ctx.<span class="fn">close</span>();   <span class="c">// cleanup</span>
-  }, []);
-
-  <span class="c">// Re-run when src changes</span>
-  Vertex.<span class="fn">useEffect</span>(<span class="k">function</span>() {
-    <span class="k">if</span> (audioRef.current) <span class="fn">loadTrack</span>(audioRef.current, src);
-  }, [src]);
-
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"div"</span>, { className: <span class="s">"player"</span> }, <span class="s">"Playing: "</span> + src);
-}</pre>
-
-    <h3>useMemo &amp; useCallback</h3>
-
-<pre><span class="k">function</span> <span class="fn">TrackList</span>({ tracks, filter }) {
-  <span class="c">// Only re-computed when tracks or filter changes</span>
-  <span class="k">const</span> filtered = Vertex.<span class="fn">useMemo</span>(
-    () => tracks.<span class="fn">filter</span>(t => t.genre === filter),
-    [tracks, filter]
-  );
-
-  <span class="c">// Stable function reference — safe to pass to child components</span>
-  <span class="k">const</span> handleClick = Vertex.<span class="fn">useCallback</span>(
-    t => <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"selected:"</span>, t.title),
-    []
-  );
-
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"ul"</span>, <span class="k">null</span>,
-    ...filtered.<span class="fn">map</span>(t =>
-      <span class="fn">h</span>(<span class="s">"li"</span>, { onClick: () => <span class="fn">handleClick</span>(t) }, t.title)
-    )
-  );
-}</pre>
-
-    <h3>useRef</h3>
-
-<pre><span class="k">function</span> <span class="fn">FocusInput</span>() {
-  <span class="k">const</span> inputRef = Vertex.<span class="fn">useRef</span>(<span class="k">null</span>);
-
-  Vertex.<span class="fn">useEffect</span>(() => {
-    <span class="k">if</span> (inputRef.current) inputRef.current.<span class="fn">focus</span>();
-  }, []);
-
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"input"</span>, {
-    ref: inputRef,         <span class="c">// Vertex will write the DOM node here</span>
-    placeholder: <span class="s">"Type…"</span>
-  });
-}</pre>
-
-    <h3>createContext &amp; useContext</h3>
-
-<pre><span class="k">const</span> ThemeCtx = Vertex.<span class="fn">createContext</span>(<span class="s">"dark"</span>);
-
-<span class="k">function</span> <span class="fn">App</span>() {
-  <span class="k">return</span> <span class="fn">h</span>(ThemeCtx.Provider, { value: <span class="s">"dark"</span> },
-    <span class="fn">h</span>(Toolbar, <span class="k">null</span>)
-  );
-}
-
-<span class="k">function</span> <span class="fn">Toolbar</span>() {
-  <span class="k">const</span> theme = Vertex.<span class="fn">useContext</span>(ThemeCtx);
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"nav"</span>, { className: <span class="s">"toolbar theme-"</span> + theme });
-}</pre>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       § 8  TEMPLATE ENGINE
+       § 6  TEMPLATE ENGINE
   ════════════════════════════════════════════════════════════════════ -->
   <section id="template">
-    <h2 class="sec"><span class="sec-num">08.</span> Template engine — Vertex.template / Mustache</h2>
+    <h2 class="sec"><span class="sec-num">06.</span> Template engine — Vertex.template / Mustache</h2>
 
     <p>
       The <code>Vertex.template</code> constructor takes an element target, a
@@ -904,8 +754,8 @@ r.<span class="fn">on</span>(<span class="s">"change"</span>, ({ keypath, value 
           <td>HTML-escaped interpolation</td>
         </tr>
         <tr>
-          <td><code>&#123;&#123;&#123;key&#125;&#125;&#125;</code></td>
-          <td>Raw / unescaped HTML</td>
+          <td><code>&#123;&#123;&#123;key&#125;&#125;&#125;</code> / <code>&#123;&#123;&amp;key&#125;&#125;</code></td>
+          <td>Raw / unescaped HTML (two equivalent forms)</td>
         </tr>
         <tr>
           <td><code>&#123;&#123;user.name&#125;&#125;</code></td>
@@ -913,7 +763,15 @@ r.<span class="fn">on</span>(<span class="s">"change"</span>, ({ keypath, value 
         </tr>
         <tr>
           <td><code>&#123;&#123;#each items&#125;&#125; … &#123;&#123;/each&#125;&#125;</code></td>
-          <td>Loop — keys from each item available directly; <code>@index</code> for position</td>
+          <td>Explicit, array-only loop — a silent no-op on anything that isn't an array. Item keys and <code>@index</code> available directly inside</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;#name&#125;&#125; … &#123;&#123;/name&#125;&#125;</code></td>
+          <td>Full Mustache section: an array loops (like <code>#each</code>); a truthy object or scalar renders once with its keys pushed into scope; falsy or an empty array renders nothing</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;^name&#125;&#125; … &#123;&#123;/name&#125;&#125;</code></td>
+          <td>Inverted section — renders only when <code>name</code> is falsy or an empty array</td>
         </tr>
         <tr>
           <td><code>&#123;&#123;#if flag&#125;&#125; … &#123;&#123;/if&#125;&#125;</code></td>
@@ -923,24 +781,118 @@ r.<span class="fn">on</span>(<span class="s">"change"</span>, ({ keypath, value 
           <td><code>&#123;&#123;#if flag&#125;&#125; … &#123;&#123;else&#125;&#125; … &#123;&#123;/if&#125;&#125;</code></td>
           <td>Conditional with fallback</td>
         </tr>
+        <tr>
+          <td><code>&#123;&#123;! comment &#125;&#125;</code></td>
+          <td>Comment — produces no output</td>
+        </tr>
+        <tr>
+          <td><code>&#123;&#123;&gt; name&#125;&#125;</code></td>
+          <td>Partial — resolved against the <code>partials</code> map passed to the template (see below)</td>
+        </tr>
       </tbody>
     </table>
+
+    <p>
+      Sections nest to any depth. Closing tags are matched structurally
+      (a stack), not by name — <code>&#123;&#123;#foo&#125;&#125; … &#123;&#123;/bar&#125;&#125;</code>
+      closes the same way <code>&#123;&#123;#foo&#125;&#125; … &#123;&#123;/foo&#125;&#125;</code> would.
+    </p>
+
+    <h3>Partials</h3>
+
+<pre><span class="k">new</span> Vertex.<span class="fn">template</span>({
+  el:       <span class="s">"#app"</span>,
+  template: <span class="s">'&lt;ul&gt;{{#each users}}{{&gt; user-row}}{{/each}}&lt;/ul&gt;'</span>,
+  partials: {
+    <span class="s">"user-row"</span>: <span class="s">'&lt;li&gt;{{name}} — {{role}}&lt;/li&gt;'</span>
+  },
+  data: { users: [{ name: <span class="s">"Alice"</span>, role: <span class="s">"Engineer"</span> }] }
+});</pre>
+
+    <h3>Computed properties</h3>
+
+    <p>
+      Pass a <code>computed</code> map of getter functions alongside
+      <code>data</code>. Each key is defined on the data object with
+      <code>this</code> bound to the template instance, so it can read
+      other fields and is re-evaluated on every render:
+    </p>
+
+<pre><span class="k">const</span> list = <span class="k">new</span> Vertex.<span class="fn">template</span>({
+  el:       <span class="s">"#results"</span>,
+  template: <span class="s">'{{#each visible}}&lt;li&gt;{{label}}&lt;/li&gt;{{/each}}'</span>,
+  data:     { items: [...], filter: <span class="s">""</span> },
+  computed: {
+    visible: <span class="k">function</span> () {
+      <span class="k">return</span> <span class="k">this</span>._data.items.<span class="fn">filter</span>(<span class="k">function</span> (i) {
+        <span class="k">return</span> i.label.<span class="fn">includes</span>(<span class="k">this</span>._data.filter);
+      }, <span class="k">this</span>);
+    }
+  }
+});
+
+list.<span class="fn">set</span>(<span class="s">"filter"</span>, <span class="s">"bass"</span>);   <span class="c">// re-renders "visible" automatically</span></pre>
 
     <h3>Two-way binding</h3>
 
     <p>
       Add <code>data-bind="keypath"</code> to any <code>&lt;input&gt;</code>
-      inside a template and Vertex will keep the input and the data
-      object in sync automatically:
+      inside a template and Vertex keeps the input and the data object in sync
+      automatically — no manual event wiring on your end. Drag the slider
+      below, or pick a track; the same data object drives both, and the
+      slider's half of that needs no JS at all beyond the attribute itself.
     </p>
 
-<pre><span class="k">new</span> Vertex.<span class="fn">template</span>({
-  el:       <span class="s">"#form"</span>,
-  template: <span class="s">'&lt;input data-bind="username" placeholder="Username"&gt;'</span>,
-  data:     { username: <span class="s">""</span> },
-  oncomplete() {
-    <span class="fn">console</span>.<span class="fn">log</span>(<span class="s">"mounted, username ="</span>, <span class="k">this</span>.<span class="fn">get</span>(<span class="s">"username"</span>));
-  }
+    <div class="live-demo">
+      <div id="md-out" class="tmpl-out"></div>
+      <div class="row" id="md-tracks" style="margin-top:10px">
+        <span class="muted">Active track</span>
+        <button data-track="0" class="active-btn">0</button>
+        <button data-track="1">1</button>
+        <button data-track="2">2</button>
+      </div>
+    </div>
+
+    <p>
+      Notice the slider can feel a little less smooth than a plain
+      <code>&lt;input&gt;</code> — that's not an accident to hide. Every drag
+      tick replaces the template's entire <code>innerHTML</code>, including
+      the input itself, so the node you started dragging isn't the node you
+      end up on. Vertex re-focuses whichever <code>data-bind</code> input had
+      focus right before the swap, which is the only reason it doesn't lose
+      your place — but that safety net stops at the template's own bound
+      inputs. It's the deliberate tradeoff of a 1kloc library with no virtual
+      DOM: fine for a form field or two, worth avoiding for anything that
+      needs to feel truly continuous.
+    </p>
+
+<pre><span class="k">const</span> TRACKS = [
+  { name: <span class="s">"Jungle Pressure"</span>, bpm: 170 },
+  { name: <span class="s">"Dark Matter DnB"</span>, bpm: 174 },
+  { name: <span class="s">"Halftime Drift"</span>,  bpm: 85  }
+];
+
+<span class="k">const</span> demo = <span class="k">new</span> Vertex.<span class="fn">template</span>({
+  el: <span class="s">"#md-out"</span>,
+  <span class="c">// the range input lives INSIDE the template's own markup — that's
+  // what makes data-bind find it and wire it up automatically</span>
+  template: <span class="s">`
+    &lt;input type="range" min="0" max="100" data-bind="progress"&gt; {{progress}}%
+    {{#each tracks}}
+      &lt;div class="track-row{{#if active}} active-row{{/if}}"&gt;
+        {{@index}}. {{name}} — {{bpm}} bpm
+      &lt;/div&gt;
+    {{/each}}
+    &lt;span class="bar" style="width:{{progress}}%"&gt;&lt;/span&gt;
+  `</span>,
+  data: { progress: 0, tracks: TRACKS.map((t, i) => ({ ...t, active: i === 0 })) }
+});
+
+<span class="c">// data-bind="progress" already keeps demo's "progress" key in sync —
+// only the button-driven "active track" needs an explicit .set()</span>
+Vertex.<span class="fn">$v</span>(<span class="s">"#md-tracks"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, <span class="s">"button"</span>, <span class="k">function</span> () {
+  <span class="k">const</span> idx = <span class="fn">parseInt</span>(<span class="k">this</span>.dataset.track, 10);
+  demo.<span class="fn">set</span>(<span class="s">"tracks"</span>, TRACKS.map((t, i) => ({ ...t, active: i === idx })));
 });</pre>
 
     <h3>Vertex.template.load() — remote templates</h3>
@@ -956,15 +908,15 @@ Vertex.template.<span class="fn">load</span>(<span class="s">"player"</span>, {
   instance.<span class="fn">on</span>(<span class="s">"change"</span>, e => <span class="fn">syncBackend</span>(e));
 });</pre>
 
-<p>Want to understand how to safely mix Moustache templates and React components? <a href="vertex-interop.html">Read the interop guide</a>.</p>
+<p>Mounting anything else — a third-party widget, a nested template — inside a template's own element? Its re-render will destroy it. <a href="vertex-interop.html">Read the interop guide</a> for the safe patterns.</p>
 
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
-       § 9  ROUTER
+       § 7  ROUTER
   ════════════════════════════════════════════════════════════════════ -->
   <section id="router">
-    <h2 class="sec"><span class="sec-num">09.</span> Hash router — Backbone style</h2>
+    <h2 class="sec"><span class="sec-num">07.</span> Hash router — Backbone style</h2>
 
     <p>
       <code>Vertex.Router</code> is a singleton. Routes are matched against
@@ -1015,55 +967,10 @@ Vertex.Router.<span class="fn">start</span>();</pre>
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
-       § 10  USEHASH
-  ════════════════════════════════════════════════════════════════════ -->
-  <section id="usehash">
-    <h2 class="sec"><span class="sec-num">10.</span> useHash — router meets reconciler</h2>
-
-    <p>
-      <code>useHash()</code> is a hook that returns the current
-      <code>location.hash</code> fragment and automatically re-renders
-      the component on every <code>hashchange</code> event. It's the
-      idiomatic way to drive the fiber reconciler from URL state.
-    </p>
-
-<pre><span class="k">const</span> { createElement: h, render, useHash } = Vertex;
-
-<span class="k">const</span> ROUTES = {
-  <span class="s">""</span>:         Home,
-  <span class="s">"projects"</span>: Projects,
-  <span class="s">"about"</span>:    About
-};
-
-<span class="k">function</span> <span class="fn">App</span>() {
-  <span class="k">const</span> hash = <span class="fn">useHash</span>();             <span class="c">// e.g. "#/projects"</span>
-  <span class="k">const</span> key  = hash.<span class="fn">replace</span>(/^#\//, <span class="s">""</span>);
-  <span class="k">const</span> Page = ROUTES[key] || NotFound;
-
-  <span class="k">return</span> <span class="fn">h</span>(<span class="s">"main"</span>, <span class="k">null</span>,
-    <span class="fn">h</span>(<span class="s">"nav"</span>, <span class="k">null</span>,
-      <span class="fn">h</span>(<span class="s">"a"</span>, { href: <span class="s">"#/"</span>          }, <span class="s">"Home"</span>),
-      <span class="fn">h</span>(<span class="s">"a"</span>, { href: <span class="s">"#/projects"</span>  }, <span class="s">"Projects"</span>),
-      <span class="fn">h</span>(<span class="s">"a"</span>, { href: <span class="s">"#/about"</span>     }, <span class="s">"About"</span>)
-    ),
-    <span class="fn">h</span>(Page, <span class="k">null</span>)
-  );
-}
-
-<span class="fn">render</span>(<span class="fn">h</span>(App, <span class="k">null</span>), document.<span class="fn">getElementById</span>(<span class="s">"root"</span>));</pre>
-
-    <p>
-      Combine with <code>Vertex.Router</code> when you also need pattern
-      matching on dynamic segments — <code>useHash</code> handles the
-      re-render cycle while the Router extracts params.
-    </p>
-  </section>
-
-  <!-- ═══════════════════════════════════════════════════════════════════
-       § 11  JQUERY COMPAT
+       § 8  JQUERY COMPAT
   ════════════════════════════════════════════════════════════════════ -->
   <section id="jquery-compat">
-    <h2 class="sec"><span class="sec-num">11.</span> jQuery compatibility</h2>
+    <h2 class="sec"><span class="sec-num">08.</span> jQuery compatibility</h2>
 
     <p>
       Vertex is explicitly designed to coexist with jQuery on the same
@@ -1098,37 +1005,38 @@ Vertex.<span class="fn">$v</span>(<span class="s">"#vx-card"</span>).<span class
   </section>
 
   <!-- ═══════════════════════════════════════════════════════════════════
-       § 12  API REFERENCE
+       § 9  API REFERENCE
   ════════════════════════════════════════════════════════════════════ -->
   <section id="api-ref">
-    <h2 class="sec"><span class="sec-num">12.</span> Quick API reference</h2>
+    <h2 class="sec"><span class="sec-num">09.</span> Quick API reference</h2>
 
     <h3>Vertex namespace</h3>
     <table class="api-table">
       <thead><tr><th>Symbol</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><code>Vertex.createElement(type, props, …children)</code></td><td>Create a virtual element descriptor</td></tr>
-        <tr><td><code>Vertex.render(element, container)</code></td><td>Mount or update the component tree</td></tr>
-        <tr><td><code>Vertex.Fragment</code></td><td>Wrapper-free grouping element</td></tr>
-        <tr><td><code>Vertex.lazy(factory)</code></td><td>Async component loader</td></tr>
-        <tr><td><code>Vertex.createContext(default)</code></td><td>Create a context object</td></tr>
-        <tr><td><code>Vertex.useState(initial)</code></td><td>Hook: local state</td></tr>
-        <tr><td><code>Vertex.useReducer(reducer, initial)</code></td><td>Hook: reducer-based state</td></tr>
-        <tr><td><code>Vertex.useEffect(fn, deps)</code></td><td>Hook: side effects &amp; cleanup</td></tr>
-        <tr><td><code>Vertex.useMemo(fn, deps)</code></td><td>Hook: memoised value</td></tr>
-        <tr><td><code>Vertex.useCallback(fn, deps)</code></td><td>Hook: memoised callback</td></tr>
-        <tr><td><code>Vertex.useRef(initial)</code></td><td>Hook: mutable ref</td></tr>
-        <tr><td><code>Vertex.useContext(ctx)</code></td><td>Hook: read context value</td></tr>
-        <tr><td><code>Vertex.useHash()</code></td><td>Hook: reactive URL hash</td></tr>
         <tr><td><code>Vertex.template</code></td><td>Mustache template constructor</td></tr>
         <tr><td><code>Vertex.template.load(url, options)</code></td><td>Fetch and mount a remote template file</td></tr>
         <tr><td><code>Vertex.template.load.baseUri</code></td><td>Base path prepended to relative URLs (default <code>""</code>)</td></tr>
+        <tr><td><code>Vertex.parseTemplate(tmpl, data, partials?)</code></td><td>Render a template string to HTML without mounting it</td></tr>
         <tr><td><code>Vertex.Router</code></td><td>Singleton hash router</td></tr>
         <tr><td><code>Vertex.RouterClass</code></td><td>Backbone-style base class</td></tr>
+        <tr><td><code>Vertex.VQuery</code></td><td>The DOM wrapper constructor</td></tr>
         <tr><td><code>Vertex.$v(selector)</code></td><td>VQuery DOM wrapper</td></tr>
         <tr><td><code>Vertex.ajax(options)</code></td><td>Fetch wrapper</td></tr>
         <tr><td><code>Vertex.get(url, …)</code></td><td>Shorthand GET</td></tr>
         <tr><td><code>Vertex.post(url, …)</code></td><td>Shorthand POST</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Template instance methods</h3>
+    <table class="api-table">
+      <thead><tr><th>Method</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>.get(keypath)</code></td><td>Read a value from the data object (dot-path supported)</td></tr>
+        <tr><td><code>.set(keypath, value)</code></td><td>Write one value and re-render; emits <code>"change"</code></td></tr>
+        <tr><td><code>.update(partialData)</code></td><td>Merge multiple keys into the data object and re-render</td></tr>
+        <tr><td><code>.on(event, fn) / .off(event, [fn])</code></td><td>Listen for/remove <code>"change"</code> handlers</td></tr>
+        <tr><td><code>.teardown()</code></td><td>Clear the mounted element and drop all handlers</td></tr>
       </tbody>
     </table>
 
@@ -1163,11 +1071,47 @@ Vertex.<span class="fn">$v</span>(<span class="s">"#vx-card"</span>).<span class
   <!-- ── Footer ──────────────────────────────────────────────────────── -->
   <footer>
     <span>vertex.js — Float64 / LukeB42</span>
-    <a href="https://gist.githubusercontent.com/LukeB42/ef5b142325fc2bcd4915ba9b452f6230/raw/867cf609e8ec6bcb6700eda7f81c7c60e9ee01c9/vertex.js"
-       target="_blank" rel="noopener">download source</a>
+    <a href="/vertex.js" target="_blank" rel="noopener">download source</a>
   </footer>
 
 </div><!-- /.shell -->
+
+<script>
+(function () {
+  var V$ = Vertex.$v;
+
+  var TRACKS = [
+    { name: 'Jungle Pressure', bpm: 170 },
+    { name: 'Dark Matter DnB', bpm: 174 },
+    { name: 'Halftime Drift',  bpm: 85  }
+  ];
+
+  function tracksAt(activeIdx) {
+    return TRACKS.map(function (t, i) {
+      return { name: t.name, bpm: t.bpm, active: i === activeIdx };
+    });
+  }
+
+  var demo = new Vertex.template({
+    el:       '#md-out',
+    template: [
+      '<input type="range" min="0" max="100" data-bind="progress"> {{progress}}%',
+      '{{#each tracks}}',
+      '  <div class="track-row{{#if active}} active-row{{/if}}">{{@index}}. {{name}} — {{bpm}} bpm</div>',
+      '{{/each}}',
+      '<span class="bar" style="width:{{progress}}%"></span>'
+    ].join('\n'),
+    data: { progress: 0, tracks: tracksAt(0) }
+  });
+
+  V$('#md-tracks').on('click', 'button', function () {
+    var idx = parseInt(this.getAttribute('data-track'), 10);
+    V$('#md-tracks button').removeClass('active-btn');
+    V$(this).addClass('active-btn');
+    demo.set('tracks', tracksAt(idx));
+  });
+}());
+</script>
 
 </body>
 </html>
