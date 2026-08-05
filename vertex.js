@@ -920,20 +920,33 @@ function (global) {
     _render: function () {
       if (!this._el) return;
 
-      /* ── Save focus / cursor state before replacing innerHTML ── */
-      var savedBind  = null;
+      /* ── Pull the actively-focused data-bind input out before replacing
+         innerHTML, so a live drag or keystroke on it survives the render.
+         A range input's drag (and a text input's IME composition) is
+         mouse-capture/session state tied to that exact DOM node — even
+         swapping in an attribute-identical clone silently ends the
+         gesture, as if the user had released the mouse. Everything else
+         under this._el still gets fully rebuilt below; this is a narrow,
+         deliberate exception for the one node the user is mid-interaction
+         with. */
+      var preserved     = null;
+      var preservedBind = null;
       var savedStart = 0;
       var savedEnd   = 0;
       var savedDir   = 'none';
       if (typeof document !== 'undefined' && document.activeElement &&
           this._el.contains(document.activeElement)) {
         var ae = document.activeElement;
-        savedBind  = ae.getAttribute('data-bind');
-        try {
-          savedStart = ae.selectionStart  || 0;
-          savedEnd   = ae.selectionEnd    || 0;
-          savedDir   = ae.selectionDirection || 'none';
-        } catch (_) { /* non-text inputs throw on selectionStart access */ }
+        var bind = ae.getAttribute('data-bind');
+        if (bind) {
+          preserved     = ae;
+          preservedBind = bind;
+          try {
+            savedStart = ae.selectionStart  || 0;
+            savedEnd   = ae.selectionEnd    || 0;
+            savedDir   = ae.selectionDirection || 'none';
+          } catch (_) { /* non-text inputs throw on selectionStart access */ }
+        }
       }
 
       /* {{> name}} always renders via the direct interpreter, even when the
@@ -950,30 +963,67 @@ function (global) {
         ? this._compiled(this._data, escHtml, resolvePath, renderPartial)
         : renderNodes(tokenizeTemplate(this._template), this._data, partials);
       this._el.innerHTML = html;
-      this._bindInputs();
 
-      /* ── Restore focus and cursor position ── */
-      if (savedBind) {
-        var target = this._el.querySelector('[data-bind="' + savedBind + '"]');
-        if (target) {
-          target.focus();
-          try { target.setSelectionRange(savedStart, savedEnd, savedDir); } catch (_) {}
+      /* ── Swap the preserved live node in place of its freshly-parsed
+         placeholder, instead of just re-focusing a new one ── */
+      if (preserved) {
+        var placeholder = this._el.querySelector('[data-bind="' + preservedBind + '"]');
+        if (placeholder && placeholder.tagName === preserved.tagName) {
+          placeholder.parentNode.replaceChild(preserved, placeholder);
+          preserved.focus();
+          try { preserved.setSelectionRange(savedStart, savedEnd, savedDir); } catch (_) {}
         }
       }
+
+      this._bindInputs();
     },
 
     /* Two-way binding: <input data-bind="key.path"> */
     _bindInputs: function () {
       var self = this;
       Array.from(this._el.querySelectorAll('[data-bind]')).forEach(function (input) {
+        if (input._vBound) return;   /* preserved node from _render — already wired */
+        input._vBound = true;
+
         var key  = input.getAttribute('data-bind');
         var val  = resolvePath(self._data, key);
         if (val !== undefined) input.value = val;
 
-        input.addEventListener('input', function () {
-          self.set(key, input.value);
-        });
+        if (input.type === 'range') {
+          /* A range input's drag is native pointer-capture state tied to
+             that exact DOM node. Per spec, capture releases the instant the
+             element leaves the document — even swapping the *same* node
+             back in a moment later (see _render()'s preserve-on-focus path)
+             is still one JS-visible detach, which is enough to end it. So
+             while dragging, only the data model is kept live (.get() is
+             always current) — no re-render, no DOM touched at all. The rest
+             of the template (anything else bound to this key) catches up
+             once the drag actually ends. */
+          input.addEventListener('input', function () {
+            self._setSilent(key, input.value);
+          });
+          input.addEventListener('change', function () {
+            self.set(key, input.value);
+          });
+        } else {
+          input.addEventListener('input', function () {
+            self.set(key, input.value);
+          });
+        }
       });
+    },
+
+    /* Write a value into _data without triggering a re-render. */
+    _setSilent: function (key, val) {
+      var parts = key.split('.');
+      var obj   = this._data;
+      for (var i = 0; i < parts.length - 1; i++) {
+        if (obj[parts[i]] == null || typeof obj[parts[i]] !== 'object') {
+          obj[parts[i]] = {};
+        }
+        obj = obj[parts[i]];
+      }
+      obj[parts[parts.length - 1]] = val;
     },
 
     get: function (key) {

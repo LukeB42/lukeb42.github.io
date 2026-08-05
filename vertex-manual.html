@@ -432,12 +432,25 @@
   <section id="obtaining">
     <h2 class="sec"><span class="sec-num">01.</span> Obtaining vertex.js</h2>
 
-    <p>Vertex is a 1kloc library combining a jQuery-compatible DOM layer, a full Mustache template engine (Ractive.load-style — fetch a template, bind data, mount it), and a Backbone-style hash router. It deliberately has no React-style component layer — no virtual DOM, no fiber reconciler, no hooks.</p>
+    <p>Vertex is a 1kloc library combining a jQuery-compatible DOM layer, a full Mustache template engine (Ractive.load-style — fetch a template, bind data, mount it), and a Backbone-style hash router. It deliberately has no React-style component layer — no virtual DOM, no fiber reconciler, no hooks. Here's the template engine's two-way data binding, live — drag the slider, or pick a track:</p>
+
+    <div class="live-demo">
+      <div id="md-out" class="tmpl-out"></div>
+      <div class="row" id="md-tracks" style="margin-top:10px">
+        <span class="muted">Active track</span>
+        <button data-track="0" class="active-btn">0</button>
+        <button data-track="1">1</button>
+        <button data-track="2">2</button>
+      </div>
+    </div>
 
     <p>
-      vertex.js is a single, self-contained file with no build step and no
-      dependencies. Grab it straight from this site and drop it wherever
-      your project serves static assets.
+      That's genuine two-way binding — dragging the slider needs no JS beyond
+      the <code>data-bind</code> attribute itself, while the buttons show the
+      same data object taking an ordinary <code>.set()</code> call just as
+      easily. vertex.js itself is a single, self-contained file with no build
+      step and no dependencies. Grab it straight from this site and drop it
+      wherever your project serves static assets.
     </p>
 
     <div class="dl-block">
@@ -836,34 +849,13 @@ list.<span class="fn">set</span>(<span class="s">"filter"</span>, <span class="s
     <h3>Two-way binding</h3>
 
     <p>
-      Add <code>data-bind="keypath"</code> to any <code>&lt;input&gt;</code>
-      inside a template and Vertex keeps the input and the data object in sync
-      automatically — no manual event wiring on your end. Drag the slider
-      below, or pick a track; the same data object drives both, and the
-      slider's half of that needs no JS at all beyond the attribute itself.
-    </p>
-
-    <div class="live-demo">
-      <div id="md-out" class="tmpl-out"></div>
-      <div class="row" id="md-tracks" style="margin-top:10px">
-        <span class="muted">Active track</span>
-        <button data-track="0" class="active-btn">0</button>
-        <button data-track="1">1</button>
-        <button data-track="2">2</button>
-      </div>
-    </div>
-
-    <p>
-      Notice the slider can feel a little less smooth than a plain
-      <code>&lt;input&gt;</code> — that's not an accident to hide. Every drag
-      tick replaces the template's entire <code>innerHTML</code>, including
-      the input itself, so the node you started dragging isn't the node you
-      end up on. Vertex re-focuses whichever <code>data-bind</code> input had
-      focus right before the swap, which is the only reason it doesn't lose
-      your place — but that safety net stops at the template's own bound
-      inputs. It's the deliberate tradeoff of a 1kloc library with no virtual
-      DOM: fine for a form field or two, worth avoiding for anything that
-      needs to feel truly continuous.
+      That live demo at the top of the page is this in its entirety: add
+      <code>data-bind="keypath"</code> to any <code>&lt;input&gt;</code>
+      inside a template and Vertex keeps the input and the data object in
+      sync automatically — no manual event wiring on your end. The range
+      input has to live <em>inside</em> the template's own markup for this to
+      work; <code>data-bind</code> only wires up inputs the template itself
+      rendered, not ones sitting elsewhere on the page.
     </p>
 
 <pre><span class="k">const</span> TRACKS = [
@@ -874,8 +866,6 @@ list.<span class="fn">set</span>(<span class="s">"filter"</span>, <span class="s
 
 <span class="k">const</span> demo = <span class="k">new</span> Vertex.<span class="fn">template</span>({
   el: <span class="s">"#md-out"</span>,
-  <span class="c">// the range input lives INSIDE the template's own markup — that's
-  // what makes data-bind find it and wire it up automatically</span>
   template: <span class="s">`
     &lt;input type="range" min="0" max="100" data-bind="progress"&gt; {{progress}}%
     {{#each tracks}}
@@ -894,6 +884,20 @@ Vertex.<span class="fn">$v</span>(<span class="s">"#md-tracks"</span>).<span cla
   <span class="k">const</span> idx = <span class="fn">parseInt</span>(<span class="k">this</span>.dataset.track, 10);
   demo.<span class="fn">set</span>(<span class="s">"tracks"</span>, TRACKS.map((t, i) => ({ ...t, active: i === idx })));
 });</pre>
+
+    <p>
+      Every drag tick or keystroke still replaces the template's entire
+      <code>innerHTML</code> — there's no virtual DOM here. The one
+      exception: whichever <code>data-bind</code> input currently has focus
+      is pulled out beforehand and spliced back into the freshly-rendered
+      markup as the same live DOM node, rather than a freshly-parsed
+      lookalike. That's a deliberate, narrow carve-out — a range input's drag
+      (and a text input's cursor position) is state tied to that exact node,
+      and even an attribute-identical replacement silently ends the gesture.
+      Everything else inside the template still gets fully rebuilt on every
+      change; see the <a href="vertex-interop.html">interop guide</a> for
+      what that means for foreign DOM you park in there yourself.
+    </p>
 
     <h3>Vertex.template.load() — remote templates</h3>
 

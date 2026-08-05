@@ -168,9 +168,9 @@
     just a visual glitch.
   </p>
   <p style="color:var(--red);font-size:.82rem">
-    The template's <code>data-bind</code> focus/cursor preservation (see the source) only saves
-    and restores <em>its own</em> bound inputs across a re-render — it has no idea foreign DOM is
-    sitting inside the element it's about to overwrite.
+    The template preserves the exact live DOM node of whichever <code>data-bind</code> input
+    currently has focus (see the source) — but that carve-out is scoped to <em>its own</em>
+    bound inputs. It has no idea foreign DOM is sitting inside the element it's about to overwrite.
   </p>
   <div class="row">
     <button id="p3-mount">Mount a foreign ticking widget into #p3-sub</button>
