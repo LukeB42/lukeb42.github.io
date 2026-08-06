@@ -445,7 +445,7 @@
         '<div class="track-name{{#if currentTrackLabel}} loaded{{/if}}">' +
           '{{#if currentTrackLabel}}{{currentTrackLabel}}{{else}}— no track loaded —{{/if}}' +
         '</div>' +
-        '<input type="range" min="0" max="100" value="{{progress}}" data-action="seek">' +
+        '<input type="range" min="0" max="100" data-bind="progress">' +
       '</div>' +
       '<div class="right">' +
         '<span class="time">{{currentTimeStr}} / {{durationStr}}</span>' +
@@ -508,6 +508,12 @@
       if (!playerTemplate.get('playlistOpen')) return;
       if (e.target.closest && e.target.closest('.hamburger-wrapper')) return;
       playerTemplate.set('playlistOpen', false);
+    });
+
+    /* The scrubber is data-bind="progress" — dragging it only commits (and
+       fires this) on release, never mid-drag; see vertex.js for why. */
+    playerTemplate.on('change', function (ev) {
+      if (ev.keypath === 'progress') seek(parseFloat(ev.value));
     });
 
     var audio = new Audio();
@@ -575,10 +581,6 @@
       } else {
         play(playerTemplate.get('currentTrackUrl') || TRACKS[0].url, currentIdx !== -1 ? currentIdx : 0);
       }
-    });
-
-    V$('#player-mount').on('input', '[data-action="seek"]', function () {
-      seek(parseFloat(this.value));
     });
 
     V$('#player-mount').on('input', '[data-action="volume"]', function () {

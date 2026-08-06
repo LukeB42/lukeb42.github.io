@@ -920,6 +920,20 @@ function (global) {
     _render: function () {
       if (!this._el) return;
 
+      /* If a range-type data-bind input inside this template is mid-drag,
+         defer ALL rendering — not just renders that input's own event would
+         trigger — until the drag ends. Any render right now, from any
+         source, would detach-and-reattach that input and silently end its
+         native drag. this._data itself is still live and up to date (see
+         _setSilent above); only the DOM catch-up waits. The 'change' handler
+         above clears _vDragging and calls .set(), which is what finally lets
+         a render through once the user releases. */
+      if (Array.prototype.some.call(
+            this._el.querySelectorAll('input[type=range][data-bind]'),
+            function (el) { return el._vDragging; })) {
+        return;
+      }
+
       /* ── Pull the actively-focused data-bind input out before replacing
          innerHTML, so a live drag or keystroke on it survives the render.
          A range input's drag (and a text input's IME composition) is
@@ -998,12 +1012,32 @@ function (global) {
              while dragging, only the data model is kept live (.get() is
              always current) — no re-render, no DOM touched at all. The rest
              of the template (anything else bound to this key) catches up
-             once the drag actually ends. */
+             once the drag actually ends.
+
+             input._vDragging also gates _render() itself (see below) — not
+             just this input's own handler. Some *other* code entirely
+             (e.g. a setInterval elsewhere in the app calling .update() on an
+             unrelated key) can still trigger a render while this input is
+             mid-drag, and that render would detach-and-reattach it exactly
+             the same way, ending the drag just as surely. So the guard has
+             to live in _render() itself, not just here.
+
+             "The drag has ended" is detected by debounce — a short idle gap
+             in 'input' events — rather than by listening for 'change'. Some
+             browsers fire 'change' more than once per drag instead of
+             exactly once at release; trusting it would mean occasionally
+             committing (and rendering) mid-gesture anyway, right back to
+             the same interrupted-drag failure. A debounce needs no
+             assumption about any browser's 'change' semantics at all. */
+          var commitTimer = null;
           input.addEventListener('input', function () {
+            input._vDragging = true;
             self._setSilent(key, input.value);
-          });
-          input.addEventListener('change', function () {
-            self.set(key, input.value);
+            clearTimeout(commitTimer);
+            commitTimer = setTimeout(function () {
+              input._vDragging = false;
+              self.set(key, input.value);
+            }, 120);
           });
         } else {
           input.addEventListener('input', function () {

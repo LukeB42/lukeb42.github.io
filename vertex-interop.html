@@ -168,8 +168,10 @@
     just a visual glitch.
   </p>
   <p style="color:var(--red);font-size:.82rem">
-    The template preserves the exact live DOM node of whichever <code>data-bind</code> input
-    currently has focus (see the source) — but that carve-out is scoped to <em>its own</em>
+    The template protects its own <code>data-bind</code> inputs from this — a focused text input
+    keeps its live DOM node and cursor position across a re-render, and a range input skips
+    re-rendering entirely while it's being dragged (see the source) — but that carve-out is scoped
+    to its own
     bound inputs. It has no idea foreign DOM is sitting inside the element it's about to overwrite.
   </p>
   <div class="row">

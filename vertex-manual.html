@@ -445,12 +445,14 @@
     </div>
 
     <p>
-      That's genuine two-way binding — dragging the slider needs no JS beyond
-      the <code>data-bind</code> attribute itself, while the buttons show the
-      same data object taking an ordinary <code>.set()</code> call just as
-      easily. vertex.js itself is a single, self-contained file with no build
-      step and no dependencies. Grab it straight from this site and drop it
-      wherever your project serves static assets.
+      That's genuine two-way binding — the data stays live via nothing but
+      the <code>data-bind</code> attribute itself, with a couple of lines of
+      plain JS painting the bar and percentage as you drag (§06 has the
+      full breakdown) — while the buttons show the same data object taking
+      an ordinary <code>.set()</code> call just as easily. vertex.js itself
+      is a single, self-contained file with no build step and no
+      dependencies. Grab it straight from this site and drop it wherever
+      your project serves static assets.
     </p>
 
     <div class="dl-block">
@@ -867,7 +869,7 @@ list.<span class="fn">set</span>(<span class="s">"filter"</span>, <span class="s
 <span class="k">const</span> demo = <span class="k">new</span> Vertex.<span class="fn">template</span>({
   el: <span class="s">"#md-out"</span>,
   template: <span class="s">`
-    &lt;input type="range" min="0" max="100" data-bind="progress"&gt; {{progress}}%
+    &lt;input type="range" min="0" max="100" data-bind="progress"&gt; &lt;span class="pct"&gt;{{progress}}%&lt;/span&gt;
     {{#each tracks}}
       &lt;div class="track-row{{#if active}} active-row{{/if}}"&gt;
         {{@index}}. {{name}} — {{bpm}} bpm
@@ -878,25 +880,66 @@ list.<span class="fn">set</span>(<span class="s">"filter"</span>, <span class="s
   data: { progress: 0, tracks: TRACKS.map((t, i) => ({ ...t, active: i === 0 })) }
 });
 
-<span class="c">// data-bind="progress" already keeps demo's "progress" key in sync —
-// only the button-driven "active track" needs an explicit .set()</span>
+<span class="c">// data-bind="progress" keeps the data live and commits once the drag
+// settles — but that commit is debounced (see below), so the bar and
+// percentage wouldn't visibly move DURING the drag on their own. This
+// paints them on every tick via a direct write to two plain elements
+// that have no native interactive state — never the slider itself.</span>
+Vertex.<span class="fn">$v</span>(<span class="s">"#md-out"</span>).<span class="fn">on</span>(<span class="s">"input"</span>, <span class="s">"input[type=range]"</span>, <span class="k">function</span> () {
+  Vertex.<span class="fn">$v</span>(<span class="s">"#md-out .pct"</span>).<span class="fn">text</span>(<span class="k">this</span>.value + <span class="s">"%"</span>);
+  Vertex.<span class="fn">$v</span>(<span class="s">"#md-out .bar"</span>).<span class="fn">css</span>(<span class="s">"width"</span>, <span class="k">this</span>.value + <span class="s">"%"</span>);
+});
+
+<span class="c">// only the button-driven "active track" needs an explicit .set()</span>
 Vertex.<span class="fn">$v</span>(<span class="s">"#md-tracks"</span>).<span class="fn">on</span>(<span class="s">"click"</span>, <span class="s">"button"</span>, <span class="k">function</span> () {
   <span class="k">const</span> idx = <span class="fn">parseInt</span>(<span class="k">this</span>.dataset.track, 10);
   demo.<span class="fn">set</span>(<span class="s">"tracks"</span>, TRACKS.map((t, i) => ({ ...t, active: i === idx })));
 });</pre>
 
     <p>
-      Every drag tick or keystroke still replaces the template's entire
-      <code>innerHTML</code> — there's no virtual DOM here. The one
-      exception: whichever <code>data-bind</code> input currently has focus
-      is pulled out beforehand and spliced back into the freshly-rendered
-      markup as the same live DOM node, rather than a freshly-parsed
-      lookalike. That's a deliberate, narrow carve-out — a range input's drag
-      (and a text input's cursor position) is state tied to that exact node,
-      and even an attribute-identical replacement silently ends the gesture.
-      Everything else inside the template still gets fully rebuilt on every
-      change; see the <a href="vertex-interop.html">interop guide</a> for
-      what that means for foreign DOM you park in there yourself.
+      Every change still replaces the template's entire <code>innerHTML</code>
+      — there's no virtual DOM here — which raises an obvious question for a
+      <em>range</em> input specifically: a slider's drag is native
+      pointer-capture state tied to that exact DOM node, and per spec that
+      capture releases the instant the element leaves the document, even if
+      an identical node is reinserted the same tick. Re-rendering on every
+      <code>input</code> tick would silently end the drag after the first
+      pixel of movement. So for <code>&lt;input type="range"&gt;</code>
+      specifically, <code>input</code> events update the data model directly
+      — <code>.get()</code> is always live — without touching the DOM at
+      all; the official re-render (the one the template engine itself
+      drives, reconciling <em>everything</em> bound to that key) fires once,
+      debounced ~120ms after the last <code>input</code> event goes quiet.
+      That's deliberately not wired to the native <code>change</code> event
+      — some browsers fire it more than once per drag instead of exactly
+      once at release, which would mean occasionally re-rendering (and
+      interrupting) mid-gesture anyway. Watching for a gap in
+      <code>input</code> events needs no assumption about any browser's
+      <code>change</code> semantics at all.
+    </p>
+
+    <p>
+      That debounce is why the demo's bar and percentage visibly move
+      <em>during</em> the drag despite all that — they're not waiting on the
+      template at all. A second, plain <code>input</code> listener (see the
+      code above) writes their width/text directly on every tick, entirely
+      outside the render pipeline. That's safe specifically because a
+      <code>&lt;span&gt;</code> has no native interactive state to lose —
+      unlike the slider, it was never risky to touch mid-drag, just
+      pointless to route through a whole-subtree re-render for. The official,
+      debounced re-render still happens once the drag settles, so anything
+      <em>else</em> bound to <code>progress</code> — with no hand-rolled
+      listener of its own — still ends up correct, just a beat later.
+    </p>
+
+    <p>
+      Every other
+      input type still re-renders on every
+      keystroke, with the currently-focused element spliced back in as the
+      same live node rather than a freshly-parsed lookalike, so cursor
+      position survives too. See the <a href="vertex-interop.html">interop
+      guide</a> for what "everything else gets fully rebuilt on every
+      change" means for foreign DOM you park inside a template yourself.
     </p>
 
     <h3>Vertex.template.load() — remote templates</h3>
@@ -1099,13 +1142,25 @@ Vertex.<span class="fn">$v</span>(<span class="s">"#vx-card"</span>).<span class
   var demo = new Vertex.template({
     el:       '#md-out',
     template: [
-      '<input type="range" min="0" max="100" data-bind="progress"> {{progress}}%',
+      '<input type="range" min="0" max="100" data-bind="progress"> <span class="pct">{{progress}}%</span>',
       '{{#each tracks}}',
       '  <div class="track-row{{#if active}} active-row{{/if}}">{{@index}}. {{name}} — {{bpm}} bpm</div>',
       '{{/each}}',
       '<span class="bar" style="width:{{progress}}%"></span>'
     ].join('\n'),
     data: { progress: 0, tracks: tracksAt(0) }
+  });
+
+  /* data-bind="progress" alone already keeps the data live during the drag
+     and commits (re-rendering everything) once it settles — see the prose
+     above for why that commit is debounced rather than instant. This just
+     ALSO paints the bar and percentage on every tick, bypassing the
+     template entirely: a direct DOM write to two plain elements that have
+     no native interactive state, so touching them mid-drag is harmless —
+     unlike the slider itself, which this never touches. */
+  V$('#md-out').on('input', 'input[type=range]', function () {
+    V$('#md-out .pct').text(this.value + '%');
+    V$('#md-out .bar').css('width', this.value + '%');
   });
 
   V$('#md-tracks').on('click', 'button', function () {
