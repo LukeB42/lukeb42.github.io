@@ -90,6 +90,26 @@
     .view h1 { font-size: 1.5rem; font-weight: normal; color: var(--head); margin-bottom: 1rem; }
     .view p  { font-size: .9rem; line-height: 1.75; margin-bottom: 1.2rem; }
 
+    /* ── Search bar ── */
+    .search-bar {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+      padding: 10px 14px;
+      font-family: var(--font);
+      font-size: .9rem;
+      color: var(--body);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+    }
+    .search-bar:focus {
+      outline: none;
+      border-color: var(--acc);
+    }
+    .search-bar::placeholder { color: var(--muted); }
+
     /* ── Post list (index.html style, driven from JSON) ── */
     .post-list {
       font-family: "Source Sans 3", sans-serif;
@@ -378,14 +398,22 @@
       '{{#if isHome}}' +
         '<div class="view">' +
           '<h1>/ home</h1>' +
-          '<div class="post-list">' +
-            '{{#each posts}}<span class="post-link">{{date}} <a href="{{url}}">{{label}}</a></span>{{/each}}' +
-          '</div>' +
-          '<div class="pagination">' +
-            '<button class="prev-btn"{{#if atFirstPage}} disabled{{/if}}>← Previous</button>' +
-            '<div class="page-info">Page <strong>{{currentPage}}</strong> of <strong>{{totalPages}}</strong></div>' +
-            '<button class="next-btn"{{#if atLastPage}} disabled{{/if}}>Next →</button>' +
-          '</div>' +
+          '<input type="text" class="search-bar" data-bind="searchQuery" placeholder="Search posts…" autocomplete="off">' +
+          '{{#if isSearching}}' +
+            '<div class="post-list">' +
+              '{{#each searchResults}}<span class="post-link">{{date}} <a href="{{url}}">{{label}}</a></span>{{/each}}' +
+              '{{#if noResults}}<p>No posts match “{{searchQuery}}”.</p>{{/if}}' +
+            '</div>' +
+          '{{else}}' +
+            '<div class="post-list">' +
+              '{{#each posts}}<span class="post-link">{{date}} <a href="{{url}}">{{label}}</a></span>{{/each}}' +
+            '</div>' +
+            '<div class="pagination">' +
+              '<button class="prev-btn"{{#if atFirstPage}} disabled{{/if}}>← Previous</button>' +
+              '<div class="page-info">Page <strong>{{currentPage}}</strong> of <strong>{{totalPages}}</strong></div>' +
+              '<button class="next-btn"{{#if atLastPage}} disabled{{/if}}>Next →</button>' +
+            '</div>' +
+          '{{/if}}' +
         '</div>' +
       '{{/if}}' +
       '{{#if isAbout}}' +
@@ -407,7 +435,8 @@
       data: {
         isHome: true, isAbout: false, isNotFound: false, route: '',
         currentPage: 1,
-        totalPages: Math.ceil(POSTS.length / ITEMS_PER_PAGE)
+        totalPages: Math.ceil(POSTS.length / ITEMS_PER_PAGE),
+        searchQuery: ''
       },
       computed: {
         posts: function () {
@@ -415,7 +444,17 @@
           return POSTS.slice(start, start + ITEMS_PER_PAGE);
         },
         atFirstPage: function () { return this._data.currentPage === 1; },
-        atLastPage:  function () { return this._data.currentPage === this._data.totalPages; }
+        atLastPage:  function () { return this._data.currentPage === this._data.totalPages; },
+        isSearching: function () { return this._data.searchQuery.trim().length >= 3; },
+        searchResults: function () {
+          var q = this._data.searchQuery.trim().toLowerCase();
+          return POSTS.filter(function (p) {
+            return p.label.toLowerCase().indexOf(q) > -1 || p.date.indexOf(q) > -1;
+          });
+        },
+        noResults: function () {
+          return this._data.searchQuery.trim().length >= 3 && this._data.searchResults.length === 0;
+        }
       }
     });
 
