@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Body Electric: A Plain-Language Tour of Michael Levin's Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,340;9..144,540;9..144,640&family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:   #f1f5ec;  /* pale sage-white */
+    --panel:   #e2ecd8;  /* mist green */
+    --ink:     #24301e;  /* deep moss */
+    --soft:    #48583e;  /* moss, softened for body text */
+    --leaf:    #6f8f5b;  /* mid sage */
+    --vine:    #a4c18d;  /* light ivy */
+    --deep:    #35492c;  /* ivy shadow */
+    --rule:    #c8d8b9;
+    --max: 46rem;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    position:relative;
+    background:var(--paper);
+    color:var(--soft);
+    font-family:"Karla",system-ui,sans-serif;
+    font-size:1.075rem;
+    line-height:1.72;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{background:var(--vine);color:var(--deep)}
+
+  /* ---------- climbing ivy (signature) ---------- */
+  .ivy{
+    position:fixed;left:0;top:68px;height:calc(100vh - 68px);width:120px;
+    pointer-events:none;z-index:0;opacity:.9;
+  }
+  .ivy path.stem{
+    fill:none;stroke:var(--leaf);stroke-width:2.4;stroke-linecap:round;
+  }
+  .ivy .leafshape{fill:var(--vine)}
+  .ivy .leafshape.dark{fill:var(--leaf)}
+  @media (max-width:900px){ .ivy{width:56px;opacity:.55} }
+
+  /* ── Brand row — copied exactly from float64co.github.io ── */
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 10px 28px 10px 0;
+    background: #ffffff;
+    border-bottom: 1px solid #e0e4ea;
+    flex-wrap: nowrap;
+    position: relative;
+    z-index: 3;
+  }
+  .nav a { color: #158fe2; text-decoration: none; }
+  .brand {
+    flex-shrink: 0;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: italic;
+    font-variation-settings: "wdth" 100;
+    font-size: 36px;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  @media (max-width: 480px) {
+    .brand { font-size: 24px; }
+  }
+  .brand a:hover{ text-decoration: none; }
+  .brand #float64 {
+    font-weight: bold;
+    color: white;
+    background-color: black;
+    padding: 5px 10px;
+    font-style: italic;
+  }
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:2.2rem 1.4rem 1rem}
+  h1{
+    font-family:"Fraunces",serif;font-weight:540;font-optical-sizing:auto;
+    font-size:clamp(2.1rem,5.4vw,3.3rem);line-height:1.12;color:var(--ink);
+    text-wrap:balance;
+  }
+  .dek{
+    margin-top:1.15rem;font-size:1.12rem;color:var(--soft);
+    border-left:3px solid var(--vine);padding-left:1rem;max-width:38rem;
+  }
+  .dek a{color:var(--deep)}
+
+  /* ---------- article ---------- */
+  main{position:relative;z-index:2;max-width:var(--max);margin:0 auto;padding:1.4rem 1.4rem 3rem}
+  section{margin-top:3.1rem}
+  h2{
+    font-family:"Fraunces",serif;font-weight:540;font-size:clamp(1.5rem,3.4vw,2rem);
+    line-height:1.2;color:var(--ink);margin-bottom:.9rem;text-wrap:balance;
+  }
+  p{margin-bottom:1.05rem;max-width:40rem}
+  strong{color:var(--ink);font-weight:700}
+  em{font-style:italic}
+  a{color:var(--deep);text-decoration-thickness:1px;text-underline-offset:3px}
+
+  .aside{
+    background:var(--panel);border-radius:14px;
+    padding:1.25rem 1.4rem;margin:1.5rem 0;max-width:40rem;
+  }
+  .aside .tag{
+    font-family:"IBM Plex Mono",monospace;font-size:.72rem;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--deep);display:block;margin-bottom:.45rem;
+  }
+  .aside p{margin-bottom:0;color:var(--deep)}
+
+  blockquote{
+    font-family:"Fraunces",serif;font-weight:340;font-size:1.35rem;line-height:1.4;
+    color:var(--ink);border-left:3px solid var(--leaf);
+    padding-left:1.1rem;margin:1.6rem 0;max-width:36rem;
+  }
+
+  .refs{list-style:none;max-width:40rem;margin-top:.4rem}
+  .refs li{position:relative;padding-left:1.5rem;margin-bottom:.75rem;font-size:.98rem}
+  .refs li::before{content:"\21B3";position:absolute;left:0;top:0;color:var(--leaf)}
+  .refs .note{color:var(--leaf);font-size:.9rem}
+
+  .sources{font-size:.9rem;color:var(--leaf);margin-top:.2rem;max-width:40rem}
+  .sources a{color:var(--leaf)}
+
+  footer{
+    position:relative;z-index:2;max-width:var(--max);margin:0 auto;
+    text-align:center;
+    padding:0 1.4rem 3.2rem;
+    font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--leaf);
+    border-top:1px solid var(--rule);padding-top:1.4rem;
+  }
+
+  :focus-visible{outline:2px solid var(--deep);outline-offset:3px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- ivy climbing the left edge, like reeds up a building -->
+<svg class="ivy" viewBox="0 0 120 1000" preserveAspectRatio="none" aria-hidden="true">
+  <path class="stem" d="M46 1000 C 30 930, 66 880, 44 810 C 26 750, 70 700, 50 630 C 32 570, 68 520, 46 450 C 30 390, 66 340, 46 270 C 32 210, 62 160, 48 90 C 42 55, 52 30, 46 0"/>
+  <path class="stem" d="M46 450 C 18 430, 8 405, 6 375"/>
+  <path class="leafshape" d="M46 960 q 19 -6 23 -22 q -21 2 -23 22z"/>
+  <path class="leafshape dark" d="M46 900 q -22 -6 -26 -26 q 24 2 26 26z"/>
+  <path class="leafshape" d="M46 840 q 25 -6 29 -30 q -27 2 -29 30z"/>
+  <path class="leafshape" d="M46 780 q -19 -6 -23 -22 q 21 2 23 22z"/>
+  <path class="leafshape dark" d="M46 720 q 22 -6 26 -26 q -24 2 -26 26z"/>
+  <path class="leafshape" d="M46 660 q -25 -6 -29 -30 q 27 2 29 30z"/>
+  <path class="leafshape" d="M46 600 q 19 -6 23 -22 q -21 2 -23 22z"/>
+  <path class="leafshape dark" d="M46 540 q -22 -6 -26 -26 q 24 2 26 26z"/>
+  <path class="leafshape" d="M46 480 q 25 -6 29 -30 q -27 2 -29 30z"/>
+  <path class="leafshape" d="M46 420 q -19 -6 -23 -22 q 21 2 23 22z"/>
+  <path class="leafshape dark" d="M46 360 q 22 -6 26 -26 q -24 2 -26 26z"/>
+  <path class="leafshape" d="M46 300 q -25 -6 -29 -30 q 27 2 29 30z"/>
+  <path class="leafshape" d="M46 240 q 19 -6 23 -22 q -21 2 -23 22z"/>
+  <path class="leafshape dark" d="M46 180 q -22 -6 -26 -26 q 24 2 26 26z"/>
+  <path class="leafshape" d="M46 120 q 25 -6 29 -30 q -27 2 -29 30z"/>
+  <path class="leafshape" d="M46 60 q -19 -6 -23 -22 q 21 2 23 22z"/>
+  <path class="leafshape dark" d="M6 376 q -20 -6 -24 -24 q 22 2 24 24z"/>
+</svg>
+
+<div class="nav">
+  <div class="brand">
+    <a href="/"><span id="float64">Float64</span></a>
+  </div>
+</div>
+
+<div class="hero">
+  <h1>The Body Electric &mdash; What Michael Levin's Lab Is Teaching Us About How Bodies Build Themselves</h1>
+</div>
+
+<main>
+
+<section>
+  <h2>Your cells are smarter than you think</h2>
+  <p>Here's the standard story of how a body gets built: DNA is the blueprint, cells follow it, and out comes a person. Michael Levin &mdash; the Vannevar Bush Distinguished Professor of Biology at Tufts University, director of the Allen Discovery Center there, and associate faculty at Harvard's Wyss Institute &mdash; has spent three decades showing that this story is missing its most interesting chapter. Fittingly for someone with dual degrees in computer science and biology, he made his name early: his Harvard PhD work on how embryos decide left from right (why your heart sits on one side) was later named by the journal <em>Nature</em> as a milestone in the last century of developmental biology. Then he went after a much bigger question: who, exactly, is in charge of the shape?</p>
+  <p>His answer goes like this. <strong>DNA is more like a parts list than a blueprint.</strong> It specifies which proteins each cell can manufacture &mdash; the hardware. But nowhere in the genome is there a picture of a hand, a face, or a frog. The decision about <em>what shape to build</em> &mdash; two eyes here, one heart there, five fingers, stop growing now &mdash; is negotiated by cells collectively, and a huge part of that negotiation, Levin's lab argues, happens through <strong>electricity</strong>. Every cell maintains a small voltage across its membrane using ion channels (the same components neurons use), and cells wire themselves together through junctions that let those voltages spread and form stable patterns across whole tissues. The result is something like a very slow electrical network laid over the body &mdash; a network that stores the "target shape" the tissue is trying to reach, compares it against what currently exists, and drives cells to close the gap. Your nervous system didn't invent electrical computation; it took an ancient, body-wide trick and ran it a million times faster.</p>
+  <p>If that's true, it changes everything, because software is easier to edit than hardware. Instead of laboriously rewriting genes &mdash; the parts list &mdash; you might change what a body builds just by changing the electrical conversation: opening an ion channel here, closing a junction there. Like fixing a typo in a document instead of rebuilding the printer. The rest of this essay is four escalating pieces of evidence that this isn't just a metaphor.</p>
+</section>
+
+<section>
+  <h2>The Anatomical Compiler: CAD for bodies</h2>
+  <p>Put all of this together and you get Levin's long-term dream, which he calls the <strong>anatomical compiler</strong>. In programming, a compiler takes something a human understands &mdash; source code &mdash; and translates it into low-level instructions a machine executes, so the programmer never has to think about individual transistors. Levin wants the biological equivalent: you sit at a screen, <em>draw</em> the organ or limb you need, and the system computes which bioelectric states, delivered where and when, will convince the cellular workforce to build it &mdash; without any human ever micromanaging the millions of molecular events involved. The cells already know how to build; they proved that when they built you. The missing piece is the interface.</p>
+  <p>A first, deliberately crude step already exists. Adult frogs, like humans, cannot regrow lost legs &mdash; they just scar over. In 2022 Levin's group (with David Kaplan's bioengineering lab) fitted amputated frogs with a wearable silicone cap called a <strong>BioDome</strong>, holding a silk gel loaded with a five-drug cocktail against the wound for just 24 hours. That single day of the right early signals &mdash; suppressing scar formation and inflammation, encouraging nerve and blood-vessel growth &mdash; flipped the tissue's decision from "seal it off" to "rebuild it," and over the following 18 months the frogs regrew functional, touch-sensitive legs they could swim and stand on. Note the philosophy: nobody constructed a leg. They spent one day changing the cells' minds, then stood back for a year and a half while the collective did what it already knew how to do. A spin-out company, Morphoceuticals, is now pursuing the same approach in mammals.</p>
+  <p>Regrowing a lost hand. Correcting a birth defect before it forms. Repairing an organ in place instead of transplanting one. Honest caveats apply to all of it: most of these results live in frogs, flatworms, and dishes; the map from voltage pattern to anatomical outcome is still mostly uncharted; and scaling to human medicine is a long, expensive, heavily regulated road. But the direction of travel is one of the most quietly optimistic ideas in modern science: the body is not a machine we must dismantle to fix. It's a colony of problem-solvers, waiting for better instructions.</p>
+  <p class="sources">See: <a href="https://wyss.harvard.edu/media-post/when-matter-makes-decisions-michael-levin-on-the-intelligence-of-form/">the Wyss Institute's conversation with Levin</a>, <a href="https://www.youtube.com/watch?v=Exdz2HKP7u0">his talk on the anatomical compiler</a>, and <a href="https://now.tufts.edu/2022/01/26/scientists-regrow-frogs-lost-leg">Tufts Now on the BioDome leg-regrowth study</a>.</p>
+</section>
+
+<section>
+  <h2>Editing the body's memory of its own shape</h2>
+  <p>If voltage patterns really carry the body's target shape, you should be able to rewrite them and watch anatomy change &mdash; without touching a single gene. Levin's lab has done exactly that, repeatedly, in ways that sound like science fiction but are just careful electrophysiology.</p>
+  <p><strong>An eye on a tail.</strong> During normal development, the patch of cells destined to become an eye settles into a particular electrical state &mdash; a kind of voltage "postcode" that means <em>build an eye here</em>. Levin's team asked: what happens if you impose that same postcode somewhere absurd? By tweaking ion channels, they pushed cells on tadpoles' tails and guts into the eye-making voltage range &mdash; and complete eyes formed, with lenses, retinas, and optic nerves, far from the head. In later work, tadpoles with eyes grafted onto their tails could genuinely see: blinded of their normal eyes, they still learned to follow light cues using the ectopic one. The gene networks for eye-building were all standard issue; only the electrical instruction about <em>where</em> to run them had changed. Remarkably, a small number of altered cells recruited untouched neighbours to help build the organ &mdash; the signal wasn't a cell-by-cell command but a request the collective carried out.</p>
+  <p><strong>The two-headed worm that stays two-headed.</strong> Planaria are small flatworms famous for regeneration: chop one into pieces and each piece regrows a complete worm, correctly deciding which end needs a head and which a tail. That decision, Levin's team showed, is made by a bioelectric circuit spanning the fragment. Briefly interrupt the electrical communication in a cut worm &mdash; using a drug that temporarily blocks the junctions between cells, gone from the body within a day &mdash; and the fragment regrows with a head at <em>both</em> ends. The eerie part: cut that two-headed worm again months later, in plain water, no drugs anywhere &mdash; and it regrows two heads <em>again</em>, indefinitely. Its DNA is completely unchanged; what changed is the stored electrical "setpoint" describing what a correct worm looks like. The lab has even nudged that setpoint sideways, coaxing one planarian species to regenerate head shapes resembling those of related species that diverged millions of years ago &mdash; same genome, different answer to the question "what am I supposed to look like?"</p>
+  <p>There's a longevity angle hiding in that worm, and Levin's group has recently made it explicit. Planaria are effectively ageless &mdash; their pattern memory never blurs, so their bodies never drift from spec. In a 2024 paper, Pio-Lopez and Levin propose treating <a href="https://www.sciencedirect.com/science/article/abs/pii/S1568163724001284">aging itself as a loss of morphostatic information</a>: not primarily an accumulation of molecular damage, but the slow corruption of the bioelectric setpoints that tell tissues what "correct" looks like. If that's right, maximal longevity becomes an information problem &mdash; rejuvenation as restoring the target pattern, the way you'd restore a degraded file from a good backup &mdash; and the same voltage tools used on tails and tumours become candidate anti-aging interventions. For calibration, the headline result from conventional genetics points the same direction: in the roundworm <em>C. elegans</em>, an insulin-pathway mutation extends lifespan by about 100% and a TOR-pathway mutation by about 30%, but combine them and you get a synergistic <a href="https://www.buckinstitute.org/news/more-details-on-500-lifespan-extension-highlight-bucks-role-in-moving-science-forward/">454% increase in lifespan</a> &mdash; one plus one equals five. Longevity, like anatomy, seems to be governed by networks rather than single dials, which is exactly the level Levin's tools are aimed at.</p>
+  <blockquote>The genome says what a cell <em>can</em> build. The bioelectric pattern says what the body <em>should</em> build.</blockquote>
+  <p class="sources">Background: <a href="https://www.youtube.com/watch?v=uFMLpZkkH_8">Levin on bioelectric pattern memory</a>.</p>
+</section>
+
+<section>
+  <h2>Xenobots and Anthrobots: robots made of you</h2>
+  <p>To prove cells have their own agenda, Levin's team &mdash; with computer scientist Josh Bongard's group at the University of Vermont &mdash; did something wonderfully strange in 2020. An evolutionary algorithm running on a supercomputer "dreamed up" designs for tiny walking creatures; biologists then sculpted those designs out of living frog embryo cells, using nothing but ordinary skin and heart tissue. No new genes, no synthetic parts. The question was whether cells removed from their normal context would simply die, or try to be frog skin anyway, or do something new.</p>
+  <p>They did something new. The clumps assembled into <strong>Xenobots</strong> (named for the frog species, <em>Xenopus laevis</em>): millimetre-scale living machines that swim using beating hairs called cilia, navigate through mazes and tubes, cooperate in groups, push loose particles into tidy piles, and heal themselves within minutes of being sliced nearly in half. They survive for weeks on the yolk energy they're born with, then quietly biodegrade. Strangest of all, in a 2021 follow-up the team discovered <strong>kinematic self-replication</strong>: swarms of Xenobots sweep loose stem cells into piles, and those piles mature into new, functional Xenobots &mdash; which can then build more. It's a reproduction method never before seen in any plant or animal, and nobody programmed it; the cells found it on their own.</p>
+  <p>Then came the version that hits closer to home. In 2023 the lab announced <strong>Anthrobots</strong>, built from adult <em>human</em> airway cells &mdash; the kind lining your windpipe right now. Given the chance, single cells grew into small multicellular blobs that flipped their cilia to the outside and started motoring around, some in straight lines, some in circles, entirely on their own. And when researchers placed clusters of them across a scratch in a layer of lab-grown human neurons, the damaged region under the Anthrobot "bridge" knitted back together substantially better than the untreated areas. No one edited a genome to get any of this. Your own cells, given a new context, will invent new bodies and take on jobs your anatomy never asked of them.</p>
+  <div class="aside">
+    <span class="tag">The takeaway</span>
+    <p>Cells are less like bricks and more like workers. Give them a different context and they'll build a different building &mdash; no gene editing required.</p>
+  </div>
+  <p class="sources">See: <a href="https://www.youtube.com/watch?v=DDMB4-o34XM">this overview of the biobot work</a> and <a href="https://now.tufts.edu/2024/03/22/living-robots-scientists-unlock-cells-power-heal">Tufts Now on Anthrobots and healing</a>.</p>
+</section>
+
+<section>
+  <h2>Cancer as a dropped call</h2>
+  <p>This lens gives you a genuinely different way to think about cancer. In Levin's framing, a healthy body is a network: trillions of cells electrically joined into one enormous cooperative, all subscribing to the same large-scale plan &mdash; "we are building and maintaining a person." Each cell's horizon of concern stretches far beyond itself, because the network makes the whole body's goals its goals. A cancer cell, in this view, is a cell that has <strong>lost the connection</strong>. Its membrane voltage drifts, its electrical coupling to neighbours degrades, and its world shrinks back down to the boundary of its own membrane. Cut off from the group conversation, it reverts to the ancient playbook of its free-living, single-celled ancestors: treat the surrounding tissue as environment, eat, divide, migrate. It isn't malfunctioning hardware so much as a worker who stopped getting the memos.</p>
+  <p>Two striking results follow from taking this seriously. First, the electrical signature is <em>detectable early</em>: in tadpoles, Levin's team could spot the abnormal voltage of cells destined to form tumours before any tumour was visible &mdash; a potential diagnostic channel nobody was looking at. Second, and more radically: maybe you don't have to kill such cells &mdash; maybe you can <em>reconnect</em> them. The team injected tadpoles with potent human oncogenes (mutant RAS, among others) that reliably cause aggressive tumours. Then, using ion-channel tools, they forced the affected cells to hold a normal, healthy voltage and stay in electrical contact with their neighbours. In a large share of the animals, tumours simply failed to form &mdash; even though the cancer-causing gene was still there, still expressed. The hardware carried the defect; the software conversation kept the body's plan in charge anyway.</p>
+  <p>To be clear, this is early-stage animal research, not an available therapy, and human cancers are messier than tadpole models. But it reframes the goal of oncology in a way worth sitting with: from poisoning rogue cells faster than they can adapt, to persuading them back into the collective.</p>
+  <p class="sources">See: <a href="https://www.youtube.com/watch?v=kz1jnoKfRrI">Levin on cancer and bioelectric signalling</a>.</p>
+</section>
+
+<section>
+  <h2>The rabbit hole, mapped</h2>
+  <p>The five sections above are a narrow slice of an unusually wide career, and almost everything Levin does is freely available online:</p>
+  <ul class="refs">
+    <li><a href="https://drmichaellevin.org/">The Levin Lab</a> &mdash; the front door: papers, datasets, software. <span class="note">Start at the <a href="https://drmichaellevin.org/resources/">resources page</a>.</span></li>
+    <li><a href="https://thoughtforms.life/">Forms of Life, Forms of Mind</a> &mdash; his blog, where biology shades into minds, memory, and agency.</li>
+    <li><a href="https://aeon.co/essays/how-to-understand-cells-tissues-and-organisms-as-agents-with-agendas">&ldquo;Cognition All the Way Down&rdquo;</a> &mdash; his Aeon essay with the late philosopher Daniel Dennett, on cells as agents with agendas.</li>
+    <li><a href="https://lexfridman.com/michael-levin">The Lex Fridman conversation</a> &mdash; the best single-sitting introduction to the whole worldview.</li>
+    <li><a href="https://thoughtforms-life.aipodcast.ing/">Thoughtforms Life</a> &mdash; his own podcast, trading ideas with physicists, philosophers, and AI researchers.</li>
+    <li><a href="https://as.tufts.edu/biology/people/faculty/michael-levin">Tufts faculty profile</a> and <a href="https://wyss.harvard.edu/team/associate-faculty/michael-levin-ph-d/">Wyss Institute page</a> &mdash; the institutional side.</li>
+    <li><a href="https://en.wikipedia.org/wiki/Michael_Levin_(biologist)">Wikipedia</a> &mdash; a decent orientation, including the left&ndash;right asymmetry milestone and the Cozzarelli Prize for the self-replicating Xenobots.</li>
+    <li><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12697880/">&ldquo;Aging as a Loss of Goal-Directedness&rdquo;</a> &mdash; the longevity thread continued (Advanced Science, 2025): simulated tissues that hold an anatomical goal regenerate and rejuvenate; take the goal away and they age &mdash; even with zero accumulated damage.</li>
+    <li><a href="https://en.wikipedia.org/wiki/Xenobot">The Xenobot story</a> &mdash; continuing at the Tufts/UVM Institute for Computationally Designed Organisms, while Morphoceuticals carries limb regeneration toward mammals.</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  Float64
+</footer>
+
+
+</body>
+</html>
