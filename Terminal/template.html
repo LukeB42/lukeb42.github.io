@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terminal — a Command &amp; Conquer-alike, by Float64</title>
+<style>
+  :root {
+    --bg: #060a06; --fg: #9dff9d; --dim: #4e7a4e; --hot: #ff5a5a;
+    --gold: #ffd24d; --sel: #123a12; --glow: rgba(157,255,157,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.2 "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 0;
+  }
+  h1 {
+    font-size: 15px; letter-spacing: .12em; font-weight: 700; margin: 0 0 8px;
+    text-shadow: 0 0 6px var(--glow);
+  }
+  h1 .by { color: var(--dim); font-weight: 400; letter-spacing: normal; }
+  #boot { color: var(--dim); margin-bottom: 10px; text-align: center; max-width: 640px; }
+  #viewport {
+    position: relative;
+    width: min(1400px, 97vw);
+    height: min(760px, 78vh);
+    background: #000;
+    border: 1px solid var(--sel);
+    box-shadow: 0 0 24px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.5);
+    overflow: hidden;
+    display: none; /* revealed once booted */
+  }
+  #viewport::after { /* faint scanlines */
+    content: ""; pointer-events: none; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.18) 2px 3px);
+  }
+  #term {
+    position: absolute; inset: 0; padding: 4px 6px;
+    white-space: pre; text-shadow: 0 0 5px var(--glow);
+    font-variant-ligatures: none;
+    font-size: 12px; line-height: 1.2;
+  }
+  #term .row { white-space: pre; height: 1.2em; overflow: hidden; }
+  #focushint {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.75); color: var(--fg); font-size: 13px; letter-spacing: .05em;
+    cursor: pointer; text-align: center; padding: 6px 12px;
+    border-bottom: 1px solid var(--sel);
+  }
+  #focushint.hidden { display: none; }
+  .foot {
+    width: min(1400px, 97vw); padding: 8px 2px 16px; color: var(--dim); font-size: 12px;
+  }
+  .foot b { color: var(--fg); }
+  a { color: var(--gold); }
+</style>
+</head>
+<body>
+<h1>Terminal <span class="by">— a cyberpunk Command &amp; Conquer-alike, by Float64</span></h1>
+<pre id="boot">bootloader
+initializing python runtime (first load fetches ~12 MB; cached after)...</pre>
+<div id="viewport" tabindex="0">
+  <div id="term"></div>
+  <div id="focushint">Click to focus, then use arrows/WASD + mouse.</div>
+</div>
+<div class="foot">
+  <b>Arrows/WASD</b> move cursor &nbsp; <b>Enter/Space</b> select or order &nbsp;
+  <b>V</b> add-select &nbsp; <b>X</b> box-select &nbsp; <b>1-9</b> groups &nbsp;
+  <b>G+n</b> assign group &nbsp; <b>S</b> stop &nbsp; <b>[</b> prev frame &nbsp;
+  <b>]</b> next frame &nbsp; <b>P</b> autoplay &nbsp; <b>B</b> build &nbsp; <b>Q</b> quit/back &nbsp;
+  mouse click/drag/right-click also work. &nbsp;
+  <a href="https://github.com/float64co/Terminal" target="_blank" rel="noopener">github.com/float64co/Terminal</a>
+</div>
+
+<script type="text/x-python" id="py-curses">
+__PY_CURSES__
+</script>
+<script type="text/x-python" id="py-terminal">
+__PY_TERMINAL__
+</script>
+<script type="text/x-python" id="py-bridge">
+__PY_BRIDGE__
+</script>
+
+<script>
+/* ============================================================== bootstrap */
+// To play fully offline / self-hosted: download a Pyodide release
+// (https://github.com/pyodide/pyodide/releases -> pyodide-0.26.4.tar.bz2),
+// unpack it next to this file as ./pyodide/, and change PYODIDE_BASE to "./pyodide/".
+const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+
+const LOAD_MODULE_SRC = `
+import sys, types
+def _load_module(name, source):
+    mod = types.ModuleType(name)
+    exec(compile(source, name, "exec"), mod.__dict__)
+    sys.modules[name] = mod
+    return mod
+`;
+
+let webTick, webKey, webMouseDown, webMouseUp, webMouseRight, webResize, webMinSize, webTickMs;
+
+async function boot() {
+  const s = document.createElement("script");
+  s.src = PYODIDE_BASE + "pyodide.js";
+  s.onload = async () => {
+    try {
+      const py = await loadPyodide({ indexURL: PYODIDE_BASE });
+      py.runPython(LOAD_MODULE_SRC);
+      const loadModule = py.globals.get("_load_module");
+      loadModule("curses", document.getElementById("py-curses").textContent);
+      loadModule("terminal", document.getElementById("py-terminal").textContent);
+      loadModule.destroy();
+      py.runPython(document.getElementById("py-bridge").textContent);
+
+      webTick = py.globals.get("web_tick");
+      webKey = py.globals.get("web_key");
+      webMouseDown = py.globals.get("web_mouse_down");
+      webMouseUp = py.globals.get("web_mouse_up");
+      webMouseRight = py.globals.get("web_mouse_right");
+      webResize = py.globals.get("web_resize");
+      webMinSize = py.globals.get("web_min_size");
+      webTickMs = py.globals.get("web_tick_ms")();
+
+      startGame();
+    } catch (err) {
+      document.getElementById("boot").textContent =
+        "Boot failed: " + err + "\n(see the browser console for details).";
+    }
+  };
+  s.onerror = () => {
+    document.getElementById("boot").textContent =
+      "Could not load the Python runtime. If you are offline, vendor Pyodide " +
+      "locally (see the comment at the top of this file's script).";
+  };
+  document.head.appendChild(s);
+}
+
+/* ============================================================== terminal grid */
+const $viewport = document.getElementById("viewport");
+const $term = document.getElementById("term");
+const $focushint = document.getElementById("focushint");
+const $boot = document.getElementById("boot");
+
+let cellW = 8, cellH = 16;
+let cols = 120, rows = 40;
+
+function measureCell() {
+  const probe = document.createElement("div");
+  probe.className = "row";
+  probe.style.visibility = "hidden";
+  probe.style.position = "absolute";
+  probe.textContent = "M".repeat(80);
+  $term.appendChild(probe);
+  const r = probe.getBoundingClientRect();
+  $term.removeChild(probe);
+  return { w: r.width / 80, h: r.height };
+}
+
+function layout() {
+  const cell = measureCell();
+  cellW = cell.w || cellW;
+  cellH = cell.h || cellH;
+  const avail = $viewport.getBoundingClientRect();
+  let minCols = 70, minRows = 24;
+  try {
+    const m = JSON.parse(webMinSize());
+    minCols = m.cols; minRows = m.rows;
+  } catch (e) { /* pre-boot; use defaults */ }
+  cols = Math.max(minCols, Math.floor((avail.width - 12) / cellW));
+  rows = Math.max(minRows, Math.floor((avail.height - 8) / cellH));
+  if (webResize) webResize(cols, rows);
+}
+
+const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function renderScreen(json) {
+  const view = JSON.parse(json);
+  let html = "";
+  for (const runs of view.data) {
+    html += '<div class="row">';
+    for (const [text, fg, bg, bold, dim, under] of runs) {
+      let style = `color:${fg}`;
+      if (bg) style += `;background:${bg}`;
+      if (bold) style += ";font-weight:700";
+      if (dim) style += ";opacity:.6";
+      if (under) style += ";text-decoration:underline";
+      html += `<span style="${style}">${esc(text)}</span>`;
+    }
+    html += "</div>";
+  }
+  $term.innerHTML = html;
+}
+
+function tickLoop() {
+  renderScreen(webTick());
+}
+
+function startGame() {
+  $boot.remove();
+  $viewport.style.display = "block";
+  layout();
+  $viewport.focus();
+  setInterval(tickLoop, webTickMs);
+  window.addEventListener("resize", () => layout());
+}
+
+/* ============================================================== input */
+const KEYMAP = {
+  ArrowUp: 1001, ArrowDown: 1002, ArrowLeft: 1003, ArrowRight: 1004,
+};
+
+function keyToCode(e) {
+  if (KEYMAP[e.key] !== undefined) return KEYMAP[e.key];
+  if (e.key === "Enter") return 10;
+  if (e.key === "Escape") return 27;
+  if (e.key === " ") return 32;
+  if (e.key.length === 1) return e.key.charCodeAt(0);
+  return null;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const code = keyToCode(e);
+  if (code === null || !webKey) return;
+  e.preventDefault();
+  $focushint.classList.add("hidden");
+  webKey(code);
+});
+
+function cellFromEvent(e) {
+  const rect = $term.getBoundingClientRect();
+  const col = Math.max(0, Math.floor((e.clientX - rect.left) / cellW));
+  const row = Math.max(0, Math.floor((e.clientY - rect.top) / cellH));
+  return [col, row];
+}
+
+$viewport.addEventListener("mousedown", (e) => {
+  $focushint.classList.add("hidden");
+  $viewport.focus();
+  if (e.button !== 0 || !webMouseDown) return;
+  const [c, r] = cellFromEvent(e);
+  webMouseDown(c, r);
+});
+window.addEventListener("mouseup", (e) => {
+  if (e.button !== 0 || !webMouseUp) return;
+  const [c, r] = cellFromEvent(e);
+  webMouseUp(c, r);
+});
+$viewport.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  if (!webMouseRight) return;
+  const [c, r] = cellFromEvent(e);
+  webMouseRight(c, r);
+});
+$focushint.addEventListener("click", () => {
+  $focushint.classList.add("hidden");
+  $viewport.focus();
+});
+
+boot();
+</script>
+</body>
+</html>
