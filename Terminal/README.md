@@ -19,9 +19,12 @@ No dependencies beyond the Python standard library.
 ## Controls
 
 Arrows/WASD move the cursor · Enter/Space select or order · mouse
-click/drag/right-click work too · `1`-`9` recall a control group,
-`G` then a digit assigns one · `[`/`]` cycle frames · `P` autoplay ·
-`B` build · `S` stop · `Q` end mission, then back to menu.
+click/drag/right-click work too · `A` select everything · `1`-`9` recall
+a control group, `G` then a digit assigns one · `[`/`]` cycle frames ·
+`P` autoplay · `B` build (also where extra workshops are commissioned,
+at the cursor) · `{`/`}` cycle the active workshop (missions 4-6 only,
+where workshops are also selectable and groupable) · `S` stop · `Q` end
+mission, then back to menu. Frames slowly self-repair over time.
 
 ## Rebuild the browser build
 

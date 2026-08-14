@@ -69,9 +69,11 @@ initializing python runtime (first load fetches ~12 MB; cached after)...</pre>
 </div>
 <div class="foot">
   <b>Arrows/WASD</b> move cursor &nbsp; <b>Enter/Space</b> select or order &nbsp;
-  <b>V</b> add-select &nbsp; <b>X</b> box-select &nbsp; <b>1-9</b> groups &nbsp;
-  <b>G+n</b> assign group &nbsp; <b>S</b> stop &nbsp; <b>[</b> prev frame &nbsp;
-  <b>]</b> next frame &nbsp; <b>P</b> autoplay &nbsp; <b>B</b> build &nbsp; <b>Q</b> quit/back &nbsp;
+  <b>V</b> add-select &nbsp; <b>A</b> select all &nbsp; <b>X</b> box-select &nbsp;
+  <b>1-9</b> groups &nbsp; <b>G+n</b> assign group &nbsp; <b>S</b> stop &nbsp;
+  <b>[</b> prev frame &nbsp; <b>]</b> next frame &nbsp; <b>P</b> autoplay &nbsp;
+  <b>B</b> build &nbsp; <b>{</b>/<b>}</b> cycle active workshop (missions 4-6) &nbsp;
+  <b>Q</b> quit/back &nbsp;
   mouse click/drag/right-click also work. &nbsp;
   <a href="https://github.com/float64co/Terminal" target="_blank" rel="noopener">github.com/float64co/Terminal</a>
 </div>
@@ -334,8 +336,11 @@ Controls:
     Enter / Space       - select frame under cursor, or issue a move/
                           attack order to the current selection
     V                   - toggle-add the frame under cursor to selection
+    A                   - select every frame you control
     X                   - drop/close a keyboard selection box at cursor
-    Mouse click         - select a frame (or empty tile to clear)
+    Mouse click         - same as moving the cursor there and hitting
+                          Enter/Space: select a frame, or send the
+                          current selection there if the tile's empty
     Mouse drag           - box-select all frames in the drag rectangle
     Mouse right-click    - move/attack order for the current selection
     1-9                 - recall control group
@@ -344,7 +349,12 @@ Controls:
     [                   - select the previous frame, camera follows
     ]                   - select the next frame, camera follows
     P                   - toggle autoplay for the selected frames
-    B                   - open the workshop build menu
+    B                   - open the workshop build menu (also where extra
+                          workshops are commissioned, on missions 4-6)
+    { / }               - missions 4-6 only: cycle the active workshop
+                          (which one the build menu queues to) and select
+                          it; extra workshops can also be box-selected,
+                          click-selected, and grouped like frames
     Q                   - end the mission (from the map) / back to mission
                           select (from the end screen); quit only works
                           from mission select
@@ -437,12 +447,25 @@ RUBBLE = ","
 WORKSHOP_SYMBOL = "&"
 WORKSHOP_HP = 500
 WORKSHOP_ARMOR = 6
+WORKSHOP_BUILD_COST = 5000  # commissioning an extra player workshop
 
 ATTACK_INTERVAL_TICKS = 4
 INCOME_INTERVAL_TICKS = 10
 PLAYER_INCOME = 60
 START_CREDITS_PLAYER = 3000
 STARTER_UNITS_PLAYER = 3
+
+# Passive regen: player frames only, and deliberately glacial - this is
+# background attrition relief, not a combat sustain mechanic. Enemies never
+# regen (see _enemy_ai/_autoplay_ai - there is simply no enemy-side code
+# path that heals or rebuilds anything for them).
+UNIT_REGEN_INTERVAL_TICKS = 40
+UNIT_REGEN_AMOUNT = 1
+
+# Extra workshops (buy/select/group/cycle) are a mid-late-campaign feature:
+# enabled once the difficulty index (0-based) reaches this. DIFFICULTIES[3]
+# is the 4th tier, so this is "missions 4, 5, 6" in the mission-select UI.
+MULTI_WORKSHOP_MIN_TIER = 3
 
 # Difficulty levels: progressively bigger maps and progressively harder
 # rival outfits, named and blurbed straight out of the OUTFITS table above.
@@ -561,6 +584,7 @@ class Workshop:
     """The building that spawns frames for a side."""
 
     def __init__(self, owner, x, y):
+        self.id = _new_id()
         self.owner = owner
         self.x = x
         self.y = y
@@ -653,6 +677,10 @@ class Game:
         self.enemy_income = self.difficulty["enemy_income"]
         self.enemy_build_interval = self.difficulty["enemy_build_interval"]
         self.starter_units_enemy = self.difficulty["starter_units_enemy"]
+        # Extra workshops - buying, selecting, grouping, cycling active - are
+        # only unlocked on the harder missions. The enemy never gets any of
+        # this: it always starts and stays at exactly one workshop.
+        self.multi_workshop_enabled = DIFFICULTIES.index(self.difficulty) >= MULTI_WORKSHOP_MIN_TIER
 
         self.grid = generate_world(self.world_w, self.world_h)
         self.fog = [[FOG_UNSEEN] * self.world_w for _ in range(self.world_h)]
@@ -662,10 +690,11 @@ class Game:
         clear_area(self.grid, *self.player_hq, 4)
         clear_area(self.grid, *self.enemy_hq, 4)
 
-        self.workshops = {
-            "player": Workshop("player", *self.player_hq),
-            "enemy": Workshop("enemy", *self.enemy_hq),
-        }
+        self.workshops = [
+            Workshop("player", *self.player_hq),
+            Workshop("enemy", *self.enemy_hq),
+        ]
+        self.active_workshop_id = self.workshops[0].id
 
         self.units = []
         self.player_credits = START_CREDITS_PLAYER
@@ -678,8 +707,8 @@ class Game:
 
         self.camera_x, self.camera_y = 0, 0
         self.cursor_x, self.cursor_y = self.player_hq
-        self.selection = set()  # unit ids
-        self.groups = {}  # digit -> set of unit ids
+        self.selection = set()  # frame/workshop ids
+        self.groups = {}  # digit -> set of frame/workshop ids
         self.kbox_start = None  # keyboard box-select anchor
         self.drag_start = None  # mouse box-select anchor (world coords)
 
@@ -768,7 +797,7 @@ class Game:
         return None
 
     def workshop_at(self, x, y):
-        for w in self.workshops.values():
+        for w in self.workshops:
             if w.alive and w.x == x and w.y == y:
                 return w
         return None
@@ -823,8 +852,10 @@ class Game:
             d2 = (other.x - unit.x) ** 2 + (other.y - unit.y) ** 2
             if d2 <= rng2 and (best_d2 is None or d2 < best_d2):
                 best, best_d2 = other, d2
-        ws = self.workshops.get("enemy" if unit.owner == "player" else "player")
-        if ws and ws.alive:
+        opp_owner = "enemy" if unit.owner == "player" else "player"
+        for ws in self.workshops:
+            if not ws.alive or ws.owner != opp_owner:
+                continue
             d2 = (ws.x - unit.x) ** 2 + (ws.y - unit.y) ** 2
             if d2 <= rng2 and (best_d2 is None or d2 < best_d2):
                 best, best_d2 = ws, d2
@@ -846,23 +877,41 @@ class Game:
 
     # ---------------------- production ----------------------
 
-    def queue_build(self, owner, chassis_name):
-        ws = self.workshops[owner]
-        if not ws.alive:
+    def get_active_workshop(self):
+        """The player workshop the build menu queues to. Falls back to
+        whichever player workshop is still alive if the active one died."""
+        for w in self.workshops:
+            if w.alive and w.owner == "player" and w.id == self.active_workshop_id:
+                return w
+        alive = [w for w in self.workshops if w.alive and w.owner == "player"]
+        if alive:
+            self.active_workshop_id = alive[0].id
+            return alive[0]
+        return None
+
+    def _enemy_workshop(self):
+        """The enemy's one and only workshop - it never builds more."""
+        for w in self.workshops:
+            if w.alive and w.owner == "enemy":
+                return w
+        return None
+
+    def queue_build(self, workshop, chassis_name):
+        if workshop is None or not workshop.alive:
             return False
         utype = UNIT_TYPES[chassis_name]
-        credits = self.player_credits if owner == "player" else self.enemy_credits
+        credits = self.player_credits if workshop.owner == "player" else self.enemy_credits
         if credits < utype.cost:
             return False
-        if owner == "player":
+        if workshop.owner == "player":
             self.player_credits -= utype.cost
         else:
             self.enemy_credits -= utype.cost
-        ws.queue.append([chassis_name, utype.build_ticks])
+        workshop.queue.append([chassis_name, utype.build_ticks])
         return True
 
     def _process_production(self):
-        for owner, ws in self.workshops.items():
+        for ws in self.workshops:
             if not ws.alive or not ws.queue:
                 continue
             ws.queue[0][1] -= 1
@@ -870,34 +919,34 @@ class Game:
                 name, _ = ws.queue.pop(0)
                 occupied = {(u.x, u.y) for u in self.units if u.alive}
                 x, y = self._open_tile_near(ws.x, ws.y, occupied)
-                unit = Unit(UNIT_TYPES[name], owner, x, y)
-                if owner == "enemy":
+                unit = Unit(UNIT_TYPES[name], ws.owner, x, y)
+                if ws.owner == "enemy":
                     jitter = random.randint(-4, 4)
                     unit.move_target = (self.player_hq[0] + jitter,
                                          self.player_hq[1] + jitter)
                 self.units.append(unit)
-                if owner == "player":
+                if ws.owner == "player":
                     self.log(f"{name} rolled out of the workshop.")
 
     def _enemy_ai(self):
         if self.tick % self.enemy_build_interval == 0:
             affordable = [n for n in BUILD_ORDER if UNIT_TYPES[n].cost <= self.enemy_credits]
             if affordable:
-                self.queue_build("enemy", random.choice(affordable))
+                self.queue_build(self._enemy_workshop(), random.choice(affordable))
+        player_workshops = [w for w in self.workshops if w.alive and w.owner == "player"]
         for u in self.units:
-            if u.alive and u.owner == "enemy" and u.move_target is None:
-                pws = self.workshops["player"]
-                if pws.alive:
-                    jitter = random.randint(-5, 5)
-                    u.move_target = (pws.x + jitter, pws.y + jitter)
+            if u.alive and u.owner == "enemy" and u.move_target is None and player_workshops:
+                target = min(player_workshops, key=lambda w: (w.x - u.x) ** 2 + (w.y - u.y) ** 2)
+                jitter = random.randint(-5, 5)
+                u.move_target = (target.x + jitter, target.y + jitter)
 
     def _autoplay_ai(self):
         """Units flagged autoplay hunt the rival on their own, like a mini
         version of the enemy AI, but only for the frames it was toggled on."""
-        ews = self.workshops["enemy"]
+        ews = self._enemy_workshop()
         for u in self.units:
             if u.alive and u.owner == "player" and u.autoplay and u.move_target is None:
-                if ews.alive:
+                if ews:
                     jitter = random.randint(-5, 5)
                     u.move_target = (ews.x + jitter, ews.y + jitter)
 
@@ -918,6 +967,11 @@ class Game:
         if self.tick % INCOME_INTERVAL_TICKS == 0:
             self.player_credits += PLAYER_INCOME
             self.enemy_credits += self.enemy_income
+
+        if self.tick % UNIT_REGEN_INTERVAL_TICKS == 0:
+            for u in self.units:
+                if u.alive and u.owner == "player" and u.hp < u.utype.max_hp:
+                    u.hp = min(u.utype.max_hp, u.hp + UNIT_REGEN_AMOUNT)
 
         self._process_production()
         self._enemy_ai()
@@ -946,7 +1000,7 @@ class Game:
                     u.move_target = None
 
         self.units = [u for u in self.units if u.alive]
-        alive_ids = {u.id for u in self.units}
+        alive_ids = {u.id for u in self.units} | {w.id for w in self.workshops if w.alive}
         self.selection &= alive_ids
         for g in self.groups.values():
             g &= alive_ids
@@ -956,9 +1010,9 @@ class Game:
     def _check_game_over(self):
         if self.win is not None:
             return
-        player_alive = self.workshops["player"].alive or any(
+        player_alive = any(w.alive for w in self.workshops if w.owner == "player") or any(
             u.alive and u.owner == "player" for u in self.units)
-        enemy_alive = self.workshops["enemy"].alive or any(
+        enemy_alive = any(w.alive for w in self.workshops if w.owner == "enemy") or any(
             u.alive and u.owner == "enemy" for u in self.units)
         if not player_alive:
             self.win = False
@@ -998,16 +1052,40 @@ class Game:
 
     # ---------------------- selection / orders ----------------------
 
-    def select_only(self, unit):
-        self.selection = {unit.id} if unit else set()
+    def select_only(self, entity):
+        self.selection = {entity.id} if entity else set()
 
-    def toggle_select(self, unit):
-        if not unit:
+    def toggle_select(self, entity):
+        if not entity:
             return
-        if unit.id in self.selection:
-            self.selection.discard(unit.id)
+        if entity.id in self.selection:
+            self.selection.discard(entity.id)
         else:
-            self.selection.add(unit.id)
+            self.selection.add(entity.id)
+
+    def selectable_at(self, x, y):
+        """Whatever the player could select at this tile: a frame, or (only
+        where extra workshops are unlocked) one of their own workshops."""
+        u = self.unit_at(x, y, owner="player")
+        if u:
+            return u
+        if self.multi_workshop_enabled:
+            w = self.workshop_at(x, y)
+            if w and w.owner == "player" and w.alive:
+                return w
+        return None
+
+    def interact_at(self, x, y):
+        """Select whatever's at (x, y), or - if nothing's there and
+        something's already selected - send the selection there instead.
+        This is the single-click behavior; it's also exactly what Enter/
+        Space does at the keyboard cursor, so a click is just "move the
+        cursor here and press Enter"."""
+        existing = self.selectable_at(x, y)
+        if existing:
+            self.select_only(existing)
+        elif self.selection:
+            self.issue_move_order(x, y)
 
     def box_select(self, x0, y0, x1, y1):
         xlo, xhi = sorted((x0, x1))
@@ -1015,11 +1093,53 @@ class Game:
         found = {u.id for u in self.units
                  if u.alive and u.owner == "player"
                  and xlo <= u.x <= xhi and ylo <= u.y <= yhi}
+        if self.multi_workshop_enabled:
+            found |= {w.id for w in self.workshops
+                      if w.alive and w.owner == "player"
+                      and xlo <= w.x <= xhi and ylo <= w.y <= yhi}
         if found:
             self.selection = found
 
+    def select_all_player(self):
+        ids = {u.id for u in self.units if u.alive and u.owner == "player"}
+        if self.multi_workshop_enabled:
+            ids |= {w.id for w in self.workshops if w.alive and w.owner == "player"}
+        if ids:
+            self.selection = ids
+
     def selected_units(self):
         return [u for u in self.units if u.id in self.selection and u.alive]
+
+    def selected_workshops(self):
+        return [w for w in self.workshops
+                if w.id in self.selection and w.alive and w.owner == "player"]
+
+    def selection_anchor(self):
+        """First selected entity (frame or workshop) by id, for camera
+        snapping when a control group is recalled."""
+        entities = self.selected_units() + self.selected_workshops()
+        return min(entities, key=lambda e: e.id) if entities else None
+
+    def cycle_workshop(self, direction):
+        """Select the next/previous player workshop, make it the active one
+        for the build menu, and snap the camera to it. No-op outside the
+        missions that unlock extra workshops."""
+        if not self.multi_workshop_enabled:
+            return
+        ws_list = sorted((w for w in self.workshops if w.alive and w.owner == "player"),
+                          key=lambda w: w.id)
+        if not ws_list:
+            return
+        ids = [w.id for w in ws_list]
+        if self.active_workshop_id in ids:
+            idx = (ids.index(self.active_workshop_id) + direction) % len(ids)
+        else:
+            idx = 0 if direction > 0 else -1
+        ws = ws_list[idx]
+        self.active_workshop_id = ws.id
+        self.select_only(ws)
+        self.cursor_x, self.cursor_y = ws.x, ws.y
+        self._recenter_camera_on_cursor(force=True)
 
     def cycle_selection(self, direction):
         """Select the next (direction=1) or previous (direction=-1) player
@@ -1136,15 +1256,20 @@ class Game:
                 else:
                     self._safe_addch(sy + TOP_H, sx, FLOOR, curses.color_pair(10) | dim)
 
-        for owner, ws in self.workshops.items():
+        for ws in self.workshops:
             if not ws.alive:
                 continue
-            if self.fog[ws.y][ws.x] == FOG_UNSEEN and owner == "enemy":
+            if self.fog[ws.y][ws.x] == FOG_UNSEEN and ws.owner == "enemy":
                 continue
             sx, sy = ws.x - self.camera_x, ws.y - self.camera_y
             if 0 <= sx < view_w and 0 <= sy < view_h:
-                pair = 7 if owner == "player" else 8
-                self._safe_addch(sy + TOP_H, sx, WORKSHOP_SYMBOL, curses.color_pair(pair) | curses.A_BOLD)
+                pair = 7 if ws.owner == "player" else 8
+                attr = curses.color_pair(pair) | curses.A_BOLD
+                if self.multi_workshop_enabled and ws.owner == "player" and ws.id == self.active_workshop_id:
+                    attr |= curses.A_UNDERLINE
+                if ws.id in self.selection:
+                    attr |= curses.A_REVERSE
+                self._safe_addch(sy + TOP_H, sx, WORKSHOP_SYMBOL, attr)
 
         for u in self.units:
             if not u.alive:
@@ -1200,12 +1325,16 @@ class Game:
         self._safe_addstr(row, col, "-- TROOPS --", curses.color_pair(4))
         row += 1
 
-        ws = self.workshops["player"]
-        bar, pair = self._health_bar(ws.hp / ws.max_hp, SIDEBAR_W - 10)
-        self._safe_addstr(row, col, "WORKSHOP", curses.color_pair(4))
-        row += 1
-        self._safe_addstr(row, col, f"[{bar}]", curses.color_pair(pair))
-        row += 2
+        ws_list = [w for w in self.workshops if w.alive and w.owner == "player"]
+        if ws_list:
+            total_hp = sum(w.hp for w in ws_list)
+            total_max = sum(w.max_hp for w in ws_list)
+            label = "WORKSHOP" if len(ws_list) == 1 else f"WORKSHOPS x{len(ws_list)}"
+            bar, pair = self._health_bar(total_hp / total_max if total_max else 0, SIDEBAR_W - 10)
+            self._safe_addstr(row, col, label, curses.color_pair(4))
+            row += 1
+            self._safe_addstr(row, col, f"[{bar}]", curses.color_pair(pair))
+            row += 2
 
         groups = {}
         for u in self.units:
@@ -1234,43 +1363,67 @@ class Game:
 
     def _draw_bottombar(self, view_h, max_x):
         y = TOP_H + view_h
-        controls = ("Move:Arrows/WASD  Enter:Select/Order  V:Add  X:Box  "
-                    "1-9:Group  G+n:Assign  S:Stop  [:Prev ]:Next  P:Autoplay  B:Build  Q:End")
+        controls = ("Move:Arrows/WASD  Enter:Select/Order  V:Add  X:Box  A:All  "
+                    "1-9:Group  G+n:Assign  S:Stop  [:Prev ]:Next  ")
+        if self.multi_workshop_enabled:
+            controls += "{:PrevWS }:NextWS  "
+        controls += "P:Autoplay  B:Build  Q:End"
         self._safe_addstr(y, 0, controls[:max_x], curses.color_pair(4))
         for i, msg in enumerate(self.messages):
             self._safe_addstr(y + 1 + i, 0, msg[:max_x], curses.color_pair(6))
 
+    def _build_menu_entries(self):
+        entries = list(BUILD_ORDER)
+        if self.multi_workshop_enabled:
+            entries.append("__WORKSHOP__")
+        return entries
+
     def _draw_build_menu(self):
         max_y, max_x = self.stdscr.getmaxyx()
-        self._safe_addstr(0, 0, f"WORKSHOP BUILD MENU  (Credits: {self.player_credits})",
-                           curses.color_pair(4) | curses.A_BOLD)
+        header = f"WORKSHOP BUILD MENU  (Credits: {self.player_credits})"
+        if self.multi_workshop_enabled:
+            ws_list = sorted((w for w in self.workshops if w.alive and w.owner == "player"),
+                              key=lambda w: w.id)
+            active = self.get_active_workshop()
+            pos = ws_list.index(active) + 1 if active in ws_list else 0
+            header += f"   Active workshop: {pos}/{len(ws_list)}"
+        self._safe_addstr(0, 0, header, curses.color_pair(4) | curses.A_BOLD)
         row = 2
-        for i, name in enumerate(BUILD_ORDER):
-            ut = UNIT_TYPES[name]
+        entries = self._build_menu_entries()
+        for i, entry in enumerate(entries):
             marker = ">" if i == self.build_index else " "
-            key = i + 1 if i < 9 else 0
-            line = (f"{marker} {key}) {name:<12} {ut.cost:>5}cr  "
-                     f"HP{ut.max_hp:<4} ARM{ut.armor:<2} SPD{ut.speed:<3} RNG{ut.rng:<2}")
             attr = curses.A_REVERSE if i == self.build_index else curses.color_pair(4)
-            self._safe_addstr(row, 0, line, attr)
-            row += 1
-            if i == self.build_index:
-                self._safe_addstr(row, 2, ut.desc[:max_x - 3], curses.A_DIM)
+            if entry == "__WORKSHOP__":
+                line = f"{marker}    Workshop     {WORKSHOP_BUILD_COST:>5}cr  second production line"
+                self._safe_addstr(row, 0, line, attr)
                 row += 1
+                if i == self.build_index:
+                    self._safe_addstr(row, 2, "Built at the cursor's current position.", curses.A_DIM)
+                    row += 1
+            else:
+                ut = UNIT_TYPES[entry]
+                key = i + 1 if i < 9 else 0
+                line = (f"{marker} {key}) {entry:<12} {ut.cost:>5}cr  "
+                         f"HP{ut.max_hp:<4} ARM{ut.armor:<2} SPD{ut.speed:<3} RNG{ut.rng:<2}")
+                self._safe_addstr(row, 0, line, attr)
+                row += 1
+                if i == self.build_index:
+                    self._safe_addstr(row, 2, ut.desc[:max_x - 3], curses.A_DIM)
+                    row += 1
             if row >= max_y - 6:
                 break
         row += 1
-        ws = self.workshops["player"]
-        self._safe_addstr(row, 0, "Build queue:", curses.color_pair(4))
+        active = self.get_active_workshop()
+        self._safe_addstr(row, 0, "Build queue (active workshop):", curses.color_pair(4))
         row += 1
-        if not ws.queue:
+        if not active or not active.queue:
             self._safe_addstr(row, 0, "  (empty)", curses.A_DIM)
         else:
-            for name, remain in ws.queue[:5]:
+            for name, remain in active.queue[:5]:
                 self._safe_addstr(row, 0, f"  {name} - {remain} ticks", curses.A_DIM)
                 row += 1
         self._safe_addstr(max_y - 2, 0,
-                           "Up/Down: choose  Enter/digit: queue  B/Esc: close",
+                           "Up/Down: choose  Enter: queue  1-0: quick-pick frame  B/Esc: close",
                            curses.color_pair(6))
 
     # ---------------------- input ----------------------
@@ -1301,16 +1454,16 @@ class Game:
             return
 
         if key in (10, 13, curses.KEY_ENTER, ord(' ')):
-            existing = self.unit_at(self.cursor_x, self.cursor_y, owner="player")
-            if existing:
-                self.select_only(existing)
-            elif self.selection:
-                self.issue_move_order(self.cursor_x, self.cursor_y)
+            self.interact_at(self.cursor_x, self.cursor_y)
             return
 
         if key in (ord('v'), ord('V')):
-            existing = self.unit_at(self.cursor_x, self.cursor_y, owner="player")
+            existing = self.selectable_at(self.cursor_x, self.cursor_y)
             self.toggle_select(existing)
+            return
+
+        if key == ord('A'):
+            self.select_all_player()
             return
 
         if key in (ord('x'), ord('X')):
@@ -1330,10 +1483,10 @@ class Game:
             d = chr(key)
             if d in self.groups and self.groups[d]:
                 self.selection = set(self.groups[d])
-                units = self.selected_units()
-                if units:
-                    self.cursor_x = units[0].x
-                    self.cursor_y = units[0].y
+                anchor = self.selection_anchor()
+                if anchor:
+                    self.cursor_x = anchor.x
+                    self.cursor_y = anchor.y
                     self._recenter_camera_on_cursor(force=True)
             return
 
@@ -1347,6 +1500,14 @@ class Game:
 
         if key == ord(']'):
             self.cycle_selection(1)
+            return
+
+        if key == ord('{'):
+            self.cycle_workshop(-1)
+            return
+
+        if key == ord('}'):
+            self.cycle_workshop(1)
             return
 
         if key in (ord('p'), ord('P')):
@@ -1363,18 +1524,22 @@ class Game:
             return
 
     def _handle_build_menu_key(self, key):
+        entries = self._build_menu_entries()
         if key in (ord('b'), ord('B'), 27):
             self.build_menu_open = False
             return
         if key in (curses.KEY_UP, ord('w')):
-            self.build_index = (self.build_index - 1) % len(BUILD_ORDER)
+            self.build_index = (self.build_index - 1) % len(entries)
             return
         if key in (curses.KEY_DOWN, ord('s')):
-            self.build_index = (self.build_index + 1) % len(BUILD_ORDER)
+            self.build_index = (self.build_index + 1) % len(entries)
             return
         if key in (10, 13, curses.KEY_ENTER):
-            name = BUILD_ORDER[self.build_index]
-            self._try_queue(name)
+            entry = entries[self.build_index]
+            if entry == "__WORKSHOP__":
+                self._try_build_workshop()
+            else:
+                self._try_queue(entry)
             return
         if ord('1') <= key <= ord('9'):
             idx = key - ord('1')
@@ -1387,10 +1552,27 @@ class Game:
             return
 
     def _try_queue(self, name):
-        if self.queue_build("player", name):
+        if self.queue_build(self.get_active_workshop(), name):
             self.log(f"Queued {name} at the workshop.")
         else:
             self.log(f"Not enough credits for {name}.")
+
+    def _try_build_workshop(self):
+        if not self.multi_workshop_enabled:
+            return
+        if self.player_credits < WORKSHOP_BUILD_COST:
+            self.log(f"Not enough credits for a workshop ({WORKSHOP_BUILD_COST}cr).")
+            return
+        x, y = self.cursor_x, self.cursor_y
+        if not self.tile_free(x, y):
+            self.log("Can't build a workshop there.")
+            return
+        self.player_credits -= WORKSHOP_BUILD_COST
+        ws = Workshop("player", x, y)
+        self.workshops.append(ws)
+        self.active_workshop_id = ws.id
+        self.reveal(x, y, 8)
+        self.log("New workshop commissioned.")
 
     def handle_mouse(self):
         try:
@@ -1406,6 +1588,8 @@ class Game:
         wx = max(0, min(self.world_w - 1, wx))
         wy = max(0, min(self.world_h - 1, wy))
 
+        self.cursor_x, self.cursor_y = wx, wy
+
         if bstate & curses.BUTTON1_PRESSED:
             self.drag_start = (wx, wy)
         elif bstate & curses.BUTTON1_RELEASED:
@@ -1413,11 +1597,11 @@ class Game:
                 sx, sy = self.drag_start
                 self.drag_start = None
                 if sx == wx and sy == wy:
-                    self.select_only(self.unit_at(wx, wy, owner="player"))
+                    self.interact_at(wx, wy)
                 else:
                     self.box_select(sx, sy, wx, wy)
         elif bstate & curses.BUTTON1_CLICKED:
-            self.select_only(self.unit_at(wx, wy, owner="player"))
+            self.interact_at(wx, wy)
         elif bstate & (curses.BUTTON3_CLICKED | curses.BUTTON3_PRESSED):
             self.issue_move_order(wx, wy)
 
