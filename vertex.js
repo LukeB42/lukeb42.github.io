@@ -736,11 +736,14 @@ function (global) {
       if (n.type === 'text') {
         out += n.value;
       } else if (n.type === 'var') {
+        /* != null (not !== undefined) so a JSON null -- e.g. an unset
+           nullable field straight off the wire -- renders as empty, same
+           as standard Mustache, instead of the literal string "null". */
         var v = resolvePath(data, n.key);
-        out += v !== undefined ? escHtml(v) : '';
+        out += v != null ? escHtml(v) : '';
       } else if (n.type === 'raw') {
         var rv = resolvePath(data, n.key);
-        out += rv !== undefined ? String(rv) : '';
+        out += rv != null ? String(rv) : '';
       } else if (n.type === 'comment') {
         /* no output */
       } else if (n.type === 'each') {
@@ -808,13 +811,16 @@ function (global) {
         var acc = (n.key.indexOf('.') < 0 && n.key.indexOf('@') < 0)
           ? (dataVar + '[' + JSON.stringify(n.key) + ']')
           : ('_rp(' + dataVar + ',' + JSON.stringify(n.key) + ')');
-        code += 'var _v' + uid + '=' + acc + ';_o+=_v' + uid + '!==undefined?_esc(_v' + uid + '):"";' + NL;
+        /* != null (not !== undefined) -- see the matching renderNodes
+           branch above for why (JSON null must render as empty, not the
+           literal string "null"). */
+        code += 'var _v' + uid + '=' + acc + ';_o+=_v' + uid + '!=null?_esc(_v' + uid + '):"";' + NL;
 
       } else if (n.type === 'raw') {
         var accR = (n.key.indexOf('.') < 0 && n.key.indexOf('@') < 0)
           ? (dataVar + '[' + JSON.stringify(n.key) + ']')
           : ('_rp(' + dataVar + ',' + JSON.stringify(n.key) + ')');
-        code += 'var _r' + uid + '=' + accR + ';_o+=_r' + uid + '!==undefined?String(_r' + uid + '):"";' + NL;
+        code += 'var _r' + uid + '=' + accR + ';_o+=_r' + uid + '!=null?String(_r' + uid + '):"";' + NL;
 
       } else if (n.type === 'each') {
         var arrV = '_arr' + uid, itmV = '_itm' + uid, idxV = '_idx' + uid;
