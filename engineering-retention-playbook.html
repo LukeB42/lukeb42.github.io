@@ -6,7 +6,7 @@
 <title>Retaining Elite Engineers in Salaryman Culture</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Shippori+Mincho:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Shippori+Mincho:wght@400;600;800&family=IBM+Plex+Sans:ital,wght@1,900&display=swap" rel="stylesheet">
 <style>
   :root {
     --ink: #0f0e0c;
@@ -61,21 +61,29 @@
 
   .nav-mark {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    font-weight: 400;
-    letter-spacing: 0.12em;
-    color: rgba(255,255,255,0.45);
-    text-transform: uppercase;
+    align-items: stretch;
+    align-self: stretch;
+    margin-left: -3rem;
   }
 
-  .nav-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #0281e3;
-    flex-shrink: 0;
+  .nav-mark a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .nav-mark #float64 {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: italic;
+    font-variation-settings: "wdth" 100;
+    font-size: 30px;
+    color: white;
+    padding: 0 10px;
   }
 
   .nav-links {
@@ -580,6 +588,7 @@
     .comp-row { grid-template-columns: 1fr 1fr; }
     .comp-row .comp-cell:nth-child(3) { display: none; }
     nav { padding: 0 1.5rem; }
+    .nav-mark { margin-left: -1.5rem; }
     .nav-links { display: none; }
     .content { padding: 4rem 1.25rem; }
     .hero-left { padding: 3rem 2rem; }
@@ -590,8 +599,7 @@
 
 <nav>
   <div class="nav-mark">
-    <div class="nav-dot"></div>
-    FLOAT64
+    <a href="/"><span id="float64">Float64</span></a>
   </div>
   <ul class="nav-links">
     <li><a href="#tension">The Tension</a></li>
