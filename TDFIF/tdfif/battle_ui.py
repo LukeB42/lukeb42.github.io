@@ -149,7 +149,7 @@ class BattleUI:
     def _confirm_ability(self):
         b = self.battle
         ability = b.current.abilities[self.cursor]
-        if b.current.sc < ability.sc_cost:
+        if b.current.sc < ability.sc_cost or b.current.has_status("EMP-Locked"):
             return
         if ability.target in ("single_enemy", "single_ally"):
             self.pending_ability = ability
@@ -228,9 +228,11 @@ class BattleUI:
                 ui.safe_addstr(stdscr, row + 1 + i, col + 2, choice, attr)
 
         elif self.menu_state == "ability":
-            ui.safe_addstr(stdscr, row, col, "Choose an ability:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            locked = b.current.has_status("EMP-Locked")
+            title = "Choose an ability:" if not locked else "EMP-Locked - abilities disabled:"
+            ui.safe_addstr(stdscr, row, col, title, curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
             for i, ab in enumerate(b.current.abilities):
-                affordable = b.current.sc >= ab.sc_cost
+                affordable = b.current.sc >= ab.sc_cost and not locked
                 text = f"{ab.name} (SC {ab.sc_cost})"
                 attr = curses.A_REVERSE if i == self.cursor else 0
                 if not affordable:

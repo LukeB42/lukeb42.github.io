@@ -9,9 +9,9 @@ import curses
 
 from . import mapgen, ui
 from .constants import (DOOR, ENV_BUNKER, EXFIL_SYMBOL, FLOOR, FOG_UNSEEN,
-                         FOG_VISIBLE, FOG_EXPLORED, GRASS, NECRO_LOAD_CAP,
-                         NECRO_OVERWORLD_DECAY_PER_TICK, RUBBLE, TIER_DISPLAY_NAMES,
-                         WALL, WEAPON_NECRO)
+                         FOG_VISIBLE, FOG_EXPLORED, GRASS, HP_OVERWORLD_REGEN_TICKS,
+                         NECRO_LOAD_CAP, NECRO_OVERWORLD_DECAY_PER_TICK, RUBBLE,
+                         TIER_DISPLAY_NAMES, WALL, WEAPON_NECRO)
 from .enemies import EncounterMarker
 
 SIDEBAR_W = 36
@@ -199,9 +199,14 @@ class Overworld:
     # ---------------------- tick update ----------------------
 
     def _regen_party(self):
+        heal_hp = self.tick % HP_OVERWORLD_REGEN_TICKS == 0
         for p in self.party:
-            if p.alive and p.necro_load > 0:
+            if not p.alive:
+                continue
+            if p.necro_load > 0:
                 p.necro_load = max(0, p.necro_load - NECRO_OVERWORLD_DECAY_PER_TICK)
+            if heal_hp and p.hp < p.max_hp:
+                p.hp = min(p.max_hp, p.hp + 1)
 
     def update(self):
         self.tick += 1

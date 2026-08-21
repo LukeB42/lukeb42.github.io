@@ -46,6 +46,8 @@ class Battle:
         a = u.atk
         if u.has_status("Overdriven"):
             a = int(a * 1.25)
+        if u.has_status("Suppressed"):
+            a = int(a * 0.75)
         return a
 
     @staticmethod
@@ -224,7 +226,7 @@ class Battle:
 
     def do_ability(self, ability, target=None):
         unit = self.current
-        if self.phase != "action" or unit.sc < ability.sc_cost:
+        if self.phase != "action" or unit.sc < ability.sc_cost or unit.has_status("EMP-Locked"):
             return False
         ok = self._resolve_ability(unit, ability, target)
         if not ok:

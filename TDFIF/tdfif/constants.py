@@ -102,6 +102,11 @@ NECRO_CRITICAL_DRAIN = 8         # extra flat hp/turn once load caps out
 # its own between engagements, one overworld tick at a time.
 NECRO_OVERWORLD_DECAY_PER_TICK = 1
 
+# Flesh-and-blood HP takes longer to knit than the swarm takes to burn off
+# a necrotic load: 1 hp every this many overworld ticks - half the rate
+# (or slower) that NECRO_OVERWORLD_DECAY_PER_TICK clears necrotic load.
+HP_OVERWORLD_REGEN_TICKS = 2
+
 SC_REGEN_PER_TURN = 6
 SC_REGEN_DEFENDING = 12
 SC_FEEDSTOCK_PER_VAPOR_HIT = 8
@@ -143,6 +148,26 @@ LEVELS = [
          n_squads=8, squad_size=(2, 4), vapor_bias=0.45, boss_squad=True,
          blurb="A DUMB - deep underground military base. Poured concrete, "
                "blast doors, and a containment officer who won't fall easy."),
+    dict(name="Halcyon Biotech Campus", world_w=165, world_h=85,
+         env=ENV_RUIN, palette="corp", tier="corp",
+         n_squads=9, squad_size=(2, 4), vapor_bias=0.5, boss_squad=False,
+         blurb="A vapor-suit R&D campus DISA quietly funds through three shell "
+               "contracts. Halcyon's own security doesn't know that yet."),
+    dict(name="Cinder Relay Station", world_w=180, world_h=90,
+         env=ENV_BUNKER, palette="bunker", tier="relay",
+         n_squads=10, squad_size=(2, 4), vapor_bias=0.4, boss_squad=True,
+         blurb="A hardened comms relay linking half the black sites on this "
+               "coastline. The contractors running it answer to nobody DISA can name."),
+    dict(name="Ashfall Depot", world_w=195, world_h=95,
+         env=ENV_RUIN, palette="sand", tier="depot",
+         n_squads=11, squad_size=(3, 4), vapor_bias=0.45, boss_squad=False,
+         blurb="A scavenger economy built entirely on other people's dead ops. "
+               "Everything on site was salvaged from somewhere worse."),
+    dict(name="Vantage Point Complex", world_w=210, world_h=105,
+         env=ENV_BUNKER, palette="corp", tier="vantage",
+         n_squads=12, squad_size=(3, 4), vapor_bias=0.35, boss_squad=True,
+         blurb="Penthouse-level security for people who were never supposed "
+               "to need it. The view is the only honest thing on site."),
     dict(name="Force Majeure Black Site", world_w=180, world_h=100,
          env=ENV_RUIN, palette="blood", tier="blacksite",
          n_squads=10, squad_size=(3, 4), vapor_bias=0.3, boss_squad=True,

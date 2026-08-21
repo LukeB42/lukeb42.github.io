@@ -16,8 +16,8 @@ you hold position.
 Walk a fogged, navigable map to find and avoid (or engage) hostile
 squads, same as TDF - but contact hands off to a menu-driven, turn-based
 squad battle instead of a real-time firefight. Manage suit charge
-abilities, necrotic load, and front/back-row formation across three
-escalating sites.
+abilities, necrotic load, and front/back-row formation across seven
+escalating sites, each unlocked by clearing the one before it.
 
 ## Play online
 

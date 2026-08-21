@@ -62,7 +62,22 @@ def _palette_blood(has_256):
             17: blood_orange, 18: blood_red}
 
 
-PALETTES = {"sand": _palette_sand, "bunker": _palette_bunker, "blood": _palette_blood}
+def _palette_corp(has_256):
+    """Halcyon Biotech Campus / Vantage Point Complex - glass, steel, and
+    cold corporate teal, with a violet accent for anything that should
+    read as expensive and hostile."""
+    if has_256:
+        teal_dark, teal_lt, steel, violet = 23, 44, 67, 97
+    else:
+        teal_dark, teal_lt, steel, violet = curses.COLOR_CYAN, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA
+    return {1: teal_lt, 3: teal_dark, 4: steel, 5: curses.COLOR_RED,
+            6: violet, 8: steel, 9: curses.COLOR_RED, 11: teal_lt,
+            12: teal_dark, 13: violet, 14: teal_lt, 15: violet,
+            17: teal_lt, 18: violet}
+
+
+PALETTES = {"sand": _palette_sand, "bunker": _palette_bunker, "blood": _palette_blood,
+            "corp": _palette_corp}
 
 
 def apply_palette(name):

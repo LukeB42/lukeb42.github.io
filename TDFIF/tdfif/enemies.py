@@ -29,6 +29,26 @@ ENEMY_TEMPLATES = {
         dict(name="Bio-Trooper", weapon=WEAPON_NECRO, hp=48, atk=10, dfn=6, spd=8),
         dict(name="Combat Drone", weapon=WEAPON_VAPOR, hp=40, atk=18, dfn=4, spd=10),
     ],
+    "corp": [
+        dict(name="Halcyon Security Guard", weapon=WEAPON_VAPOR, hp=50, atk=13, dfn=6, spd=8),
+        dict(name="Halcyon Marksman", weapon=WEAPON_NECRO, hp=40, atk=10, dfn=5, spd=9),
+        dict(name="Cyber-Sentry Drone", weapon=WEAPON_VAPOR, hp=45, atk=17, dfn=5, spd=11),
+    ],
+    "relay": [
+        dict(name="Relay Contractor", weapon=WEAPON_VAPOR, hp=58, atk=15, dfn=8, spd=8),
+        dict(name="Relay Sniper", weapon=WEAPON_NECRO, hp=46, atk=11, dfn=6, spd=9),
+        dict(name="Breach Specialist", weapon=WEAPON_VAPOR, hp=52, atk=18, dfn=6, spd=10),
+    ],
+    "depot": [
+        dict(name="Ashfall Scavenger", weapon=WEAPON_VAPOR, hp=60, atk=16, dfn=7, spd=8),
+        dict(name="Ashfall Marksman", weapon=WEAPON_NECRO, hp=48, atk=12, dfn=6, spd=9),
+        dict(name="Salvage Brute", weapon=WEAPON_VAPOR, hp=78, atk=19, dfn=9, spd=6),
+    ],
+    "vantage": [
+        dict(name="Vantage Operative", weapon=WEAPON_VAPOR, hp=66, atk=17, dfn=9, spd=9),
+        dict(name="Vantage Sniper", weapon=WEAPON_NECRO, hp=52, atk=13, dfn=7, spd=10),
+        dict(name="Sentinel Drone", weapon=WEAPON_VAPOR, hp=58, atk=20, dfn=7, spd=12),
+    ],
     "blacksite": [
         dict(name="Reaper Trooper", weapon=WEAPON_NECRO, hp=60, atk=12, dfn=8, spd=9),
         dict(name="Blood Guard", weapon=WEAPON_VAPOR, hp=80, atk=20, dfn=10, spd=8),
@@ -38,6 +58,10 @@ ENEMY_TEMPLATES = {
 ELITES = {
     "dumb": dict(name="Containment Officer", weapon=WEAPON_NECRO, hp=90, atk=11, dfn=10, spd=9,
                  on_hit_status="EMP-Locked", on_hit_turns=2),
+    "relay": dict(name="Relay Chief", weapon=WEAPON_NECRO, hp=105, atk=12, dfn=11, spd=9,
+                  on_hit_status="Suppressed", on_hit_turns=2),
+    "vantage": dict(name="Vantage Overseer", weapon=WEAPON_NECRO, hp=130, atk=13, dfn=12, spd=10,
+                     on_hit_status="EMP-Locked", on_hit_turns=2),
     "blacksite": dict(name="Black Site Handler", weapon=WEAPON_NECRO, hp=150, atk=14, dfn=12, spd=10,
                        on_hit_status="Suppressed", on_hit_turns=2),
 }
@@ -87,7 +111,8 @@ class EncounterMarker:
         dominant_necro = vapor_bias < 0.5
         self.weapon = WEAPON_NECRO if dominant_necro else WEAPON_VAPOR
         # vision/patrol tuning scales gently with tier danger
-        base = {"militia": 7, "dumb": 8, "blacksite": 9}.get(tier, 7)
+        base = {"militia": 7, "dumb": 8, "corp": 8, "relay": 8, "depot": 9,
+                "vantage": 9, "blacksite": 9}.get(tier, 7)
         self.vision = base
         self.patrol_radius = 6
 

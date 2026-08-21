@@ -12,6 +12,25 @@ from .battle_ui import BattleUI
 from .overworld import Overworld
 from .party import Inventory, new_squad
 
+# Mission-select easter egg: up down up down left right left right b a x x
+# unlocks every site. Up/down accept WASD too, matching this screen's normal
+# navigation keys; left/right/b/a/x are arrow/letter-only, since nothing
+# else in this screen binds them.
+CHEAT_SEQUENCE = ("up", "down", "up", "down", "left", "right", "left", "right",
+                   "b", "a", "x", "x")
+
+
+def _cheat_step_matches(step, key):
+    if step == "up":
+        return key in (curses.KEY_UP, ord('w'), ord('W'))
+    if step == "down":
+        return key in (curses.KEY_DOWN, ord('s'), ord('S'))
+    if step == "left":
+        return key == curses.KEY_LEFT
+    if step == "right":
+        return key == curses.KEY_RIGHT
+    return key in (ord(step), ord(step.upper()))
+
 
 class App:
     def __init__(self, stdscr):
@@ -21,6 +40,7 @@ class App:
         self.max_unlocked = 0        # highest site index the player may deploy to
         self.mission_status_msg = ""
         self.mission_status_ticks = 0
+        self.cheat_progress = 0
         self.briefing_theme = None
         self.briefing_index = 0
 
@@ -51,6 +71,17 @@ class App:
         prev_name = C.LEVELS[idx - 1]["name"]
         self.mission_status_msg = f"LOCKED - complete {prev_name} first."
         self.mission_status_ticks = 30
+
+    def _track_cheat(self, key):
+        if _cheat_step_matches(CHEAT_SEQUENCE[self.cheat_progress], key):
+            self.cheat_progress += 1
+            if self.cheat_progress >= len(CHEAT_SEQUENCE):
+                self.cheat_progress = 0
+                self.max_unlocked = len(C.LEVELS) - 1
+                self.mission_status_msg = "CHEAT ACCEPTED - every site unlocked."
+                self.mission_status_ticks = 60
+        else:
+            self.cheat_progress = 1 if _cheat_step_matches(CHEAT_SEQUENCE[0], key) else 0
 
     def _start_mission(self):
         self.party = new_squad()
@@ -134,6 +165,8 @@ class App:
             if self.mission_status_ticks > 0:
                 self.mission_status_ticks -= 1
             key = self.stdscr.getch()
+            if key != -1:
+                self._track_cheat(key)
             if key in (curses.KEY_UP, ord('w'), ord('W')):
                 self.mission_index = (self.mission_index - 1) % len(C.LEVELS)
             elif key in (curses.KEY_DOWN, ord('s'), ord('S')):
@@ -194,3 +227,8 @@ def main(stdscr):
     stdscr.keypad(True)
     ui.init_colors()
     App(stdscr).run_blocking()
+
+
+def run():
+    """Zero-arg entry point for the `tdfif` console script / `python -m tdfif`."""
+    curses.wrapper(main)

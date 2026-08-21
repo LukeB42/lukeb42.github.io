@@ -400,6 +400,11 @@ NECRO_CRITICAL_DRAIN = 8         # extra flat hp/turn once load caps out
 # its own between engagements, one overworld tick at a time.
 NECRO_OVERWORLD_DECAY_PER_TICK = 1
 
+# Flesh-and-blood HP takes longer to knit than the swarm takes to burn off
+# a necrotic load: 1 hp every this many overworld ticks - half the rate
+# (or slower) that NECRO_OVERWORLD_DECAY_PER_TICK clears necrotic load.
+HP_OVERWORLD_REGEN_TICKS = 2
+
 SC_REGEN_PER_TURN = 6
 SC_REGEN_DEFENDING = 12
 SC_FEEDSTOCK_PER_VAPOR_HIT = 8
@@ -441,6 +446,26 @@ LEVELS = [
          n_squads=8, squad_size=(2, 4), vapor_bias=0.45, boss_squad=True,
          blurb="A DUMB - deep underground military base. Poured concrete, "
                "blast doors, and a containment officer who won't fall easy."),
+    dict(name="Halcyon Biotech Campus", world_w=165, world_h=85,
+         env=ENV_RUIN, palette="corp", tier="corp",
+         n_squads=9, squad_size=(2, 4), vapor_bias=0.5, boss_squad=False,
+         blurb="A vapor-suit R&D campus DISA quietly funds through three shell "
+               "contracts. Halcyon's own security doesn't know that yet."),
+    dict(name="Cinder Relay Station", world_w=180, world_h=90,
+         env=ENV_BUNKER, palette="bunker", tier="relay",
+         n_squads=10, squad_size=(2, 4), vapor_bias=0.4, boss_squad=True,
+         blurb="A hardened comms relay linking half the black sites on this "
+               "coastline. The contractors running it answer to nobody DISA can name."),
+    dict(name="Ashfall Depot", world_w=195, world_h=95,
+         env=ENV_RUIN, palette="sand", tier="depot",
+         n_squads=11, squad_size=(3, 4), vapor_bias=0.45, boss_squad=False,
+         blurb="A scavenger economy built entirely on other people's dead ops. "
+               "Everything on site was salvaged from somewhere worse."),
+    dict(name="Vantage Point Complex", world_w=210, world_h=105,
+         env=ENV_BUNKER, palette="corp", tier="vantage",
+         n_squads=12, squad_size=(3, 4), vapor_bias=0.35, boss_squad=True,
+         blurb="Penthouse-level security for people who were never supposed "
+               "to need it. The view is the only honest thing on site."),
     dict(name="Force Majeure Black Site", world_w=180, world_h=100,
          env=ENV_RUIN, palette="blood", tier="blacksite",
          n_squads=10, squad_size=(3, 4), vapor_bias=0.3, boss_squad=True,
@@ -829,6 +854,26 @@ ENEMY_TEMPLATES = {
         dict(name="Bio-Trooper", weapon=WEAPON_NECRO, hp=48, atk=10, dfn=6, spd=8),
         dict(name="Combat Drone", weapon=WEAPON_VAPOR, hp=40, atk=18, dfn=4, spd=10),
     ],
+    "corp": [
+        dict(name="Halcyon Security Guard", weapon=WEAPON_VAPOR, hp=50, atk=13, dfn=6, spd=8),
+        dict(name="Halcyon Marksman", weapon=WEAPON_NECRO, hp=40, atk=10, dfn=5, spd=9),
+        dict(name="Cyber-Sentry Drone", weapon=WEAPON_VAPOR, hp=45, atk=17, dfn=5, spd=11),
+    ],
+    "relay": [
+        dict(name="Relay Contractor", weapon=WEAPON_VAPOR, hp=58, atk=15, dfn=8, spd=8),
+        dict(name="Relay Sniper", weapon=WEAPON_NECRO, hp=46, atk=11, dfn=6, spd=9),
+        dict(name="Breach Specialist", weapon=WEAPON_VAPOR, hp=52, atk=18, dfn=6, spd=10),
+    ],
+    "depot": [
+        dict(name="Ashfall Scavenger", weapon=WEAPON_VAPOR, hp=60, atk=16, dfn=7, spd=8),
+        dict(name="Ashfall Marksman", weapon=WEAPON_NECRO, hp=48, atk=12, dfn=6, spd=9),
+        dict(name="Salvage Brute", weapon=WEAPON_VAPOR, hp=78, atk=19, dfn=9, spd=6),
+    ],
+    "vantage": [
+        dict(name="Vantage Operative", weapon=WEAPON_VAPOR, hp=66, atk=17, dfn=9, spd=9),
+        dict(name="Vantage Sniper", weapon=WEAPON_NECRO, hp=52, atk=13, dfn=7, spd=10),
+        dict(name="Sentinel Drone", weapon=WEAPON_VAPOR, hp=58, atk=20, dfn=7, spd=12),
+    ],
     "blacksite": [
         dict(name="Reaper Trooper", weapon=WEAPON_NECRO, hp=60, atk=12, dfn=8, spd=9),
         dict(name="Blood Guard", weapon=WEAPON_VAPOR, hp=80, atk=20, dfn=10, spd=8),
@@ -838,6 +883,10 @@ ENEMY_TEMPLATES = {
 ELITES = {
     "dumb": dict(name="Containment Officer", weapon=WEAPON_NECRO, hp=90, atk=11, dfn=10, spd=9,
                  on_hit_status="EMP-Locked", on_hit_turns=2),
+    "relay": dict(name="Relay Chief", weapon=WEAPON_NECRO, hp=105, atk=12, dfn=11, spd=9,
+                  on_hit_status="Suppressed", on_hit_turns=2),
+    "vantage": dict(name="Vantage Overseer", weapon=WEAPON_NECRO, hp=130, atk=13, dfn=12, spd=10,
+                     on_hit_status="EMP-Locked", on_hit_turns=2),
     "blacksite": dict(name="Black Site Handler", weapon=WEAPON_NECRO, hp=150, atk=14, dfn=12, spd=10,
                        on_hit_status="Suppressed", on_hit_turns=2),
 }
@@ -887,7 +936,8 @@ class EncounterMarker:
         dominant_necro = vapor_bias < 0.5
         self.weapon = WEAPON_NECRO if dominant_necro else WEAPON_VAPOR
         # vision/patrol tuning scales gently with tier danger
-        base = {"militia": 7, "dumb": 8, "blacksite": 9}.get(tier, 7)
+        base = {"militia": 7, "dumb": 8, "corp": 8, "relay": 8, "depot": 9,
+                "vantage": 9, "blacksite": 9}.get(tier, 7)
         self.vision = base
         self.patrol_radius = 6
 
@@ -944,6 +994,8 @@ class Battle:
         a = u.atk
         if u.has_status("Overdriven"):
             a = int(a * 1.25)
+        if u.has_status("Suppressed"):
+            a = int(a * 0.75)
         return a
 
     @staticmethod
@@ -1122,7 +1174,7 @@ class Battle:
 
     def do_ability(self, ability, target=None):
         unit = self.current
-        if self.phase != "action" or unit.sc < ability.sc_cost:
+        if self.phase != "action" or unit.sc < ability.sc_cost or unit.has_status("EMP-Locked"):
             return False
         ok = self._resolve_ability(unit, ability, target)
         if not ok:
@@ -1256,7 +1308,22 @@ def _palette_blood(has_256):
             17: blood_orange, 18: blood_red}
 
 
-PALETTES = {"sand": _palette_sand, "bunker": _palette_bunker, "blood": _palette_blood}
+def _palette_corp(has_256):
+    """Halcyon Biotech Campus / Vantage Point Complex - glass, steel, and
+    cold corporate teal, with a violet accent for anything that should
+    read as expensive and hostile."""
+    if has_256:
+        teal_dark, teal_lt, steel, violet = 23, 44, 67, 97
+    else:
+        teal_dark, teal_lt, steel, violet = curses.COLOR_CYAN, curses.COLOR_CYAN, curses.COLOR_BLUE, curses.COLOR_MAGENTA
+    return {1: teal_lt, 3: teal_dark, 4: steel, 5: curses.COLOR_RED,
+            6: violet, 8: steel, 9: curses.COLOR_RED, 11: teal_lt,
+            12: teal_dark, 13: violet, 14: teal_lt, 15: violet,
+            17: teal_lt, 18: violet}
+
+
+PALETTES = {"sand": _palette_sand, "bunker": _palette_bunker, "blood": _palette_blood,
+            "corp": _palette_corp}
 
 
 def apply_palette(name):
@@ -1595,7 +1662,7 @@ class BattleUI:
     def _confirm_ability(self):
         b = self.battle
         ability = b.current.abilities[self.cursor]
-        if b.current.sc < ability.sc_cost:
+        if b.current.sc < ability.sc_cost or b.current.has_status("EMP-Locked"):
             return
         if ability.target in ("single_enemy", "single_ally"):
             self.pending_ability = ability
@@ -1674,9 +1741,11 @@ class BattleUI:
                 ui.safe_addstr(stdscr, row + 1 + i, col + 2, choice, attr)
 
         elif self.menu_state == "ability":
-            ui.safe_addstr(stdscr, row, col, "Choose an ability:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            locked = b.current.has_status("EMP-Locked")
+            title = "Choose an ability:" if not locked else "EMP-Locked - abilities disabled:"
+            ui.safe_addstr(stdscr, row, col, title, curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
             for i, ab in enumerate(b.current.abilities):
-                affordable = b.current.sc >= ab.sc_cost
+                affordable = b.current.sc >= ab.sc_cost and not locked
                 text = f"{ab.name} (SC {ab.sc_cost})"
                 attr = curses.A_REVERSE if i == self.cursor else 0
                 if not affordable:
@@ -1726,9 +1795,9 @@ import curses
 
 from . import mapgen, ui
 from .constants import (DOOR, ENV_BUNKER, EXFIL_SYMBOL, FLOOR, FOG_UNSEEN,
-                         FOG_VISIBLE, FOG_EXPLORED, GRASS, NECRO_LOAD_CAP,
-                         NECRO_OVERWORLD_DECAY_PER_TICK, RUBBLE, TIER_DISPLAY_NAMES,
-                         WALL, WEAPON_NECRO)
+                         FOG_VISIBLE, FOG_EXPLORED, GRASS, HP_OVERWORLD_REGEN_TICKS,
+                         NECRO_LOAD_CAP, NECRO_OVERWORLD_DECAY_PER_TICK, RUBBLE,
+                         TIER_DISPLAY_NAMES, WALL, WEAPON_NECRO)
 from .enemies import EncounterMarker
 
 SIDEBAR_W = 36
@@ -1916,9 +1985,14 @@ class Overworld:
     # ---------------------- tick update ----------------------
 
     def _regen_party(self):
+        heal_hp = self.tick % HP_OVERWORLD_REGEN_TICKS == 0
         for p in self.party:
-            if p.alive and p.necro_load > 0:
+            if not p.alive:
+                continue
+            if p.necro_load > 0:
                 p.necro_load = max(0, p.necro_load - NECRO_OVERWORLD_DECAY_PER_TICK)
+            if heal_hp and p.hp < p.max_hp:
+                p.hp = min(p.max_hp, p.hp + 1)
 
     def update(self):
         self.tick += 1
@@ -2122,6 +2196,25 @@ from .battle_ui import BattleUI
 from .overworld import Overworld
 from .party import Inventory, new_squad
 
+# Mission-select easter egg: up down up down left right left right b a x x
+# unlocks every site. Up/down accept WASD too, matching this screen's normal
+# navigation keys; left/right/b/a/x are arrow/letter-only, since nothing
+# else in this screen binds them.
+CHEAT_SEQUENCE = ("up", "down", "up", "down", "left", "right", "left", "right",
+                   "b", "a", "x", "x")
+
+
+def _cheat_step_matches(step, key):
+    if step == "up":
+        return key in (curses.KEY_UP, ord('w'), ord('W'))
+    if step == "down":
+        return key in (curses.KEY_DOWN, ord('s'), ord('S'))
+    if step == "left":
+        return key == curses.KEY_LEFT
+    if step == "right":
+        return key == curses.KEY_RIGHT
+    return key in (ord(step), ord(step.upper()))
+
 
 class App:
     def __init__(self, stdscr):
@@ -2131,6 +2224,7 @@ class App:
         self.max_unlocked = 0        # highest site index the player may deploy to
         self.mission_status_msg = ""
         self.mission_status_ticks = 0
+        self.cheat_progress = 0
         self.briefing_theme = None
         self.briefing_index = 0
 
@@ -2161,6 +2255,17 @@ class App:
         prev_name = C.LEVELS[idx - 1]["name"]
         self.mission_status_msg = f"LOCKED - complete {prev_name} first."
         self.mission_status_ticks = 30
+
+    def _track_cheat(self, key):
+        if _cheat_step_matches(CHEAT_SEQUENCE[self.cheat_progress], key):
+            self.cheat_progress += 1
+            if self.cheat_progress >= len(CHEAT_SEQUENCE):
+                self.cheat_progress = 0
+                self.max_unlocked = len(C.LEVELS) - 1
+                self.mission_status_msg = "CHEAT ACCEPTED - every site unlocked."
+                self.mission_status_ticks = 60
+        else:
+            self.cheat_progress = 1 if _cheat_step_matches(CHEAT_SEQUENCE[0], key) else 0
 
     def _start_mission(self):
         self.party = new_squad()
@@ -2244,6 +2349,8 @@ class App:
             if self.mission_status_ticks > 0:
                 self.mission_status_ticks -= 1
             key = self.stdscr.getch()
+            if key != -1:
+                self._track_cheat(key)
             if key in (curses.KEY_UP, ord('w'), ord('W')):
                 self.mission_index = (self.mission_index - 1) % len(C.LEVELS)
             elif key in (curses.KEY_DOWN, ord('s'), ord('S')):
@@ -2304,6 +2411,11 @@ def main(stdscr):
     stdscr.keypad(True)
     ui.init_colors()
     App(stdscr).run_blocking()
+
+
+def run():
+    """Zero-arg entry point for the `tdfif` console script / `python -m tdfif`."""
+    curses.wrapper(main)
 
 </script>
 <script type="text/x-python" id="py-bridge">
