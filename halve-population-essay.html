@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Four Billion Question: What the "Halve Earth's Population" Story Actually Said</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --paper: #fdfdfb;
+    --rule: #d8d8d2;
+    --muted: #6b6b63;
+    --accent: #2f5233;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.7;
+    font-size: 17px;
+  }
+
+  /* ---- brand row ---- */
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 10px 28px 10px 0;
+    background: #ffffff;
+    border-bottom: 1px solid #e0e4ea;
+    flex-wrap: nowrap;
+    position: relative;
+    z-index: 3;
+  }
+  .brand {
+    flex-shrink: 0;
+    font-family: "IBM Plex Sans", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: italic;
+    font-variation-settings: "wdth" 100;
+    font-size: 36px;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .brand #float64 {
+    font-weight: bold;
+    color: white;
+    background-color: black;
+    padding: 5px 10px;
+    font-style: italic;
+    text-decoration: none;
+  }
+
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 32px 80px;
+  }
+
+  h1 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 700;
+    font-size: 2.1rem;
+    line-height: 1.25;
+    margin: 40px 0 14px;
+    letter-spacing: -0.01em;
+  }
+  h2 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin: 48px 0 18px;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 8px;
+  }
+
+  p { margin: 0 0 20px; }
+
+  sup a {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  sup a:hover { text-decoration: underline; }
+
+  hr.section-rule {
+    border: none;
+    border-top: 1px solid var(--rule);
+    margin: 56px 0 32px;
+  }
+
+  #notes h2 { margin-top: 0; }
+  #notes ol {
+    padding-left: 22px;
+    font-size: 14.5px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  #notes li { margin-bottom: 12px; }
+  #notes a { color: var(--accent); }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+  }
+
+  @media (max-width: 600px) {
+    body { font-size: 16px; }
+    h1 { font-size: 1.6rem; }
+    .brand-row, main { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <span class="brand"><a id="float64" href="https://float64co.github.io/">Float64</a></span>
+</nav>
+
+<main>
+
+<h1>The Four Billion Question: What the "Halve Earth's Population" Story Actually Said</h1>
+
+<p>In late July 2026, a headline began circulating with the kind of confidence tabloids reserve for the apocalyptic: scientists, it announced, say we need to <em>halve</em> Earth's population to just four billion to save the planet, complete with a comparison to Thanos snapping half of all life out of existence.<sup><a href="#fn1" id="fnref1-a">1</a></sup> It is tempting to file this next to the genre's usual output — the miracle diet, the imminent asteroid, the "scientists baffled" filler piece that dissolves under scrutiny. This one does not dissolve. The underlying study exists, it is peer-reviewed, and its authors do say the world would be better off, centuries from now, with roughly four billion people on it rather than eight.<sup><a href="#fn2" id="fnref2-a">2</a></sup> What the headline leaves out is nearly everything about <em>how</em> they say it should happen, and that omission is doing almost all of the story's viral work.</p>
+
+<h2>The paper behind the headline</h2>
+
+<p>The study is titled "Achieve Sustainability by Easing Population to 4 Billion by 2200," published in the Wiley journal <em>Sustainable Development</em>.<sup><a href="#fn2" id="fnref2-b">2</a></sup> Its lead author, Mark Keegan, holds a doctorate in education from Columbia University's Teachers College and currently teaches high school science in Harlem — notably not a career demographer or ecologist, though he is joined by ten co-authors who are.<sup><a href="#fn2" id="fnref2-c">2</a></sup> Among them: Anastasia Pseiridis, an economist at Panteion University in Athens credited with the paper's funding acquisition;<sup><a href="#fn3" id="fnref3-a">3</a></sup> Philip Cafaro and Jane O'Sullivan, both co-principal investigators of a research initiative called The Overpopulation Project; and William Rees, professor emeritus at the University of British Columbia and the originator of the "ecological footprint" concept, a former full member of the Club of Rome.<sup><a href="#fn4" id="fnref4-a">4</a></sup> The remaining authors span institutions in Kenya, Argentina, Bangladesh, China, and India.</p>
+
+<p>Their argument, reduced to its actual claim: biodiversity loss, resource consumption, and pollution correlate so strongly with total human population and per-capita impact that gradually easing global population toward four billion or fewer by the year 2200 — alongside more moderate per-capita consumption — represents the clearest available path to long-term sustainability. Crucially, the mechanism they propose is a fertility rate easing toward roughly 1.75 by 2050, achieved through expanded family planning access and girls' education, using Iran, South Korea, and Costa Rica as historical examples of fast, voluntary fertility decline.<sup><a href="#fn5" id="fnref5-a">5</a></sup> The paper explicitly disavows coercion, mass culling, or eugenics. The timeline is not a generation. It is a century and three-quarters.</p>
+
+<h2>Where the tabloid framing breaks from the paper</h2>
+
+<p>Judged purely on facts, the coverage is not fabricated — the "4 billion," the "2200," the underlying mechanism are all real and traceable to the paper itself.<sup><a href="#fn6" id="fnref6-a">6</a></sup> What is manufactured is the emotional register: an all-caps "HALVE" and a supervillain comparison convert a slow, voluntary, education-driven demographic proposal into something that reads as an extermination plot. That distortion did real work. It seeded a second wave of coverage explicitly built around the idea of "tax-funded scientists" plotting population reduction,<sup><a href="#fn7" id="fnref7-a">7</a></sup> and further downstream, outlets with an established conspiratorial bent folded the story into narratives about globalist depopulation agendas.<sup><a href="#fn8" id="fnref8-a">8</a></sup><sup>,</sup><sup><a href="#fn9" id="fnref9-a">9</a></sup> None of that framing survives contact with the paper's own stated methods.</p>
+
+<p>More measured outlets did better. IFLScience covered the paper's substance while flagging, fairly, the "nasty aftertaste of ecofascism" that overpopulation discourse can carry even when a given proposal is voluntary in design;<sup><a href="#fn10" id="fnref10-a">10</a></sup> Yahoo's wire coverage and Insider Paper both relayed the four-billion figure and the 2200 horizon without the Thanos gloss;<sup><a href="#fn5" id="fnref5-b">5</a></sup><sup>,</sup><sup><a href="#fn6" id="fnref6-b">6</a></sup> and at least one independent commentator situated the paper within a longer, recurring pattern of "the Science™" being invoked to launder a policy preference as an empirical inevitability.<sup><a href="#fn11" id="fnref11-a">11</a></sup></p>
+
+<h2>Who funds the network</h2>
+
+<p>The paper itself declares no conflicts of interest, and the specific grant behind this particular article could not be confirmed from the public record.<sup><a href="#fn2" id="fnref2-d">2</a></sup> But several of its co-authors sit inside a defined institutional network: The Overpopulation Project, co-directed by Cafaro and O'Sullivan, which was seeded by a $600,000 award from the Global Challenges Foundation — a Swedish non-profit founded in 2012 by the financier László Szombatfalvy, funded from roughly half his personal fortune and focused on cataloguing global catastrophic risks, with climate scientist Johan Rockström among its board members.<sup><a href="#fn12" id="fnref12-a">12</a></sup> That is a real and traceable funding relationship for the network these authors belong to. It is not the same as a confirmed funding line for this specific paper, and the distinction matters more than the tabloid coverage bothered to note.</p>
+
+<h2>A live, unsettled scientific debate</h2>
+
+<p>Strip away the framing entirely and there is a genuine, long-running scientific disagreement underneath: what <em>is</em> Earth's sustainable human carrying capacity? Estimates in the literature range so widely — from under a billion to nearly a hundred billion, depending almost entirely on assumed consumption levels and technology — that no scientific consensus exists on a target number at all. The Keegan paper is a minority position within that range, not a majority one, and it was not alone this year: a separate paper led by Corey Bradshaw of Flinders University, with Paul Ehrlich among its co-authors, argued in a different journal that Earth had already exceeded a sustainable carrying capacity near 2.5 billion.<sup><a href="#fn13" id="fnref13-a">13</a></sup> Both papers sit awkwardly against the dominant concern in mainstream demography today, which is the opposite problem: sub-replacement fertility, aging populations, and demographic decline across most of the world. The four-billion figure is a real scientific argument. It is also, currently, a minority one.</p>
+
+<h2>The takeaway</h2>
+
+<p>Nothing about this story required inventing a hoax to make it alarming, and nothing about the underlying paper required embellishing it to make it noteworthy. The honest version is quieter than the viral one: a group of demographers, ecologists, and one high school teacher published a peer-reviewed argument for very slow, entirely voluntary population easing over the next 175 years, funded in part through a Swedish foundation's interest in catastrophic risk, and a tabloid turned it into a Thanos story because a Thanos story travels further than a footnote about fertility rates in 2050. Both things can be true. The study is real. The scientists are real and named. The funding trail is partially traceable. And the headline is still, in the way that matters most, a distortion.</p>
+
+<hr class="section-rule">
+
+<section id="notes">
+<h2>Notes</h2>
+<ol>
+  <li id="fn1">Daily Mail (@DailyMail), original social post: "Scientists say we need to HALVE Earth's population to just 4 billion to save the planet" — source of the viral framing and Thanos comparison. <a href="https://x.com/DailyMail/status/2082439441373708435" target="_blank" rel="noopener">Source</a> <a href="#fnref1-a">↩</a></li>
+  <li id="fn2">Keegan, M. et al., "Achieve Sustainability by Easing Population to 4 Billion by 2200," <em>Sustainable Development</em> (Wiley), DOI 10.1002/sd.71358 — primary source for authorship, methodology, and stated policy mechanism. <a href="https://onlinelibrary.wiley.com/doi/10.1002/sd.71358" target="_blank" rel="noopener">Source</a> <a href="#fnref2-a">↩</a> <a href="#fnref2-b">↩</a> <a href="#fnref2-c">↩</a> <a href="#fnref2-d">↩</a></li>
+  <li id="fn3">ResearchGate profile, Anastasia Pseiridis, Panteion University, Athens — co-author affiliation and role confirmation. <a href="https://www.researchgate.net/profile/Anastasia-Pseiridis" target="_blank" rel="noopener">Source</a> <a href="#fnref3-a">↩</a></li>
+  <li id="fn4">Wikipedia, "William E. Rees" — biographical detail on the ecological-footprint originator and Club of Rome membership. <a href="https://en.wikipedia.org/wiki/William_E._Rees" target="_blank" rel="noopener">Source</a> <a href="#fnref4-a">↩</a></li>
+  <li id="fn5">Yahoo News Canada, "Study reveals halving human population gradually could help Earth" — neutral wire coverage of the paper's mechanism and timeline. <a href="https://ca.news.yahoo.com/study-reveals-halving-human-population-083602766.html" target="_blank" rel="noopener">Source</a> <a href="#fnref5-a">↩</a> <a href="#fnref5-b">↩</a></li>
+  <li id="fn6">Insider Paper, "4 billion people by 2200 could help Earth: Study" — general wire summary of the paper's headline figures. <a href="https://insiderpaper.com/4-billion-people-2200-earth-study/" target="_blank" rel="noopener">Source</a> <a href="#fnref6-a">↩</a> <a href="#fnref6-b">↩</a></li>
+  <li id="fn7">The New American, "Tax-funded 'Scientists': Cut Human Population in Half for 'Sustainability'" — example of coverage foregrounding funding-based suspicion. <a href="https://thenewamerican.com/us/environment/tax-funded-scientists-cut-human-population-in-half-for-sustainability/" target="_blank" rel="noopener">Source</a> <a href="#fnref7-a">↩</a></li>
+  <li id="fn8">SGT Report, "Scientists Push Plan to Slash Global Population by 4 Billion" — example of conspiratorial-leaning amplification of the story. <a href="https://www.sgtreport.com/2026/08/scientists-push-plan-to-slash-global-population-by-4-billion/" target="_blank" rel="noopener">Source</a> <a href="#fnref8-a">↩</a></li>
+  <li id="fn9">Natural News, "Study Proposes Cutting Global Population to 4 Billion by 2200 to Achieve Sustainability" — further conspiratorial-leaning amplification. <a href="https://www.naturalnews.com/2026-08-11-study-proposes-cutting-global-population-to-achieve-sustainability.html" target="_blank" rel="noopener">Source</a> <a href="#fnref9-a">↩</a></li>
+  <li id="fn10">IFLScience, "Halving The Earth's Population To 4 Billion Is The Best Way To Secure A 'Pro-Human' Future, A New Study Argues" — substantive coverage flagging the ecofascism concern within overpopulation discourse. <a href="https://www.iflscience.com/halving-the-earths-population-to-4-billion-is-the-best-way-to-secure-a-pro-human-future-a-new-study-argues-84219" target="_blank" rel="noopener">Source</a> <a href="#fnref10-a">↩</a></li>
+  <li id="fn11">Fackel (Substack), "The Science™, c. 2026: 'Achieve Sustainability by Easing Population to 4 Billion by 2200'" — independent critical commentary on the paper's rhetorical framing. <a href="https://fackel.substack.com/p/the-science-c-2026-achieve-sustainability" target="_blank" rel="noopener">Source</a> <a href="#fnref11-a">↩</a></li>
+  <li id="fn12">Wikipedia, "Global Challenges Foundation" — funder background, founding, and board detail for the network several co-authors belong to. <a href="https://en.wikipedia.org/wiki/Global_Challenges_Foundation" target="_blank" rel="noopener">Source</a> <a href="#fnref12-a">↩</a></li>
+  <li id="fn13">Population Connection, "A world of 4 billion? Researchers recommend shrinking our global population by more than half" — mainstream population-organization coverage, used here as context for the competing Bradshaw/Ehrlich carrying-capacity estimate discussed alongside the Keegan paper. <a href="https://populationconnection.org/blog/a-world-of-4-billion-researchers-recommend-shrinking-our-global-population-by-more-than-half/" target="_blank" rel="noopener">Source</a> <a href="#fnref13-a">↩</a></li>
+</ol>
+</section>
+
+<footer>
+  Float64 · This essay synthesises publicly reported research and one peer-reviewed study; figures and claims are cited to their original sources above.
+</footer>
+
+</main>
+</body>
+</html>
