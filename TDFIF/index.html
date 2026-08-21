@@ -1,0 +1,2544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour De Force: Interdiction Force — a squad RPG in the Tour De Force universe, by Float64</title>
+<style>
+  :root {
+    --bg: #04120a; --fg: #9dff9d; --dim: #4a5c3e;
+    --gold: #d7af37; --sel: #12200f; --glow: rgba(157,255,157,.35);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    zoom: 80%;
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.2 "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 12px 12px 0;
+  }
+  h1 {
+    font-size: 15px; letter-spacing: .12em; font-weight: 700; margin: 0 0 8px;
+    color: var(--gold); text-shadow: 0 0 6px var(--glow);
+  }
+  h1 .by { color: var(--dim); font-weight: 400; letter-spacing: normal; }
+  #boot { color: var(--dim); margin-bottom: 10px; text-align: center; max-width: 640px; }
+  #viewport {
+    position: relative;
+    width: min(1400px, 97vw);
+    height: min(760px, 78vh);
+    background: #000;
+    border: 1px solid var(--sel);
+    box-shadow: 0 0 24px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.5);
+    overflow: hidden;
+    display: none; /* revealed once booted */
+  }
+  #viewport::after { /* faint scanlines */
+    content: ""; pointer-events: none; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0,0,0,.18) 2px 3px);
+  }
+  #term {
+    position: absolute; inset: 0; padding: 4px 6px;
+    white-space: pre; text-shadow: 0 0 5px var(--glow);
+    font-variant-ligatures: none;
+    font-size: 10px; line-height: 1.2;
+  }
+  #term .row { white-space: pre; height: 1.2em; overflow: hidden; }
+  #focushint {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.75); color: var(--fg); font-size: 13px; letter-spacing: .05em;
+    cursor: pointer; text-align: center; padding: 6px 12px;
+    border-bottom: 1px solid var(--sel);
+  }
+  #focushint.hidden { display: none; }
+  .foot {
+    width: min(1400px, 97vw); padding: 8px 2px 16px; color: var(--dim); font-size: 12px;
+  }
+  .foot b { color: var(--gold); }
+  a { color: var(--gold); }
+</style>
+</head>
+<body>
+<h1>TOUR DE FORCE: INTERDICTION FORCE <span class="by">— a squad RPG in the Tour De Force universe, by Float64</span></h1>
+<pre id="boot">DISA SECURE UPLINK
+initializing python runtime (first load fetches ~12 MB; cached after)...</pre>
+<div id="viewport" tabindex="0">
+  <div id="term"></div>
+  <div id="focushint">Click to focus, then use WASD/Arrows + Enter/Space.</div>
+</div>
+<div class="foot">
+  <b>Overworld:</b> WASD / Arrows move the fireteam &nbsp; contact with an <b>S</b>
+  (hostile squad) or <b>H</b> (site boss) starts a battle &nbsp; <b>Q</b> aborts. &nbsp;
+  <b>Battle:</b> W/S or Up/Down choose &nbsp; <b>Enter</b>/<b>Space</b> confirm &nbsp;
+  <b>Q</b>/<b>Esc</b>/<b>Backspace</b> back. &nbsp;
+  Kinetic fire can't hurt a suited operative - only bio-coated necro rounds can. &nbsp;
+  <a href="https://github.com/float64co/TDFIF" target="_blank" rel="noopener">github.com/float64co/TDFIF</a>
+</div>
+
+<script type="text/x-python" id="py-curses">
+"""
+Minimal in-memory curses shim for running TDFIF inside Pyodide.
+
+Pyodide's CPython build ships no ncurses, and there's no real terminal
+under a browser tab anyway. This implements exactly the slice of the
+curses API tdfif/*.py touches: a screen buffer with addch/addstr/
+erase/refresh/getmaxyx, a color-pair table (basic 8 colors plus the
+xterm-256 cube/grayscale indices ui.py's per-level palettes reach for
+when curses.COLORS >= 256), the handful of key constants tdfif compares
+against, and a non-blocking getch() fed by push_key() from the JS side.
+There is no real device underneath - the browser renders whatever's in
+the buffer (via Screen.render_rows()) and forwards DOM key events into
+the input queue. Unlike TDF, none of TDFIF's menus use the mouse, so
+there's no mouse plumbing here at all.
+
+TDFIF never imports this module by name. The web bridge script
+registers an instance of it into sys.modules['curses'] before the
+tdfif package is loaded, so every `import curses` inside tdfif/*.py
+resolves here instead of to a real (absent) curses.
+"""
+
+
+class error(Exception):
+    """Stand-in for curses.error."""
+
+
+# ---- color constants (mirror real curses ordering; not load-bearing) ----
+COLOR_BLACK = 0
+COLOR_RED = 1
+COLOR_GREEN = 2
+COLOR_YELLOW = 3
+COLOR_BLUE = 4
+COLOR_MAGENTA = 5
+COLOR_CYAN = 6
+COLOR_WHITE = 7
+
+# ui.py checks `curses.COLORS >= 256` (see apply_palette/init_colors) to
+# decide whether to reach for the richer xterm-256 shades instead of the
+# basic 8. This shim resolves those indices for real (see _xterm256_hex
+# below), so it can honestly claim the same 256-color support a real
+# xterm would.
+COLORS = 256
+
+# ---- attribute bits (style in the low byte; color pair packed above it) ----
+A_NORMAL = 0
+A_BOLD = 1 << 0
+A_DIM = 1 << 1
+A_REVERSE = 1 << 2
+_PAIR_SHIFT = 8
+
+# ---- key constants: arbitrary but distinct. tdfif only ever compares
+# them against values this same module hands back from getch() ----
+KEY_UP = 1001
+KEY_DOWN = 1002
+KEY_LEFT = 1003
+KEY_RIGHT = 1004
+KEY_ENTER = 1005
+KEY_RESIZE = 1007
+KEY_BACKSPACE = 1008
+
+_PAIRS = {0: (-1, -1)}
+
+
+def start_color():
+    pass
+
+
+def use_default_colors():
+    pass
+
+
+def init_pair(n, fg, bg):
+    _PAIRS[n] = (fg, bg)
+
+
+def color_pair(n):
+    return n << _PAIR_SHIFT
+
+
+def curs_set(n):
+    pass
+
+
+class Screen:
+    """Stands in for stdscr: a (char, attr) grid plus an input queue."""
+
+    def __init__(self, cols=120, rows=40):
+        self.cols = cols
+        self.rows = rows
+        self._buf = self._blank(cols, rows)
+        self._input = []  # [code, ...]
+
+    @staticmethod
+    def _blank(cols, rows):
+        return [[(' ', 0) for _ in range(cols)] for _ in range(rows)]
+
+    # -------- curses-alike surface used by tdfif/*.py --------
+
+    def getmaxyx(self):
+        return self.rows, self.cols
+
+    def erase(self):
+        self._buf = self._blank(self.cols, self.rows)
+
+    def addch(self, y, x, ch, attr=0):
+        if 0 <= y < self.rows and 0 <= x < self.cols:
+            self._buf[y][x] = (ch, attr)
+
+    def addstr(self, y, x, text, attr=0):
+        if not (0 <= y < self.rows):
+            return
+        row = self._buf[y]
+        for i, ch in enumerate(text):
+            xi = x + i
+            if xi >= self.cols:
+                break
+            if xi >= 0:
+                row[xi] = (ch, attr)
+
+    def refresh(self):
+        pass
+
+    def keypad(self, flag):
+        pass
+
+    def timeout(self, ms):
+        pass
+
+    def getch(self):
+        if not self._input:
+            return -1
+        return self._input.pop(0)
+
+    # -------- driven by the JS bridge, not by tdfif --------
+
+    def resize(self, cols, rows):
+        cols, rows = max(1, int(cols)), max(1, int(rows))
+        if (cols, rows) != (self.cols, self.rows):
+            self.cols, self.rows = cols, rows
+            self._buf = self._blank(cols, rows)
+
+    def push_key(self, code):
+        self._input.append(code)
+
+    # -------- rendering for the browser: run-length-encoded rows --------
+
+    def render_rows(self):
+        rows_out = []
+        for row in self._buf:
+            runs = []
+            cur_text, cur_style = "", None
+            for ch, attr in row:
+                style = _cell_style(attr)
+                if style != cur_style:
+                    if cur_text:
+                        runs.append([cur_text, *cur_style])
+                    cur_text, cur_style = ch, style
+                else:
+                    cur_text += ch
+            if cur_text:
+                runs.append([cur_text, *cur_style])
+            rows_out.append(runs)
+        return {"cols": self.cols, "rows": self.rows, "data": rows_out}
+
+
+# ---- theme: 8 ANSI-ish colors resolved to hex for the browser renderer.
+# Kept faithful to a plain terminal's ANSI palette - not skewed toward the
+# page chrome's green-and-gold look, and not skewed toward any one site's
+# in-game palette either, since the codec briefing (Olive/Locke/Ian/Rose/
+# Daisy) and a few other fixed-pair reads always go through these 8
+# regardless of which site's 256-color palette is currently applied. ----
+_HEX = {
+    COLOR_BLACK: "#0b0f0b", COLOR_RED: "#ff5a5a", COLOR_GREEN: "#9dff9d",
+    COLOR_YELLOW: "#ffd24d", COLOR_BLUE: "#6a8caf", COLOR_MAGENTA: "#ff7ad1",
+    COLOR_CYAN: "#7fe6ff", COLOR_WHITE: "#eafcea",
+}
+_DEFAULT_FG = "#9dff9d"
+_DEFAULT_BG = "#060a06"
+
+
+def _xterm256_hex(n):
+    """xterm 256-color palette for indices 16-255 (the 6x6x6 color cube
+    plus the grayscale ramp) - covers the extended concrete/steel/hazard-
+    amber/blood-red shades ui.py's per-site palettes use once
+    curses.COLORS >= 256. Indices 8-15 (bright basics) aren't used by
+    this game and aren't handled - callers fall back to the defaults."""
+    if 16 <= n <= 231:
+        n -= 16
+        r, n = divmod(n, 36)
+        g, b = divmod(n, 6)
+        steps = (0, 95, 135, 175, 215, 255)
+        return "#%02x%02x%02x" % (steps[r], steps[g], steps[b])
+    if 232 <= n <= 255:
+        v = 8 + 10 * (n - 232)
+        return "#%02x%02x%02x" % (v, v, v)
+    return None
+
+
+def _resolve_hex(color_idx):
+    return _HEX.get(color_idx) or _xterm256_hex(color_idx)
+
+
+def _cell_style(attr):
+    pair = attr >> _PAIR_SHIFT
+    style = attr & 0xFF
+    fg, bg = _PAIRS.get(pair, (-1, -1))
+    fg_hex = (_resolve_hex(fg) or _DEFAULT_FG) if fg != -1 else _DEFAULT_FG
+    bg_hex = _resolve_hex(bg) if bg != -1 else None
+    if style & A_REVERSE:
+        fg_hex, bg_hex = (bg_hex or _DEFAULT_BG), fg_hex
+    return (fg_hex, bg_hex, bool(style & A_BOLD), bool(style & A_DIM))
+
+</script>
+<script type="text/x-python" id="py-tdfif-init">
+"""TOUR DE FORCE: INTERDICTION FORCE - squad RPG in the Tour De Force universe, 2205."""
+
+</script>
+<script type="text/x-python" id="py-tdfif-constants">
+"""
+TOUR DE FORCE: INTERDICTION FORCE
+
+2205. Ninety years after a directed nanomachine matrix walked out of a
+black site alone and answered to the name Gene Carpenter, DISA still
+officially doesn't exist and still fields the one piece of hardware that
+makes any of this survivable: the vapor suit. Eight billion pounds
+sterling of nanomachine swarm per operative, woven into a kinetic-
+abatement layer that strips incoming slugs for feedstock and prints
+fresh charge into the suit's systems. Regular rounds cannot hurt a suited
+operative - the suit eats them and gets stronger.
+
+The one thing no suit stops is bioweaponized ordnance: rounds cultured
+with a necrotising fasciitis payload that ride straight through the
+weave. It doesn't drop you on the spot - it seeds a shadow in the weave
+that spreads the longer you keep pushing, eating you alive one dark
+patch at a time, and burns back out fast the moment you hold position
+and let the swarm work.
+
+Four suits, this time, not one. LOCKE SMITH leads a fireteam that
+doesn't officially exist any more than DISA does: IAN FORMANT on point,
+ROSE GARDNER running the suits' tech stack from inside the squad instead
+of a control room, DAISY FIELDS closing kills. Get to extraction. Or
+leave nobody standing to report you didn't.
+"""
+
+# --------------------------------------------------------------------------
+# Cast / org
+# --------------------------------------------------------------------------
+
+PLAYER_NAME = "Locke Smith"
+SQUAD_NAMES = ["Locke Smith", "Ian Formant", "Rose Gardner", "Daisy Fields"]
+HANDLER_NAME = "Olive Branch"
+ORG_NAME = "DISA"
+ORG_FULL_NAME = "Department of Integrated Security Activities"
+MISSION_YEAR = 2205
+
+VAPOR_SUIT_COST = "£8,000,000,000"
+VAPOR_SUIT_COST_SQUAD = "£32,000,000,000"
+
+GAME_TITLE = "TOUR DE FORCE: INTERDICTION FORCE"
+
+SPLASH_TEXT = """Ninety years ago a directed nanomachine matrix walked out of a black
+site alone, wearing eight billion pounds of hardware DISA never
+officially built, and answered to the name Gene Carpenter. The suit is
+common knowledge now, inside the rooms where it's allowed to be knowledge
+at all: a kinetic-abatement swarm that strips incoming rounds for
+feedstock and prints them back out as charge. Regular gunfire cannot hurt
+a suited operative. It just feeds them.
+Bio-coated rounds are the exception - a cultured necrotising fasciitis
+payload that slips straight through the weave. It won't drop you on
+contact. It seeds a shadow in the weave that spreads for as long as you
+keep pushing through it, eating you alive one dark patch at a time.
+Hold position and let the swarm burn the dark back out, and it's gone
+in seconds.
+Four suits this time, not one: LOCKE SMITH, IAN FORMANT, ROSE GARDNER,
+DAISY FIELDS. Thirty-two billion pounds of hardware that, on paper,
+does not exist, deployed by an agency that, on paper, does not exist.
+Get to extraction. Or don't leave anyone who can say you didn't."""
+
+# --------------------------------------------------------------------------
+# Tiles / environments (shared with the overworld map generator)
+# --------------------------------------------------------------------------
+
+FLOOR = "."
+GRASS = "\""
+WALL = "#"
+RUBBLE = ","
+DOOR = "="
+EXFIL_SYMBOL = "X"
+
+ENV_RUIN = "ruin"
+ENV_BUNKER = "bunker"
+
+FOG_UNSEEN = 0
+FOG_EXPLORED = 1
+FOG_VISIBLE = 2
+
+# --------------------------------------------------------------------------
+# Weapon / threat model (identical logic to TDF, reframed for squad combat)
+# --------------------------------------------------------------------------
+
+WEAPON_VAPOR = "vapor"   # kinetic - harmless to a suited target, feeds Suit Charge
+WEAPON_NECRO = "necro"   # bio-coated - the only thing that actually hurts
+
+WEAPON_META = {
+    WEAPON_VAPOR: dict(glyph="V", desc="Standard AP - the suit eats it and prints charge."),
+    WEAPON_NECRO: dict(glyph="B", desc="Bio-coated round - necrotising fasciitis. Slips the weave."),
+}
+
+# --------------------------------------------------------------------------
+# Battle tuning
+# --------------------------------------------------------------------------
+
+NECRO_LOAD_CAP = 100
+NECRO_LOAD_PER_HIT = 22
+NECRO_DRAIN_DIVISOR = 5          # hp lost on an acting turn = load // this
+NECRO_DEFEND_DECAY = 40          # load burned off by choosing Defend
+NECRO_CRITICAL_DRAIN = 8         # extra flat hp/turn once load caps out
+
+# Outside a fight the swarm keeps working unopposed - load bleeds off on
+# its own between engagements, one overworld tick at a time.
+NECRO_OVERWORLD_DECAY_PER_TICK = 1
+
+SC_REGEN_PER_TURN = 6
+SC_REGEN_DEFENDING = 12
+SC_FEEDSTOCK_PER_VAPOR_HIT = 8
+
+DEFEND_DMG_REDUCTION = 0.5
+
+# --------------------------------------------------------------------------
+# Squad roster - base stats and role flavour. Abilities live in party.py.
+# --------------------------------------------------------------------------
+
+SQUAD_BASE_STATS = {
+    "Locke Smith":  dict(role="Vanguard", max_hp=140, atk=16, dfn=10, spd=9,  max_sc=40, row="front"),
+    "Ian Formant":  dict(role="Heavy",    max_hp=180, atk=14, dfn=16, spd=6,  max_sc=30, row="front"),
+    "Rose Gardner": dict(role="Tech",     max_hp=100, atk=10, dfn=8,  spd=10, max_sc=50, row="back"),
+    "Daisy Fields": dict(role="Striker",  max_hp=110, atk=20, dfn=7,  spd=11, max_sc=35, row="back"),
+}
+
+# Human-readable site-tier names for log lines - "dumb" is the acronym
+# (deep underground military base), not a plain word, so .title() would
+# mangle it.
+TIER_DISPLAY_NAMES = {
+    "militia": "Militia",
+    "dumb": "DUMB",
+    "blacksite": "Black Site",
+}
+
+# --------------------------------------------------------------------------
+# Overworld / mission tiers
+# --------------------------------------------------------------------------
+
+LEVELS = [
+    dict(name="Rustwater Compound", world_w=240, world_h=120,
+         env=ENV_RUIN, palette="sand", tier="militia",
+         n_squads=15, squad_size=(2, 3), vapor_bias=0.6, boss_squad=False,
+         blurb="Ninety years on it's still a scrap-fed militia outpost. Sand, "
+               "dead grass, and nobody who'll admit DISA was ever here."),
+    dict(name="Deniable Assets Site", world_w=150, world_h=80,
+         env=ENV_BUNKER, palette="bunker", tier="dumb",
+         n_squads=8, squad_size=(2, 4), vapor_bias=0.45, boss_squad=True,
+         blurb="A DUMB - deep underground military base. Poured concrete, "
+               "blast doors, and a containment officer who won't fall easy."),
+    dict(name="Force Majeure Black Site", world_w=180, world_h=100,
+         env=ENV_RUIN, palette="blood", tier="blacksite",
+         n_squads=10, squad_size=(3, 4), vapor_bias=0.3, boss_squad=True,
+         blurb="The event no contract survives. Bio rounds everywhere you "
+               "look, and a Handler waiting at the end of it."),
+]
+
+# --------------------------------------------------------------------------
+# Codec-style pre-mission briefings - Olive Branch runs mission control;
+# the squad talks over each other the way people who trust each other do.
+# One theme is picked at random per deployment.
+# --------------------------------------------------------------------------
+
+CODEC_THEMES = [
+    dict(title="FOUR SUITS, ONE INVOICE", lines=[
+        ("OLIVE", "Squad, come in. DISA's tracking unregistered hardware movement on site."),
+        ("LOCKE", "Define 'unregistered.' We're four vapor suits deep into 'unregistered.'"),
+        ("OLIVE", "Fair. Confirm what's there, get out, nothing with your names on it if it goes loud."),
+        ("IAN", "It always goes loud. It's fine. That's what the suits are for."),
+        ("OLIVE", "Try to remember that's a joke, Ian."),
+        ("LOCKE", "Copy. Squad's moving in."),
+    ]),
+    dict(title="GHOST STORY", lines=[
+        ("ROSE", "Olive, there's a name in the old DISA archive on this site. Gene Carpenter."),
+        ("OLIVE", "Before your time. Before mine, honestly. One operative, no suit doctrine to follow, "
+                   "just improvised. Case study, mostly, at this point."),
+        ("DAISY", "One suit and a body count like that? I'd take the doctrine, thanks."),
+        ("IAN", "Four suits and a doctrine, and we still open every op with a legend. Comforting."),
+        ("LOCKE", "Copy the history lesson. Squad's moving."),
+    ]),
+    dict(title="OFF THE BOOKS", lines=[
+        ("OLIVE", "There's an auction running on-site. Nanotech blueprints, no export license, no questions."),
+        ("ROSE", "Guest list reads like everyone DISA's not allowed to admit exists. Including all four of you."),
+        ("OLIVE", "Shut it down. Buyers don't need to be breathing when you leave - your call."),
+        ("DAISY", "It's always my call by the time it matters."),
+        ("LOCKE", "Squad's advancing. Keep the channel clean."),
+    ]),
+    dict(title="STATIC ON THE LINE", lines=[
+        ("OLIVE", "This is a welfare check. DISA outstation on site went dark six hours ago."),
+        ("IAN", "Last transmission?"),
+        ("OLIVE", "Channel noise. No words. We don't like that."),
+        ("ROSE", "Could be jamming. Could be everyone in there is already necrotic-loaded past caring."),
+        ("LOCKE", "Then we go find out which. Moving in."),
+    ]),
+    dict(title="PAPER TRAIL", lines=[
+        ("OLIVE", "There's a ledger on-site tying this outfit's funding straight back to a DISA line item."),
+        ("ROSE", "Which is awkward, since officially we've never heard of them."),
+        ("OLIVE", "Pull the ledger. Whatever else happens on-site is secondary to that drive."),
+        ("DAISY", "So the priority order is: drive, squad, everything else. Got it."),
+        ("OLIVE", "That's not - Daisy. Just get the drive."),
+        ("LOCKE", "Copy. Moving to confirm."),
+    ]),
+    dict(title="SECOND OPINION", lines=[
+        ("OLIVE", "We've got an operative captured on site three days ago. Still alive, as of an hour ago."),
+        ("IAN", "Their interrogators aren't known for patience. That clock isn't on our side."),
+        ("LOCKE", "Then we don't waste it talking. Squad's moving, full pace."),
+        ("ROSE", "Formation discipline, Locke. Full pace doesn't mean front-loading Ian into every room."),
+        ("IAN", "It's usually worked."),
+    ]),
+]
+
+</script>
+<script type="text/x-python" id="py-tdfif-mapgen">
+"""Tile-map generation and line-of-sight, adapted from TDF's world/bunker
+generators. Same tile vocabulary, same generation approach - the overworld
+here is for navigation and stealth/contact, not gunfire, but it should
+feel like the same universe to walk around in."""
+
+import random
+
+from .constants import DOOR, FLOOR, GRASS, RUBBLE, WALL
+
+
+def _sign(n):
+    return (n > 0) - (n < 0)
+
+
+def line_of_sight(grid, x0, y0, x1, y1):
+    """Bresenham walk; False if a WALL or a closed blast DOOR sits strictly
+    between the two endpoints."""
+    dx, dy = abs(x1 - x0), abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+    x, y = x0, y0
+    while (x, y) != (x1, y1):
+        if (x, y) != (x0, y0) and grid[y][x] in (WALL, DOOR):
+            return False
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x += sx
+        if e2 < dx:
+            err += dx
+            y += sy
+    return True
+
+
+def generate_world(width, height):
+    grid = [[FLOOR for _ in range(width)] for _ in range(height)]
+
+    for x in range(width):
+        grid[0][x] = WALL
+        grid[height - 1][x] = WALL
+    for y in range(height):
+        grid[y][0] = WALL
+        grid[y][width - 1] = WALL
+
+    n_blocks = (width * height) // 200
+    for _ in range(n_blocks):
+        bw = random.randint(2, 6)
+        bh = random.randint(2, 5)
+        bx = random.randint(2, width - bw - 2)
+        by = random.randint(2, height - bh - 2)
+        for y in range(by, by + bh):
+            for x in range(bx, bx + bw):
+                grid[y][x] = WALL
+
+    n_patches = max(8, (width * height) // 550)
+    for _ in range(n_patches):
+        cx = random.randint(2, width - 3)
+        cy = random.randint(2, height - 3)
+        r = random.randint(5, 13)
+        core2 = (r * 0.6) ** 2
+        r2 = r * r
+        for yy in range(max(1, cy - r), min(height - 1, cy + r + 1)):
+            for xx in range(max(1, cx - r), min(width - 1, cx + r + 1)):
+                d2 = (xx - cx) ** 2 + (yy - cy) ** 2
+                if d2 > r2 or grid[yy][xx] != FLOOR:
+                    continue
+                if d2 <= core2 or random.random() < 0.75:
+                    grid[yy][xx] = GRASS
+
+    for _ in range(width * height // 70):
+        x = random.randint(1, width - 2)
+        y = random.randint(1, height - 2)
+        if grid[y][x] == FLOOR:
+            grid[y][x] = RUBBLE
+
+    return grid
+
+
+def clear_area(grid, cx, cy, radius):
+    for y in range(max(1, cy - radius), min(len(grid) - 1, cy + radius + 1)):
+        for x in range(max(1, cx - radius), min(len(grid[0]) - 1, cx + radius + 1)):
+            grid[y][x] = FLOOR
+
+
+def _carve_room(grid, x0, y0, w, h):
+    width, height = len(grid[0]), len(grid)
+    x0 = max(1, min(width - 3, x0))
+    y0 = max(1, min(height - 3, y0))
+    x1 = max(x0 + 1, min(width - 2, x0 + w))
+    y1 = max(y0 + 1, min(height - 2, y0 + h))
+    for y in range(y0, y1 + 1):
+        for x in range(x0, x1 + 1):
+            grid[y][x] = FLOOR
+    return (x0, y0, x1, y1)
+
+
+def _carve_corridor(grid, x0, y0, x1, y1, door_chance=0.55):
+    width, height = len(grid[0]), len(grid)
+    pts = []
+    if random.random() < 0.5:
+        for x in range(min(x0, x1), max(x0, x1) + 1):
+            pts.append((x, y0))
+        for y in range(min(y0, y1), max(y0, y1) + 1):
+            pts.append((x1, y))
+    else:
+        for y in range(min(y0, y1), max(y0, y1) + 1):
+            pts.append((x0, y))
+        for x in range(min(x0, x1), max(x0, x1) + 1):
+            pts.append((x, y1))
+    for x, y in pts:
+        if 1 <= x < width - 1 and 1 <= y < height - 1 and grid[y][x] == WALL:
+            grid[y][x] = FLOOR
+    for x, y in (pts[0], pts[-1]) if pts else ():
+        if 1 <= x < width - 1 and 1 <= y < height - 1 and random.random() < door_chance:
+            grid[y][x] = DOOR
+
+
+def generate_bunker_world(width, height, anchor):
+    grid = [[WALL for _ in range(width)] for _ in range(height)]
+    ax, ay = anchor
+
+    rw, rh = random.randint(8, 12), random.randint(6, 9)
+    rooms = [_carve_room(grid, ax - rw // 2, ay - rh // 2, rw, rh)]
+
+    n_rooms = max(14, (width * height) // 1600)
+    for _ in range(n_rooms):
+        rw, rh = random.randint(6, 14), random.randint(5, 10)
+        rx = random.randint(2, max(3, width - rw - 3))
+        ry = random.randint(2, max(3, height - rh - 3))
+        room = _carve_room(grid, rx, ry, rw, rh)
+        prev = rooms[-1]
+        cx0, cy0 = (prev[0] + prev[2]) // 2, (prev[1] + prev[3]) // 2
+        cx1, cy1 = (room[0] + room[2]) // 2, (room[1] + room[3]) // 2
+        _carve_corridor(grid, cx0, cy0, cx1, cy1)
+        rooms.append(room)
+
+    for _ in range(width * height // 140):
+        x = random.randint(1, width - 2)
+        y = random.randint(1, height - 2)
+        if grid[y][x] == FLOOR and random.random() < 0.5:
+            grid[y][x] = RUBBLE
+
+    for x in range(width):
+        grid[0][x] = WALL
+        grid[height - 1][x] = WALL
+    for y in range(height):
+        grid[y][0] = WALL
+        grid[y][width - 1] = WALL
+
+    return grid
+
+
+def move_towards(grid, world_w, world_h, x, y, tx, ty, tile_free):
+    """Step (x, y) one tile towards (tx, ty), diagonal-first, using
+    tile_free(nx, ny) -> bool. Returns the new (x, y)."""
+    dx, dy = _sign(tx - x), _sign(ty - y)
+    candidates = []
+    if dx and dy:
+        candidates.append((x + dx, y + dy))
+    if dx:
+        candidates.append((x + dx, y))
+    if dy:
+        candidates.append((x, y + dy))
+    for nx, ny in candidates:
+        if tile_free(nx, ny):
+            return nx, ny
+    return x, y
+
+</script>
+<script type="text/x-python" id="py-tdfif-party">
+"""Party members, their suit-charge abilities, and the shared Unit base
+that battle.py's enemies also build on."""
+
+from . import constants as C
+
+
+class Ability:
+    def __init__(self, name, sc_cost, kind, target, power=0, status=None,
+                 status_turns=3, desc=""):
+        self.name = name
+        self.sc_cost = sc_cost
+        self.kind = kind            # attack | heal | purge | buff | debuff | shield
+        self.target = target        # single_enemy | all_enemies | single_ally | all_allies | self
+        self.power = power
+        self.status = status        # status name applied by this ability, if any
+        self.status_turns = status_turns
+        self.desc = desc
+
+
+class Unit:
+    """Shared base for party members and enemies."""
+
+    def __init__(self, name, max_hp, atk, dfn, spd, row="front"):
+        self.name = name
+        self.max_hp = max_hp
+        self.hp = max_hp
+        self.atk = atk
+        self.dfn = dfn
+        self.spd = spd
+        self.row = row              # "front" or "back"
+        self.necro_load = 0
+        self.statuses = {}          # name -> turns remaining
+        self.alive = True
+        self.defending = False      # true from a Defend action until this unit's next turn
+
+    @property
+    def side(self):
+        return "party" if isinstance(self, PartyMember) else "enemy"
+
+    def has_status(self, name):
+        return name in self.statuses
+
+    def apply_status(self, name, turns):
+        self.statuses[name] = max(self.statuses.get(name, 0), turns)
+
+    def tick_statuses(self):
+        expired = []
+        for name in list(self.statuses):
+            self.statuses[name] -= 1
+            if self.statuses[name] <= 0:
+                expired.append(name)
+                del self.statuses[name]
+        return expired
+
+
+ABILITIES = {
+    "Locke Smith": [
+        Ability("Overdrive Sync", sc_cost=6, kind="buff", target="all_allies",
+                status="Overdriven", status_turns=3,
+                desc="Squad-wide ATK/DEF buff for 3 turns."),
+        Ability("Rally Fire", sc_cost=4, kind="attack", target="single_enemy",
+                power=1.6, status="Marked", status_turns=2,
+                desc="Heavy shot; marks the target for extra necro damage."),
+    ],
+    "Ian Formant": [
+        Ability("Bulwark Stance", sc_cost=3, kind="shield", target="self",
+                status="Bulwark", status_turns=2,
+                desc="Draws enemy fire to Ian and raises his DEF for 2 turns."),
+        Ability("Suppression Volley", sc_cost=5, kind="attack", target="all_enemies",
+                power=0.5, status="Suppressed", status_turns=2,
+                desc="Kinetic burst - low damage, suppresses all enemies' accuracy."),
+    ],
+    "Rose Gardner": [
+        Ability("Nanite Purge", sc_cost=4, kind="purge", target="single_ally",
+                desc="Instantly clears an ally's necrotic load."),
+        Ability("EMP Burst", sc_cost=6, kind="debuff", target="all_enemies",
+                status="EMP-Locked", status_turns=2,
+                desc="Locks out enemy special attacks for 2 turns."),
+        Ability("Field Patch", sc_cost=3, kind="heal", target="single_ally",
+                power=45, desc="Restores HP to one ally."),
+    ],
+    "Daisy Fields": [
+        Ability("Bio-Counter Rounds", sc_cost=5, kind="attack", target="single_enemy",
+                power=1.3, status="Exposed", status_turns=2,
+                desc="Armour-piercing shot; leaves the target Exposed."),
+        Ability("Twin Strike", sc_cost=4, kind="attack", target="single_enemy",
+                power=1.0, desc="Two quick shots on one target."),
+    ],
+}
+
+
+class PartyMember(Unit):
+    def __init__(self, name):
+        stats = C.SQUAD_BASE_STATS[name]
+        super().__init__(name, stats["max_hp"], stats["atk"], stats["dfn"],
+                          stats["spd"], row=stats["row"])
+        self.role = stats["role"]
+        self.max_sc = stats["max_sc"]
+        self.sc = self.max_sc // 2
+        self.abilities = ABILITIES[name]
+
+
+def new_squad():
+    return [PartyMember(name) for name in C.SQUAD_NAMES]
+
+
+class Inventory:
+    """Shared party inventory, persists for the length of a mission."""
+
+    def __init__(self):
+        self.items = {"Stim": 3, "Purge Canister": 2, "Suit Battery": 2}
+
+    def has(self, name):
+        return self.items.get(name, 0) > 0
+
+    def use(self, name):
+        if self.has(name):
+            self.items[name] -= 1
+            return True
+        return False
+
+</script>
+<script type="text/x-python" id="py-tdfif-enemies">
+"""Enemy templates per site tier, and the squad rolls the overworld uses
+to seed encounter markers."""
+
+import random
+
+from .constants import WEAPON_NECRO, WEAPON_VAPOR
+from .party import Unit
+
+
+class Enemy(Unit):
+    def __init__(self, name, weapon, max_hp, atk, dfn, spd, elite=False,
+                 on_hit_status=None, on_hit_turns=2):
+        super().__init__(name, max_hp, atk, dfn, spd, row="front")
+        self.weapon = weapon
+        self.elite = elite
+        self.on_hit_status = on_hit_status   # status this enemy applies when it lands a necro hit
+        self.on_hit_turns = on_hit_turns
+
+
+# name, weapon, hp, atk, dfn, spd
+ENEMY_TEMPLATES = {
+    "militia": [
+        dict(name="Rustwater Gunman", weapon=WEAPON_VAPOR, hp=45, atk=12, dfn=4, spd=7),
+        dict(name="Rustwater Marksman", weapon=WEAPON_NECRO, hp=35, atk=9, dfn=3, spd=8),
+        dict(name="Militia Brute", weapon=WEAPON_VAPOR, hp=70, atk=16, dfn=6, spd=5),
+    ],
+    "dumb": [
+        dict(name="DUMB Sentry", weapon=WEAPON_VAPOR, hp=55, atk=14, dfn=8, spd=7),
+        dict(name="Bio-Trooper", weapon=WEAPON_NECRO, hp=48, atk=10, dfn=6, spd=8),
+        dict(name="Combat Drone", weapon=WEAPON_VAPOR, hp=40, atk=18, dfn=4, spd=10),
+    ],
+    "blacksite": [
+        dict(name="Reaper Trooper", weapon=WEAPON_NECRO, hp=60, atk=12, dfn=8, spd=9),
+        dict(name="Blood Guard", weapon=WEAPON_VAPOR, hp=80, atk=20, dfn=10, spd=8),
+    ],
+}
+
+ELITES = {
+    "dumb": dict(name="Containment Officer", weapon=WEAPON_NECRO, hp=90, atk=11, dfn=10, spd=9,
+                 on_hit_status="EMP-Locked", on_hit_turns=2),
+    "blacksite": dict(name="Black Site Handler", weapon=WEAPON_NECRO, hp=150, atk=14, dfn=12, spd=10,
+                       on_hit_status="Suppressed", on_hit_turns=2),
+}
+
+
+def _build(template, elite=False, on_hit_status=None, on_hit_turns=2, suffix=""):
+    e = Enemy(template["name"] + suffix, template["weapon"], template["hp"],
+              template["atk"], template["dfn"], template["spd"], elite=elite,
+              on_hit_status=on_hit_status, on_hit_turns=on_hit_turns)
+    return e
+
+
+def roll_squad(tier, size_range, vapor_bias, include_elite=False):
+    """Build one encounter's worth of enemies for the given site tier."""
+    pool = ENEMY_TEMPLATES[tier]
+    vapor_pool = [t for t in pool if t["weapon"] == WEAPON_VAPOR]
+    necro_pool = [t for t in pool if t["weapon"] == WEAPON_NECRO]
+    n = random.randint(*size_range)
+    squad = []
+    for i in range(n):
+        pool_choice = vapor_pool if (vapor_pool and random.random() < vapor_bias) or not necro_pool else necro_pool
+        tpl = random.choice(pool_choice)
+        squad.append(_build(tpl, suffix=f" {i + 1}" if n > 1 else ""))
+    if include_elite and tier in ELITES:
+        squad.append(_build(ELITES[tier], elite=True,
+                             on_hit_status=ELITES[tier]["on_hit_status"],
+                             on_hit_turns=ELITES[tier]["on_hit_turns"]))
+    return squad
+
+
+class EncounterMarker:
+    """An overworld map entity representing an unfought enemy squad."""
+
+    def __init__(self, x, y, tier, size_range, vapor_bias, boss=False):
+        self.x = x
+        self.y = y
+        self.spawn_x = x
+        self.spawn_y = y
+        self.tier = tier
+        self.size_range = size_range
+        self.vapor_bias = vapor_bias
+        self.boss = boss
+        self.alive = True
+        self.alert = False
+        self.alert_timer = 0
+        self.patrol_target = None
+        dominant_necro = vapor_bias < 0.5
+        self.weapon = WEAPON_NECRO if dominant_necro else WEAPON_VAPOR
+        # vision/patrol tuning scales gently with tier danger
+        base = {"militia": 7, "dumb": 8, "blacksite": 9}.get(tier, 7)
+        self.vision = base
+        self.patrol_radius = 6
+
+    def build_battle_squad(self):
+        return roll_squad(self.tier, self.size_range, self.vapor_bias, include_elite=self.boss)
+
+</script>
+<script type="text/x-python" id="py-tdfif-battle">
+"""Menu-driven turn-based battle engine.
+
+Pure game logic - no curses in here. A UI layer drives it by reading
+`battle.phase` / `battle.current` and calling the `do_*` methods; each
+`do_*` call resolves one unit's turn and auto-advances through any enemy
+turns until either the next party member needs input or the battle ends
+(`battle.phase == "done"`, `battle.result` in {"won", "lost", "fled"}).
+
+Threat model mirrors TDF exactly: kinetic (vapor) rounds cannot hurt a
+suited operative at all - they just feed Suit Charge. Only necro rounds
+matter, and only as an accumulating load that drains HP on any turn the
+carrier keeps acting; Defend burns the load off fast instead.
+"""
+
+import random
+
+from . import constants as C
+from .party import Inventory, PartyMember, new_squad
+
+LOG_CAP = 6
+
+
+class Battle:
+    def __init__(self, party, enemies, inventory=None):
+        self.party = party
+        self.enemies = enemies
+        self.inventory = inventory or Inventory()
+        self.log_lines = []
+        self.round_no = 0
+        self.queue = []
+        self.current = None
+        self.phase = "action"     # action | done
+        self.result = None        # None | "won" | "lost" | "fled"
+        self._start_round()
+
+    # ---------------------- logging ----------------------
+
+    def log(self, text):
+        self.log_lines.append(text)
+        self.log_lines = self.log_lines[-LOG_CAP:]
+
+    # ---------------------- stat helpers ----------------------
+
+    @staticmethod
+    def eff_atk(u):
+        a = u.atk
+        if u.has_status("Overdriven"):
+            a = int(a * 1.25)
+        return a
+
+    @staticmethod
+    def eff_dfn(u):
+        d = u.dfn
+        if u.has_status("Overdriven"):
+            d = int(d * 1.25)
+        if u.has_status("Bulwark"):
+            d = int(d * 1.5)
+        return d
+
+    def _damage(self, attacker, target, power_mult):
+        dmg = self.eff_atk(attacker) * power_mult - self.eff_dfn(target) / 2
+        dmg += random.randint(-2, 2)
+        dmg = max(1, int(dmg))
+        if getattr(target, "defending", False):
+            dmg = max(1, int(dmg * C.DEFEND_DMG_REDUCTION))
+        if target.has_status("Marked") or target.has_status("Exposed"):
+            dmg = int(dmg * 1.3)
+        return dmg
+
+    # ---------------------- turn order ----------------------
+
+    def _alive_units(self):
+        return [u for u in self.party + self.enemies if u.alive]
+
+    def _start_round(self):
+        self.round_no += 1
+        for u in self._alive_units():
+            u.tick_statuses()
+        self.queue = sorted(self._alive_units(), key=lambda u: u.spd + random.uniform(-1, 1),
+                             reverse=True)
+        self._advance()
+
+    def _advance(self):
+        if self.phase == "done":
+            return
+        while True:
+            if not self.queue:
+                if self._check_end():
+                    return
+                self._start_round()
+                return
+            nxt = self.queue.pop(0)
+            if not nxt.alive:
+                continue
+            if isinstance(nxt, PartyMember):
+                nxt.defending = False
+                self.current = nxt
+                self.phase = "action"
+                return
+            self._enemy_act(nxt)
+            if self._check_end():
+                return
+
+    def _check_end(self):
+        if all(not e.alive for e in self.enemies):
+            self.phase = "done"
+            self.result = "won"
+            return True
+        if all(not p.alive for p in self.party):
+            self.phase = "done"
+            self.result = "lost"
+            return True
+        return False
+
+    # ---------------------- enemy AI ----------------------
+
+    def _enemy_act(self, enemy):
+        alive_party = [p for p in self.party if p.alive]
+        if not alive_party:
+            return
+        if enemy.has_status("Suppressed") and random.random() < 0.4:
+            self.log(f"{enemy.name}'s shot goes wide - suppressed.")
+            return
+
+        taunting = [p for p in alive_party if p.has_status("Bulwark")]
+        if taunting:
+            target = random.choice(taunting)
+        else:
+            front = [p for p in alive_party if p.row == "front"]
+            back = [p for p in alive_party if p.row == "back"]
+            pool = (front * 7 + back * 3) if (front or back) else alive_party
+            target = random.choice(pool)
+
+        if enemy.weapon == C.WEAPON_VAPOR:
+            gained = min(target.max_sc - target.sc, C.SC_FEEDSTOCK_PER_VAPOR_HIT)
+            target.sc = min(target.max_sc, target.sc + C.SC_FEEDSTOCK_PER_VAPOR_HIT)
+            self.log(f"{enemy.name} fires on {target.name} - harmless, +{gained} charge.")
+        else:
+            target.necro_load = min(C.NECRO_LOAD_CAP, target.necro_load + C.NECRO_LOAD_PER_HIT)
+            msg = f"{enemy.name} lands a bio round on {target.name} - necrotic load rising."
+            if enemy.on_hit_status and not enemy.has_status("EMP-Locked"):
+                target.apply_status(enemy.on_hit_status, enemy.on_hit_turns)
+                msg += f" ({target.name} is {enemy.on_hit_status})"
+            self.log(msg)
+
+    # ---------------------- ability resolution ----------------------
+
+    def _targets_for(self, ability, unit, chosen):
+        if ability.target == "single_enemy":
+            return [chosen] if chosen and chosen.alive else []
+        if ability.target == "all_enemies":
+            return [e for e in self.enemies if e.alive]
+        if ability.target == "single_ally":
+            return [chosen] if chosen and chosen.alive else []
+        if ability.target == "all_allies":
+            return [p for p in self.party if p.alive]
+        if ability.target == "self":
+            return [unit]
+        return []
+
+    def _resolve_ability(self, unit, ability, chosen):
+        targets = self._targets_for(ability, unit, chosen)
+        if not targets:
+            return False
+        for t in targets:
+            if ability.kind == "attack":
+                dmg = self._damage(unit, t, ability.power)
+                t.hp = max(0, t.hp - dmg)
+                self.log(f"{unit.name} uses {ability.name} on {t.name} - {dmg} dmg.")
+                if t.hp <= 0:
+                    t.alive = False
+                    self.log(f"{t.name} is down.")
+                if ability.status:
+                    t.apply_status(ability.status, ability.status_turns)
+            elif ability.kind == "heal":
+                healed = min(t.max_hp - t.hp, ability.power)
+                t.hp = min(t.max_hp, t.hp + ability.power)
+                self.log(f"{unit.name} uses {ability.name} on {t.name} - +{healed} hp.")
+            elif ability.kind == "purge":
+                t.necro_load = 0
+                self.log(f"{unit.name} uses {ability.name} - {t.name}'s necrotic load is clear.")
+            elif ability.kind in ("buff", "debuff", "shield"):
+                if ability.status:
+                    t.apply_status(ability.status, ability.status_turns)
+                self.log(f"{unit.name} uses {ability.name} on {t.name}.")
+        return True
+
+    # ---------------------- party turn upkeep ----------------------
+
+    def _end_party_turn(self, unit):
+        if unit.defending:
+            unit.necro_load = max(0, unit.necro_load - C.NECRO_DEFEND_DECAY)
+            unit.sc = min(unit.max_sc, unit.sc + C.SC_REGEN_DEFENDING)
+        else:
+            if unit.necro_load > 0:
+                drain = unit.necro_load // C.NECRO_DRAIN_DIVISOR
+                if unit.necro_load >= C.NECRO_LOAD_CAP:
+                    drain += C.NECRO_CRITICAL_DRAIN
+                unit.hp = max(0, unit.hp - drain)
+                self.log(f"{unit.name} pushes through the infection - {drain} dmg.")
+                if unit.hp <= 0:
+                    unit.alive = False
+                    self.log(f"{unit.name} goes down.")
+            unit.sc = min(unit.max_sc, unit.sc + C.SC_REGEN_PER_TURN)
+        self._check_end()
+
+    # ---------------------- player-facing actions ----------------------
+    # each returns True/False (whether the action was legal); on success it
+    # resolves the turn and advances the battle automatically.
+
+    def do_attack(self, target):
+        unit = self.current
+        if self.phase != "action" or not target or not target.alive:
+            return False
+        dmg = self._damage(unit, target, 1.0)
+        target.hp = max(0, target.hp - dmg)
+        self.log(f"{unit.name} fires - {dmg} dmg to {target.name}.")
+        if target.hp <= 0:
+            target.alive = False
+            self.log(f"{target.name} is down.")
+        self._end_party_turn(unit)
+        self._advance()
+        return True
+
+    def do_ability(self, ability, target=None):
+        unit = self.current
+        if self.phase != "action" or unit.sc < ability.sc_cost:
+            return False
+        ok = self._resolve_ability(unit, ability, target)
+        if not ok:
+            return False
+        unit.sc -= ability.sc_cost
+        self._end_party_turn(unit)
+        self._advance()
+        return True
+
+    def do_defend(self):
+        unit = self.current
+        if self.phase != "action":
+            return False
+        unit.defending = True
+        self.log(f"{unit.name} holds position - the swarm gets to work.")
+        self._end_party_turn(unit)
+        self._advance()
+        return True
+
+    def do_item(self, item_name, target):
+        unit = self.current
+        if self.phase != "action" or not self.inventory.has(item_name) or not target or not target.alive:
+            return False
+        if item_name == "Stim":
+            healed = min(target.max_hp - target.hp, 50)
+            target.hp = min(target.max_hp, target.hp + 50)
+            self.log(f"{unit.name} uses a Stim on {target.name} - +{healed} hp.")
+        elif item_name == "Purge Canister":
+            target.necro_load = 0
+            self.log(f"{unit.name} uses a Purge Canister on {target.name} - load cleared.")
+        elif item_name == "Suit Battery":
+            target.sc = min(target.max_sc, target.sc + 20)
+            self.log(f"{unit.name} uses a Suit Battery on {target.name} - +20 charge.")
+        else:
+            return False
+        self.inventory.use(item_name)
+        self._end_party_turn(unit)
+        self._advance()
+        return True
+
+    def do_formation_swap(self):
+        unit = self.current
+        if self.phase != "action":
+            return False
+        unit.row = "back" if unit.row == "front" else "front"
+        self.log(f"{unit.name} shifts to {unit.row} line.")
+        self._end_party_turn(unit)
+        self._advance()
+        return True
+
+    def do_flee(self):
+        unit = self.current
+        if self.phase != "action":
+            return False
+        party_spd = sum(p.spd for p in self.party if p.alive) / max(1, len([p for p in self.party if p.alive]))
+        enemy_spd = sum(e.spd for e in self.enemies if e.alive) / max(1, len([e for e in self.enemies if e.alive]))
+        chance = max(0.1, min(0.9, 0.3 + (party_spd - enemy_spd) * 0.05))
+        if random.random() < chance:
+            self.log("Squad breaks contact.")
+            self.phase = "done"
+            self.result = "fled"
+            return True
+        self.log(f"{unit.name} can't shake them.")
+        self._end_party_turn(unit)
+        self._advance()
+        return True
+
+</script>
+<script type="text/x-python" id="py-tdfif-ui">
+"""Shared curses plumbing: safe draw helpers, palettes, and the
+splash/mission-select/codec screens. All game logic lives elsewhere;
+this module only ever touches the screen."""
+
+import curses
+import textwrap
+
+from . import constants as C
+
+# --------------------------------------------------------------------------
+# Pair numbers, shared across every screen
+# --------------------------------------------------------------------------
+
+PAIR_PLAYER = 1
+PAIR_WALL = 3
+PAIR_HUD = 4
+PAIR_DANGER = 5
+PAIR_WARN = 6
+PAIR_VAPOR = 8
+PAIR_NECRO = 9
+PAIR_FLOOR = 11
+PAIR_GRASS = 12
+PAIR_EXFIL = 13
+PAIR_ACCENT = 14
+PAIR_DOOR = 15
+PAIR_GOOD = 17
+PAIR_ELITE = 18
+
+PAIR_MENU_CHROME = 24
+PAIR_CLOSED_PHOSPHOR = 25
+PAIR_CODEC_CHROME = 20
+CODEC_SPEAKER_PAIRS = {"OLIVE": 21, "LOCKE": 22, "IAN": 26, "ROSE": 27, "DAISY": 28}
+
+
+def _palette_sand(has_256):
+    return {1: curses.COLOR_CYAN, 3: curses.COLOR_WHITE, 4: curses.COLOR_GREEN,
+            5: curses.COLOR_RED, 6: curses.COLOR_YELLOW, 8: curses.COLOR_MAGENTA,
+            9: curses.COLOR_RED, 11: curses.COLOR_YELLOW, 12: curses.COLOR_GREEN,
+            13: curses.COLOR_GREEN, 14: curses.COLOR_WHITE, 15: curses.COLOR_WHITE,
+            17: curses.COLOR_GREEN, 18: curses.COLOR_MAGENTA}
+
+
+def _palette_bunker(has_256):
+    if has_256:
+        concrete, concrete_lt, steel, hazard = 240, 250, 111, 178
+    else:
+        concrete, concrete_lt, steel, hazard = curses.COLOR_WHITE, curses.COLOR_WHITE, curses.COLOR_CYAN, curses.COLOR_YELLOW
+    return {1: curses.COLOR_CYAN, 3: concrete, 4: steel, 5: curses.COLOR_RED,
+            6: hazard, 8: steel, 9: curses.COLOR_RED, 11: concrete_lt,
+            12: concrete, 13: hazard, 14: curses.COLOR_WHITE, 15: hazard,
+            17: curses.COLOR_CYAN, 18: hazard}
+
+
+def _palette_blood(has_256):
+    if has_256:
+        blood_red, blood_orange = 88, 166
+    else:
+        blood_red, blood_orange = curses.COLOR_RED, curses.COLOR_YELLOW
+    return {1: blood_orange, 3: blood_red, 4: blood_orange, 5: blood_red,
+            6: blood_red, 8: blood_orange, 9: blood_red, 11: blood_orange,
+            12: blood_red, 13: blood_orange, 14: blood_orange, 15: blood_red,
+            17: blood_orange, 18: blood_red}
+
+
+PALETTES = {"sand": _palette_sand, "bunker": _palette_bunker, "blood": _palette_blood}
+
+
+def apply_palette(name):
+    has_256 = curses.COLORS >= 256
+    for pair_num, color in PALETTES[name](has_256).items():
+        curses.init_pair(pair_num, color, -1)
+
+
+def init_colors():
+    curses.start_color()
+    curses.use_default_colors()
+
+    menu_color = 166 if curses.COLORS >= 256 else curses.COLOR_YELLOW
+    curses.init_pair(PAIR_MENU_CHROME, menu_color, -1)
+    curses.init_pair(PAIR_CLOSED_PHOSPHOR, curses.COLOR_GREEN, -1)
+
+    curses.init_pair(PAIR_CODEC_CHROME, curses.COLOR_YELLOW, -1)
+    olive_color = 58 if curses.COLORS >= 256 else curses.COLOR_YELLOW
+    curses.init_pair(CODEC_SPEAKER_PAIRS["OLIVE"], olive_color, -1)
+    curses.init_pair(CODEC_SPEAKER_PAIRS["LOCKE"], curses.COLOR_GREEN, -1)
+    curses.init_pair(CODEC_SPEAKER_PAIRS["IAN"], curses.COLOR_WHITE, -1)
+    curses.init_pair(CODEC_SPEAKER_PAIRS["ROSE"], curses.COLOR_MAGENTA, -1)
+    curses.init_pair(CODEC_SPEAKER_PAIRS["DAISY"], curses.COLOR_RED, -1)
+
+    apply_palette(C.LEVELS[0]["palette"])
+
+
+# --------------------------------------------------------------------------
+# Safe draw primitives
+# --------------------------------------------------------------------------
+
+def safe_addstr(stdscr, y, x, text, attr=0):
+    max_y, max_x = stdscr.getmaxyx()
+    if y < 0 or y >= max_y or x >= max_x or x < 0:
+        return
+    text = text[:max(0, max_x - x)]
+    if not text:
+        return
+    try:
+        stdscr.addstr(y, x, text, attr)
+    except curses.error:
+        pass
+
+
+def safe_addch(stdscr, y, x, ch, attr=0):
+    max_y, max_x = stdscr.getmaxyx()
+    if 0 <= y < max_y and 0 <= x < max_x - 1:
+        try:
+            stdscr.addch(y, x, ch, attr)
+        except curses.error:
+            pass
+
+
+def bar(ratio, width, invert=False):
+    ratio = max(0.0, min(1.0, ratio))
+    filled = int(round(ratio * width))
+    b = "#" * filled + "-" * (width - filled)
+    good, mid, bad = (PAIR_DANGER, PAIR_WARN, PAIR_HUD) if invert else (PAIR_HUD, PAIR_WARN, PAIR_DANGER)
+    if ratio > 0.66:
+        pair = bad if invert else good
+    elif ratio > 0.33:
+        pair = mid
+    else:
+        pair = good if invert else bad
+    return b, pair
+
+
+# --------------------------------------------------------------------------
+# Splash / mission select / codec briefing
+# --------------------------------------------------------------------------
+
+def draw_splash(stdscr):
+    stdscr.erase()
+    max_y, max_x = stdscr.getmaxyx()
+    lines = [C.GAME_TITLE, ""] + C.SPLASH_TEXT.split("\n") + ["", "Press any key to deploy..."]
+    start_y = max(0, (max_y - len(lines)) // 2)
+    for i, line in enumerate(lines):
+        y = start_y + i
+        if y >= max_y:
+            break
+        x = max(0, (max_x - len(line)) // 2)
+        attr = curses.A_BOLD if i == 0 else 0
+        try:
+            stdscr.addstr(y, x, line[:max_x - 1], curses.color_pair(PAIR_MENU_CHROME) | attr)
+        except curses.error:
+            pass
+    stdscr.refresh()
+
+
+def draw_mission_select(stdscr, index, max_unlocked=0, status_msg=None):
+    stdscr.erase()
+    max_y, max_x = stdscr.getmaxyx()
+    title = "CHOOSE YOUR SITE"
+    try:
+        stdscr.addstr(1, max(0, (max_x - len(title)) // 2), title, curses.color_pair(PAIR_MENU_CHROME) | curses.A_BOLD)
+    except curses.error:
+        pass
+    row = 3
+    for i, lvl in enumerate(C.LEVELS):
+        locked = i > max_unlocked
+        marker = ">" if i == index else " "
+        tag = "  [LOCKED]" if locked else ""
+        line = f"{marker} {i + 1}) {lvl['name']}  ({lvl['world_w']}x{lvl['world_h']}, {lvl['n_squads']} hostile squads){tag}"
+        if i == index:
+            attr = curses.A_REVERSE | (curses.A_DIM if locked else 0)
+        else:
+            attr = curses.color_pair(PAIR_MENU_CHROME) | (curses.A_DIM if locked else 0)
+        try:
+            stdscr.addstr(row, 4, line[:max_x - 5], attr)
+        except curses.error:
+            pass
+        row += 1
+        if i == index:
+            blurb = lvl["blurb"] if not locked else f"Complete {C.LEVELS[i - 1]['name']} to unlock this site."
+            try:
+                stdscr.addstr(row, 8, blurb[:max_x - 9], curses.A_DIM)
+            except curses.error:
+                pass
+            row += 1
+        row += 1
+    hint = f"Up/Down: choose   Enter/1-{len(C.LEVELS)}: deploy   Q: quit"
+    try:
+        stdscr.addstr(row + 1, 4, hint, curses.color_pair(PAIR_MENU_CHROME))
+    except curses.error:
+        pass
+    if status_msg:
+        try:
+            stdscr.addstr(row + 2, 4, status_msg[:max_x - 5], curses.color_pair(PAIR_DANGER) | curses.A_BOLD)
+        except curses.error:
+            pass
+    stdscr.refresh()
+
+
+def draw_codec(stdscr, theme, index):
+    stdscr.erase()
+    max_y, max_x = stdscr.getmaxyx()
+    header = f"INCOMING TRANSMISSION :: {theme['title']}"
+    sub = f"{C.ORG_NAME} SECURE CHANNEL // {C.HANDLER_NAME.upper()} TO FIRETEAM"
+    try:
+        stdscr.addstr(1, max(0, (max_x - len(header)) // 2), header, curses.color_pair(PAIR_CODEC_CHROME) | curses.A_BOLD)
+        stdscr.addstr(2, max(0, (max_x - len(sub)) // 2), sub[:max_x - 1], curses.A_DIM)
+    except curses.error:
+        pass
+
+    lines = theme["lines"]
+    shown = lines[:index + 1]
+    row = 4
+    for i, (speaker, text) in enumerate(shown):
+        is_current = (i == len(shown) - 1)
+        pair = CODEC_SPEAKER_PAIRS.get(speaker, PAIR_CODEC_CHROME)
+        label_attr = curses.color_pair(pair) | curses.A_BOLD
+        body_attr = 0
+        if not is_current:
+            label_attr |= curses.A_DIM
+            body_attr = curses.A_DIM
+        try:
+            stdscr.addstr(row, 4, f"[{speaker}]", label_attr)
+        except curses.error:
+            pass
+        for wline in textwrap.wrap(text, max(20, max_x - 12)):
+            row += 1
+            try:
+                stdscr.addstr(row, 6, wline, body_attr)
+            except curses.error:
+                pass
+        row += 2
+        if row >= max_y - 3:
+            break
+
+    hint = "Press any key to continue..." if index < len(lines) - 1 else "Press any key to deploy..."
+    try:
+        stdscr.addstr(max_y - 2, 4, hint, curses.color_pair(PAIR_CODEC_CHROME))
+    except curses.error:
+        pass
+    stdscr.refresh()
+
+
+def draw_closed(stdscr):
+    stdscr.erase()
+    try:
+        stdscr.addstr(0, 0, "Session closed.", curses.color_pair(PAIR_CLOSED_PHOSPHOR) | curses.A_BOLD)
+    except curses.error:
+        pass
+    stdscr.refresh()
+
+</script>
+<script type="text/x-python" id="py-tdfif-battle_ui">
+"""Curses front end for battle.py's turn engine: menu navigation and
+rendering only - every actual rule lives in Battle's do_* methods."""
+
+import curses
+
+from . import ui
+from .constants import NECRO_LOAD_CAP
+
+TOP_MENU = ["Attack", "Ability", "Item", "Defend", "Formation", "Flee"]
+
+
+class BattleUI:
+    def __init__(self, battle):
+        self.battle = battle
+        self.menu_state = "top"     # top | ability | item | target_enemy | target_ally
+        self.cursor = 0
+        self.action = None          # "attack" | "ability" | "item", pending a target
+        self.pending_ability = None
+        self.pending_item = None
+
+    def _reset_to_top(self):
+        self.menu_state = "top"
+        self.cursor = 0
+        self.action = None
+        self.pending_ability = None
+        self.pending_item = None
+
+    # ---------------------- input ----------------------
+
+    def handle_key(self, key):
+        b = self.battle
+        if b.phase != "action":
+            return
+
+        up = key in (curses.KEY_UP, ord('w'), ord('W'))
+        down = key in (curses.KEY_DOWN, ord('s'), ord('S'))
+        confirm = key in (10, 13, curses.KEY_ENTER, ord(' '))
+        back = key in (ord('q'), ord('Q'), 27, curses.KEY_BACKSPACE, 127, 8)
+
+        if self.menu_state == "top":
+            if up:
+                self.cursor = (self.cursor - 1) % len(TOP_MENU)
+            elif down:
+                self.cursor = (self.cursor + 1) % len(TOP_MENU)
+            elif confirm:
+                self._confirm_top()
+            return
+
+        if self.menu_state == "ability":
+            n = len(b.current.abilities)
+            if n == 0:
+                if back:
+                    self._reset_to_top()
+                return
+            if up:
+                self.cursor = (self.cursor - 1) % n
+            elif down:
+                self.cursor = (self.cursor + 1) % n
+            elif confirm:
+                self._confirm_ability()
+            elif back:
+                self._reset_to_top()
+            return
+
+        if self.menu_state == "item":
+            items = self._available_items()
+            if not items:
+                if back:
+                    self._reset_to_top()
+                return
+            if up:
+                self.cursor = (self.cursor - 1) % len(items)
+            elif down:
+                self.cursor = (self.cursor + 1) % len(items)
+            elif confirm:
+                self.pending_item = items[self.cursor]
+                self.menu_state = "target_ally"
+                self.cursor = 0
+            elif back:
+                self._reset_to_top()
+            return
+
+        if self.menu_state == "target_enemy":
+            targets = [e for e in b.enemies if e.alive]
+            if not targets:
+                self._reset_to_top()
+                return
+            if up:
+                self.cursor = (self.cursor - 1) % len(targets)
+            elif down:
+                self.cursor = (self.cursor + 1) % len(targets)
+            elif confirm:
+                target = targets[self.cursor]
+                if self.action == "attack":
+                    b.do_attack(target)
+                elif self.action == "ability":
+                    b.do_ability(self.pending_ability, target)
+                self._reset_to_top()
+            elif back:
+                self._reset_to_top()
+            return
+
+        if self.menu_state == "target_ally":
+            targets = [p for p in b.party if p.alive]
+            if not targets:
+                self._reset_to_top()
+                return
+            if up:
+                self.cursor = (self.cursor - 1) % len(targets)
+            elif down:
+                self.cursor = (self.cursor + 1) % len(targets)
+            elif confirm:
+                target = targets[self.cursor]
+                if self.action == "ability":
+                    b.do_ability(self.pending_ability, target)
+                elif self.action == "item":
+                    b.do_item(self.pending_item, target)
+                self._reset_to_top()
+            elif back:
+                self._reset_to_top()
+            return
+
+    def _available_items(self):
+        return [name for name, count in self.battle.inventory.items.items() if count > 0]
+
+    def _confirm_top(self):
+        b = self.battle
+        choice = TOP_MENU[self.cursor]
+        if choice == "Attack":
+            self.action = "attack"
+            self.menu_state = "target_enemy"
+            self.cursor = 0
+        elif choice == "Ability":
+            self.menu_state = "ability"
+            self.cursor = 0
+        elif choice == "Item":
+            self.menu_state = "item"
+            self.cursor = 0
+        elif choice == "Defend":
+            b.do_defend()
+            self._reset_to_top()
+        elif choice == "Formation":
+            b.do_formation_swap()
+            self._reset_to_top()
+        elif choice == "Flee":
+            b.do_flee()
+            self._reset_to_top()
+
+    def _confirm_ability(self):
+        b = self.battle
+        ability = b.current.abilities[self.cursor]
+        if b.current.sc < ability.sc_cost:
+            return
+        if ability.target in ("single_enemy", "single_ally"):
+            self.pending_ability = ability
+            self.action = "ability"
+            self.menu_state = "target_enemy" if ability.target == "single_enemy" else "target_ally"
+            self.cursor = 0
+        else:
+            b.do_ability(ability)
+            self._reset_to_top()
+
+    # ---------------------- rendering ----------------------
+
+    def draw(self, stdscr):
+        stdscr.erase()
+        max_y, max_x = stdscr.getmaxyx()
+        b = self.battle
+
+        ui.safe_addstr(stdscr, 0, 0, f"ROUND {b.round_no}", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+
+        row = 2
+        ui.safe_addstr(stdscr, row, 2, "-- HOSTILES --", curses.color_pair(ui.PAIR_DANGER))
+        row += 1
+        for e in b.enemies:
+            if not e.alive:
+                continue
+            hb, pair = ui.bar(e.hp / e.max_hp if e.max_hp else 0, 20)
+            tag = " [ELITE]" if e.elite else ""
+            statuses = ",".join(e.statuses.keys())
+            ui.safe_addstr(stdscr, row, 2, f" {e.name}{tag}", curses.color_pair(ui.PAIR_DANGER))
+            row += 1
+            ui.safe_addstr(stdscr, row, 4, f"[{hb}] {e.hp:3d}/{e.max_hp}" + (f"  ({statuses})" if statuses else ""),
+                            curses.color_pair(pair))
+            row += 1
+        row += 1
+
+        ui.safe_addstr(stdscr, row, 2, "-- FIRETEAM --", curses.color_pair(ui.PAIR_HUD))
+        row += 1
+        for p in b.party:
+            is_current = (p is b.current and b.phase == "action")
+            name_attr = curses.color_pair(ui.PAIR_GOOD) | curses.A_BOLD if is_current else curses.color_pair(ui.PAIR_HUD)
+            tag = " [DOWN]" if not p.alive else (" [DEF]" if p.defending else "")
+            row_label = "front" if p.row == "front" else "back"
+            marker = ">" if is_current else " "
+            statuses = ",".join(p.statuses.keys())
+            ui.safe_addstr(stdscr, row, 2, f"{marker}{p.name} ({row_label}){tag}", name_attr)
+            row += 1
+            hb, hp_pair = ui.bar(p.hp / p.max_hp if p.max_hp else 0, 18)
+            sb, _ = ui.bar(p.sc / p.max_sc if p.max_sc else 0, 18)
+            nb, n_pair = ui.bar(p.necro_load / NECRO_LOAD_CAP, 18, invert=True)
+            ui.safe_addstr(stdscr, row, 4, f"HP [{hb}] {p.hp:3d}/{p.max_hp}", curses.color_pair(hp_pair))
+            row += 1
+            ui.safe_addstr(stdscr, row, 4, f"SC [{sb}] {p.sc:3d}/{p.max_sc}", curses.color_pair(ui.PAIR_ACCENT))
+            row += 1
+            ui.safe_addstr(stdscr, row, 4, f"NL [{nb}] {p.necro_load:3d}" + (f"  ({statuses})" if statuses else ""),
+                            curses.color_pair(n_pair))
+            row += 2
+
+        self._draw_menu(stdscr, row, max_x)
+
+        log_row = max_y - min(len(b.log_lines), 6) - 1
+        for i, line in enumerate(b.log_lines):
+            ui.safe_addstr(stdscr, log_row + i, 2, line[:max_x - 4], curses.A_DIM)
+
+        stdscr.refresh()
+
+    def _draw_menu(self, stdscr, row, max_x):
+        b = self.battle
+        if b.phase != "action":
+            return
+        col = max_x // 2
+
+        if self.menu_state == "top":
+            ui.safe_addstr(stdscr, row, col, f"{b.current.name}'s turn:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            for i, choice in enumerate(TOP_MENU):
+                attr = curses.A_REVERSE if i == self.cursor else 0
+                ui.safe_addstr(stdscr, row + 1 + i, col + 2, choice, attr)
+
+        elif self.menu_state == "ability":
+            ui.safe_addstr(stdscr, row, col, "Choose an ability:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            for i, ab in enumerate(b.current.abilities):
+                affordable = b.current.sc >= ab.sc_cost
+                text = f"{ab.name} (SC {ab.sc_cost})"
+                attr = curses.A_REVERSE if i == self.cursor else 0
+                if not affordable:
+                    attr |= curses.A_DIM
+                ui.safe_addstr(stdscr, row + 1 + i, col + 2, text, attr)
+            desc_row = row + 1 + len(b.current.abilities) + 1
+            if b.current.abilities:
+                ui.safe_addstr(stdscr, desc_row, col + 2, b.current.abilities[self.cursor].desc, curses.A_DIM)
+
+        elif self.menu_state == "item":
+            items = self._available_items()
+            ui.safe_addstr(stdscr, row, col, "Choose an item:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            if not items:
+                ui.safe_addstr(stdscr, row + 1, col + 2, "(none left)", curses.A_DIM)
+            for i, name in enumerate(items):
+                count = b.inventory.items[name]
+                attr = curses.A_REVERSE if i == self.cursor else 0
+                ui.safe_addstr(stdscr, row + 1 + i, col + 2, f"{name} x{count}", attr)
+
+        elif self.menu_state == "target_enemy":
+            targets = [e for e in b.enemies if e.alive]
+            ui.safe_addstr(stdscr, row, col, "Choose a target:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            for i, t in enumerate(targets):
+                attr = curses.A_REVERSE if i == self.cursor else 0
+                ui.safe_addstr(stdscr, row + 1 + i, col + 2, f"{t.name} ({t.hp}/{t.max_hp} hp)", attr)
+
+        elif self.menu_state == "target_ally":
+            targets = [p for p in b.party if p.alive]
+            ui.safe_addstr(stdscr, row, col, "Choose an ally:", curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            for i, t in enumerate(targets):
+                attr = curses.A_REVERSE if i == self.cursor else 0
+                ui.safe_addstr(stdscr, row + 1 + i, col + 2, f"{t.name} ({t.hp}/{t.max_hp} hp)", attr)
+
+        hint = "Up/Down: choose   Enter: confirm   Q/Backspace: back"
+        ui.safe_addstr(stdscr, row - 1, col, hint, curses.A_DIM)
+
+</script>
+<script type="text/x-python" id="py-tdfif-overworld">
+"""Real-time exploration screen: walk the squad around a fogged map,
+avoid or make contact with hostile-squad markers, reach extraction.
+Structurally the same loop as TDF's Game class, minus bullets - contact
+with a marker hands off to battle.py instead of exchanging fire in place."""
+
+import random
+
+import curses
+
+from . import mapgen, ui
+from .constants import (DOOR, ENV_BUNKER, EXFIL_SYMBOL, FLOOR, FOG_UNSEEN,
+                         FOG_VISIBLE, FOG_EXPLORED, GRASS, NECRO_LOAD_CAP,
+                         NECRO_OVERWORLD_DECAY_PER_TICK, RUBBLE, TIER_DISPLAY_NAMES,
+                         WALL, WEAPON_NECRO)
+from .enemies import EncounterMarker
+
+SIDEBAR_W = 36
+TOP_H = 1
+BOTTOM_H = 5
+MIN_TERM_W = 92
+MIN_TERM_H = 27
+
+TICK_MS = 110
+PLAYER_VISION = 9
+START_REVEAL_RADIUS = 8
+EXFIL_MARGIN = 6
+ALERT_PERSIST_TICKS = 25
+
+
+class Overworld:
+    def __init__(self, stdscr, level, party, inventory):
+        self.stdscr = stdscr
+        self.level = level
+        self.party = party
+        self.inventory = inventory
+
+        self.world_w = level["world_w"]
+        self.world_h = level["world_h"]
+        ui.apply_palette(level["palette"])
+
+        self.start_pos = (5, 5)
+        if level["env"] == ENV_BUNKER:
+            self.grid = mapgen.generate_bunker_world(self.world_w, self.world_h, self.start_pos)
+        else:
+            self.grid = mapgen.generate_world(self.world_w, self.world_h)
+        self.fog = [[FOG_UNSEEN] * self.world_w for _ in range(self.world_h)]
+        mapgen.clear_area(self.grid, *self.start_pos, 4)
+
+        self._open_cells = [(x, y) for y in range(self.world_h) for x in range(self.world_w)
+                             if self.grid[y][x] != WALL]
+
+        self.exfil_pos = self._pick_exfil_pos()
+        mapgen.clear_area(self.grid, *self.exfil_pos, 4)
+
+        self.px, self.py = self.start_pos
+        self.markers = []
+        self._spawn_markers()
+
+        self.messages = []
+        self.tick = 0
+        self.running = True
+        self.result = None          # None | "extracted" | "aborted"
+        self.pending_encounter = None
+
+        self.camera_x, self.camera_y = 0, 0
+        self._recenter_camera(force=True)
+        self.reveal(*self.start_pos, START_REVEAL_RADIUS)
+
+        self.log(f"{len(self.party)} vapor suits online - {level['name']}.")
+
+    # ---------------------- setup ----------------------
+
+    def _pick_exfil_pos(self):
+        min_d2 = (START_REVEAL_RADIUS + EXFIL_MARGIN) ** 2
+        sx, sy = self.start_pos
+        candidates = [(x, y) for (x, y) in self._open_cells
+                      if (x - sx) ** 2 + (y - sy) ** 2 >= min_d2]
+        if candidates:
+            return random.choice(candidates)
+        return max(self._open_cells, key=lambda p: (p[0] - sx) ** 2 + (p[1] - sy) ** 2)
+
+    def _open_tile_near(self, cx, cy, occupied, max_radius=12):
+        for r in range(1, max_radius + 1):
+            candidates = []
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    x, y = cx + dx, cy + dy
+                    if 1 <= x < self.world_w - 1 and 1 <= y < self.world_h - 1:
+                        if self.grid[y][x] != WALL and (x, y) not in occupied:
+                            candidates.append((x, y))
+            if candidates:
+                return random.choice(candidates)
+        return cx, cy
+
+    def _spawn_markers(self):
+        occupied = {self.start_pos, self.exfil_pos}
+        n = self.level["n_squads"]
+        boss = self.level.get("boss_squad", False)
+        for i in range(n):
+            is_boss = boss and i == n - 1
+            if is_boss:
+                cx, cy = self.exfil_pos
+            else:
+                cx, cy = random.choice(self._open_cells)
+            x, y = self._open_tile_near(cx, cy, occupied)
+            occupied.add((x, y))
+            m = EncounterMarker(x, y, self.level["tier"], self.level["squad_size"],
+                                 self.level["vapor_bias"], boss=is_boss)
+            self.markers.append(m)
+
+    def log(self, text):
+        self.messages.append(text)
+        self.messages = self.messages[-4:]
+
+    def relocate_marker_away(self, marker, min_dist=10):
+        min_d2 = min_dist * min_dist
+        candidates = [(x, y) for (x, y) in self._open_cells
+                      if (x - self.px) ** 2 + (y - self.py) ** 2 >= min_d2]
+        if candidates:
+            marker.x, marker.y = random.choice(candidates)
+        marker.alert = False
+        marker.alert_timer = 0
+        marker.patrol_target = None
+
+    # ---------------------- fog of war ----------------------
+
+    def reveal(self, cx, cy, radius):
+        r2 = radius * radius
+        for dy in range(-radius, radius + 1):
+            y = cy + dy
+            if y < 0 or y >= self.world_h:
+                continue
+            for dx in range(-radius, radius + 1):
+                x = cx + dx
+                if x < 0 or x >= self.world_w:
+                    continue
+                if dx * dx + dy * dy <= r2:
+                    self.fog[y][x] = FOG_VISIBLE
+
+    def map_percent(self):
+        seen = sum(1 for row in self.fog for v in row if v != FOG_UNSEEN)
+        return int(seen * 100 / (self.world_w * self.world_h))
+
+    # ---------------------- movement ----------------------
+
+    def tile_free(self, x, y):
+        if not (0 <= x < self.world_w and 0 <= y < self.world_h):
+            return False
+        return self.grid[y][x] != WALL
+
+    def try_move_player(self, dx, dy):
+        nx, ny = self.px + dx, self.py + dy
+        if self.tile_free(nx, ny):
+            self.px, self.py = nx, ny
+            self.reveal(self.px, self.py, PLAYER_VISION)
+
+    # ---------------------- marker AI ----------------------
+
+    def _marker_patrol(self, m):
+        if m.patrol_target is None or (m.x, m.y) == m.patrol_target or random.random() < 0.03:
+            rx = m.spawn_x + random.randint(-m.patrol_radius, m.patrol_radius)
+            ry = m.spawn_y + random.randint(-m.patrol_radius, m.patrol_radius)
+            rx = max(1, min(self.world_w - 2, rx))
+            ry = max(1, min(self.world_h - 2, ry))
+            m.patrol_target = (rx, ry)
+        if random.random() < 0.5:
+            m.x, m.y = mapgen.move_towards(self.grid, self.world_w, self.world_h,
+                                            m.x, m.y, *m.patrol_target, self.tile_free)
+
+    def _tick_markers(self):
+        for m in self.markers:
+            if not m.alive:
+                continue
+            dx, dy = self.px - m.x, self.py - m.y
+            dist2 = dx * dx + dy * dy
+            sees = dist2 <= m.vision * m.vision and mapgen.line_of_sight(self.grid, m.x, m.y, self.px, self.py)
+
+            if sees:
+                if not m.alert:
+                    tier_name = TIER_DISPLAY_NAMES.get(m.tier, m.tier.title())
+                    self.log(f"! A hostile squad ({tier_name}) spots the fireteam.")
+                m.alert = True
+                m.alert_timer = ALERT_PERSIST_TICKS
+            elif m.alert:
+                m.alert_timer -= 1
+                if m.alert_timer <= 0:
+                    m.alert = False
+
+            if m.alert:
+                m.x, m.y = mapgen.move_towards(self.grid, self.world_w, self.world_h,
+                                                m.x, m.y, self.px, self.py, self.tile_free)
+            else:
+                self._marker_patrol(m)
+
+            if max(abs(self.px - m.x), abs(self.py - m.y)) <= 1:
+                self.pending_encounter = m
+                return
+
+    # ---------------------- tick update ----------------------
+
+    def _regen_party(self):
+        for p in self.party:
+            if p.alive and p.necro_load > 0:
+                p.necro_load = max(0, p.necro_load - NECRO_OVERWORLD_DECAY_PER_TICK)
+
+    def update(self):
+        self.tick += 1
+        self._regen_party()
+        if self.pending_encounter is not None:
+            return
+        self._tick_markers()
+        if self.pending_encounter is not None:
+            return
+        if (self.px, self.py) == self.exfil_pos:
+            self.result = "extracted"
+            self.running = False
+            return
+        if self.markers and all(not m.alive for m in self.markers):
+            self.result = "extracted"
+            self.running = False
+
+    # ---------------------- camera ----------------------
+
+    def viewport_size(self):
+        max_y, max_x = self.stdscr.getmaxyx()
+        view_w = max(10, max_x - SIDEBAR_W - 1)
+        view_h = max(5, max_y - TOP_H - BOTTOM_H)
+        return view_w, view_h
+
+    def _recenter_camera(self, force=False):
+        view_w, view_h = self.viewport_size()
+        margin = 5
+        if force:
+            self.camera_x = max(0, min(max(0, self.world_w - view_w), self.px - view_w // 2))
+            self.camera_y = max(0, min(max(0, self.world_h - view_h), self.py - view_h // 2))
+            return
+        if self.px < self.camera_x + margin:
+            self.camera_x = max(0, self.px - margin)
+        elif self.px > self.camera_x + view_w - margin:
+            self.camera_x = self.px - view_w + margin
+        if self.py < self.camera_y + margin:
+            self.camera_y = max(0, self.py - margin)
+        elif self.py > self.camera_y + view_h - margin:
+            self.camera_y = self.py - view_h + margin
+        self.camera_x = max(0, min(max(0, self.world_w - view_w), self.camera_x))
+        self.camera_y = max(0, min(max(0, self.world_h - view_h), self.camera_y))
+
+    # ---------------------- rendering ----------------------
+
+    def draw(self):
+        self.stdscr.erase()
+        max_y, max_x = self.stdscr.getmaxyx()
+        if max_y < MIN_TERM_H or max_x < MIN_TERM_W:
+            msg = f"Terminal too small ({max_x}x{max_y}). Need at least {MIN_TERM_W}x{MIN_TERM_H}."
+            ui.safe_addstr(self.stdscr, 0, 0, msg, curses.color_pair(ui.PAIR_DANGER))
+            self.stdscr.refresh()
+            return
+
+        self._recenter_camera()
+        view_w, view_h = self.viewport_size()
+
+        self._draw_topbar(max_x)
+        self._draw_map(view_w, view_h)
+        self._draw_sidebar(view_w, view_h)
+        self._draw_bottombar(view_h, max_x)
+
+        self.stdscr.refresh()
+
+    def _draw_topbar(self, max_x):
+        elapsed = self.tick * TICK_MS // 1000
+        alive_squads = sum(1 for m in self.markers if m.alive)
+        left = (f"{self.level['name'].upper()} // SQUADS:{alive_squads}  "
+                f"T+{elapsed // 60:02d}:{elapsed % 60:02d}")
+        ui.safe_addstr(self.stdscr, 0, 0, left, curses.color_pair(ui.PAIR_HUD))
+        right = f"Map: {self.map_percent()}%"
+        ui.safe_addstr(self.stdscr, 0, max(0, max_x - len(right)), right,
+                        curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+
+    def _draw_map(self, view_w, view_h):
+        for sy in range(view_h):
+            wy = self.camera_y + sy
+            if wy >= self.world_h:
+                break
+            for sx in range(view_w):
+                wx = self.camera_x + sx
+                if wx >= self.world_w:
+                    break
+                fog = self.fog[wy][wx]
+                if fog == FOG_UNSEEN:
+                    continue
+                tile = self.grid[wy][wx]
+                dim = curses.A_DIM if fog == FOG_EXPLORED else 0
+                if tile == WALL:
+                    ui.safe_addch(self.stdscr, sy + TOP_H, sx, WALL, curses.color_pair(ui.PAIR_WALL) | dim)
+                elif tile == DOOR:
+                    ui.safe_addch(self.stdscr, sy + TOP_H, sx, DOOR, curses.color_pair(ui.PAIR_DOOR) | curses.A_BOLD | dim)
+                elif tile == RUBBLE:
+                    ui.safe_addch(self.stdscr, sy + TOP_H, sx, RUBBLE, curses.color_pair(ui.PAIR_WALL) | dim)
+                elif tile == GRASS:
+                    ui.safe_addch(self.stdscr, sy + TOP_H, sx, GRASS, curses.color_pair(ui.PAIR_GRASS) | dim)
+                else:
+                    ui.safe_addch(self.stdscr, sy + TOP_H, sx, FLOOR, curses.color_pair(ui.PAIR_FLOOR) | dim)
+
+        ex, ey = self.exfil_pos
+        if self.fog[ey][ex] != FOG_UNSEEN:
+            sx, sy = ex - self.camera_x, ey - self.camera_y
+            if 0 <= sx < view_w and 0 <= sy < view_h:
+                ui.safe_addch(self.stdscr, sy + TOP_H, sx, EXFIL_SYMBOL, curses.color_pair(ui.PAIR_EXFIL) | curses.A_BOLD)
+
+        for m in self.markers:
+            if not m.alive or self.fog[m.y][m.x] != FOG_VISIBLE:
+                continue
+            sx, sy = m.x - self.camera_x, m.y - self.camera_y
+            if 0 <= sx < view_w and 0 <= sy < view_h:
+                pair = ui.PAIR_ELITE if m.boss else (ui.PAIR_NECRO if m.weapon == WEAPON_NECRO else ui.PAIR_VAPOR)
+                attr = curses.color_pair(pair) | curses.A_BOLD
+                if m.alert:
+                    attr |= curses.A_REVERSE
+                glyph = "H" if m.boss else "S"
+                ui.safe_addch(self.stdscr, sy + TOP_H, sx, glyph, attr)
+
+        sx, sy = self.px - self.camera_x, self.py - self.camera_y
+        if 0 <= sx < view_w and 0 <= sy < view_h:
+            ui.safe_addch(self.stdscr, sy + TOP_H, sx, "@", curses.color_pair(ui.PAIR_PLAYER) | curses.A_BOLD)
+
+    def _draw_sidebar(self, view_w, view_h):
+        col = view_w + 1
+        row = TOP_H
+        ui.safe_addstr(self.stdscr, row, col, "-- FIRETEAM --", curses.color_pair(ui.PAIR_HUD))
+        row += 2
+        for p in self.party:
+            tag = "" if p.alive else " [DOWN]"
+            ui.safe_addstr(self.stdscr, row, col, f"{p.name}{tag}"[:SIDEBAR_W - 1],
+                            curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+            row += 1
+            hb, hp_pair = ui.bar(p.hp / p.max_hp if p.max_hp else 0, 16)
+            ui.safe_addstr(self.stdscr, row, col, f"HP [{hb}] {p.hp:3d}/{p.max_hp}", curses.color_pair(hp_pair))
+            row += 1
+            sb, _ = ui.bar(p.sc / p.max_sc if p.max_sc else 0, 16)
+            ui.safe_addstr(self.stdscr, row, col, f"SC [{sb}] {p.sc:3d}/{p.max_sc}", curses.color_pair(ui.PAIR_ACCENT))
+            row += 1
+            nb, n_pair = ui.bar(p.necro_load / NECRO_LOAD_CAP, 16, invert=True)
+            ui.safe_addstr(self.stdscr, row, col, f"NL [{nb}] {p.necro_load:3d}", curses.color_pair(n_pair))
+            row += 2
+
+        ui.safe_addstr(self.stdscr, row, col, "-- INVENTORY --", curses.color_pair(ui.PAIR_HUD))
+        row += 1
+        for name, count in self.inventory.items.items():
+            ui.safe_addstr(self.stdscr, row, col, f"{name}: {count}", curses.A_DIM)
+            row += 1
+        row += 1
+        ui.safe_addstr(self.stdscr, row, col, "-- KEY --", curses.color_pair(ui.PAIR_HUD))
+        row += 1
+        ui.safe_addstr(self.stdscr, row, col, "S hostile squad  H site boss", curses.A_DIM)
+        row += 1
+        ui.safe_addstr(self.stdscr, row, col, "X extraction point", curses.color_pair(ui.PAIR_EXFIL))
+
+    def _draw_bottombar(self, view_h, max_x):
+        y = TOP_H + view_h
+        controls = "Move: WASD/Arrows   Contact with S/H starts a fight   Q: abort"
+        ui.safe_addstr(self.stdscr, y, 0, controls[:max_x], curses.color_pair(ui.PAIR_HUD))
+        for i, msg in enumerate(self.messages):
+            ui.safe_addstr(self.stdscr, y + 1 + i, 0, msg[:max_x], curses.color_pair(ui.PAIR_WARN))
+
+    # ---------------------- input ----------------------
+
+    def handle_key(self, key):
+        moves = {
+            ord('w'): (0, -1), curses.KEY_UP: (0, -1),
+            ord('s'): (0, 1), curses.KEY_DOWN: (0, 1),
+            ord('a'): (-1, 0), curses.KEY_LEFT: (-1, 0),
+            ord('d'): (1, 0), curses.KEY_RIGHT: (1, 0),
+        }
+        if key in moves:
+            self.try_move_player(*moves[key])
+            return
+        if key in (ord('q'), ord('Q')):
+            self.running = False
+            self.result = "aborted"
+
+    # ---------------------- main loop ----------------------
+
+    def tick_once(self):
+        self.draw()
+        key = self.stdscr.getch()
+        if key == curses.KEY_RESIZE:
+            pass
+        elif key != -1:
+            self.handle_key(key)
+        self.update()
+
+</script>
+<script type="text/x-python" id="py-tdfif-app">
+"""Phase machine: splash -> mission select -> codec briefing -> overworld
+<-> battle -> end -> back to mission select. Mirrors TDF's App class."""
+
+import random
+
+import curses
+
+from . import constants as C
+from . import ui
+from .battle import Battle
+from .battle_ui import BattleUI
+from .overworld import Overworld
+from .party import Inventory, new_squad
+
+
+class App:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+        self.phase = "splash"
+        self.mission_index = 0
+        self.max_unlocked = 0        # highest site index the player may deploy to
+        self.mission_status_msg = ""
+        self.mission_status_ticks = 0
+        self.briefing_theme = None
+        self.briefing_index = 0
+
+        self.party = None
+        self.inventory = None
+        self.overworld = None
+        self.battle = None
+        self.battle_ui = None
+        self.battle_marker = None
+        self.end_headline = ""
+        self.end_lines = []
+
+        self.done = False
+        stdscr.timeout(120)
+
+    # ---------------------- transitions ----------------------
+
+    def _begin_briefing(self):
+        self.briefing_theme = random.choice(C.CODEC_THEMES)
+        self.briefing_index = 0
+        self.phase = "briefing"
+
+    def _attempt_deploy(self, idx):
+        self.mission_index = idx
+        if idx <= self.max_unlocked:
+            self._begin_briefing()
+            return
+        prev_name = C.LEVELS[idx - 1]["name"]
+        self.mission_status_msg = f"LOCKED - complete {prev_name} first."
+        self.mission_status_ticks = 30
+
+    def _start_mission(self):
+        self.party = new_squad()
+        self.inventory = Inventory()
+        self.overworld = Overworld(self.stdscr, C.LEVELS[self.mission_index], self.party, self.inventory)
+        self.phase = "overworld"
+
+    def _start_battle(self, marker):
+        self.battle_marker = marker
+        enemies = marker.build_battle_squad()
+        self.battle = Battle(self.party, enemies, inventory=self.inventory)
+        self.battle_ui = BattleUI(self.battle)
+        self.overworld.pending_encounter = None
+        self.phase = "battle"
+
+    def _resolve_battle(self):
+        result = self.battle.result
+        marker = self.battle_marker
+        if result == "won":
+            marker.alive = False
+            tier_name = C.TIER_DISPLAY_NAMES.get(marker.tier, marker.tier.title())
+            self.overworld.log(f"{tier_name} hostile squad down.")
+        elif result == "fled":
+            self.overworld.relocate_marker_away(marker)
+            self.overworld.log("Fireteam breaks contact.")
+
+        self.battle = None
+        self.battle_ui = None
+        self.battle_marker = None
+
+        if result == "lost":
+            self._end_mission("lost")
+            return
+
+        self.phase = "overworld"
+        if self.overworld.markers and all(not m.alive for m in self.overworld.markers):
+            self.overworld.result = "extracted"
+            self.overworld.running = False
+
+    def _end_mission(self, reason):
+        if reason == "extracted":
+            self.end_headline = "MISSION COMPLETE"
+            self.end_lines = ["Fireteam extracted clean.",
+                               f"Map explored: {self.overworld.map_percent() if self.overworld else 0}%"]
+            if self.mission_index >= self.max_unlocked and self.mission_index + 1 < len(C.LEVELS):
+                self.max_unlocked = self.mission_index + 1
+                self.end_lines.append(f"Site unlocked: {C.LEVELS[self.max_unlocked]['name']}.")
+        elif reason == "aborted":
+            self.end_headline = "MISSION ABORTED"
+            self.end_lines = ["Fireteam pulled out early."]
+        else:
+            self.end_headline = "FIRETEAM DOWN"
+            self.end_lines = ["Necrotic overload across the squad. Nobody left standing to extract."]
+        self.overworld = None
+        self.battle = None
+        self.battle_ui = None
+        self.battle_marker = None
+        self.phase = "end"
+
+    # ---------------------- per-frame step ----------------------
+
+    def step(self):
+        if self.phase == "splash":
+            ui.draw_splash(self.stdscr)
+            if self.stdscr.getch() != -1:
+                self.phase = "mission"
+
+        elif self.phase == "mission":
+            status = self.mission_status_msg if self.mission_status_ticks > 0 else None
+            ui.draw_mission_select(self.stdscr, self.mission_index, self.max_unlocked, status)
+            if self.mission_status_ticks > 0:
+                self.mission_status_ticks -= 1
+            key = self.stdscr.getch()
+            if key in (curses.KEY_UP, ord('w'), ord('W')):
+                self.mission_index = (self.mission_index - 1) % len(C.LEVELS)
+            elif key in (curses.KEY_DOWN, ord('s'), ord('S')):
+                self.mission_index = (self.mission_index + 1) % len(C.LEVELS)
+            elif key in (10, 13, curses.KEY_ENTER):
+                self._attempt_deploy(self.mission_index)
+            elif key in (ord('q'), ord('Q')):
+                self.phase = "closed"
+                self.done = True
+            elif key != -1 and ord('1') <= key <= ord(str(len(C.LEVELS))):
+                self._attempt_deploy(key - ord('1'))
+
+        elif self.phase == "briefing":
+            ui.draw_codec(self.stdscr, self.briefing_theme, self.briefing_index)
+            key = self.stdscr.getch()
+            if key != -1:
+                self.briefing_index += 1
+                if self.briefing_index >= len(self.briefing_theme["lines"]):
+                    self._start_mission()
+
+        elif self.phase == "overworld":
+            self.overworld.tick_once()
+            if self.overworld.pending_encounter is not None:
+                self._start_battle(self.overworld.pending_encounter)
+            elif not self.overworld.running:
+                self._end_mission(self.overworld.result)
+
+        elif self.phase == "battle":
+            key = self.stdscr.getch()
+            if key != -1 and key != curses.KEY_RESIZE:
+                self.battle_ui.handle_key(key)
+            self.battle_ui.draw(self.stdscr)
+            if self.battle.phase == "done":
+                self._resolve_battle()
+
+        elif self.phase == "end":
+            self._draw_end()
+            if self.stdscr.getch() != -1:
+                self.phase = "mission"
+
+        elif self.phase == "closed":
+            ui.draw_closed(self.stdscr)
+
+    def _draw_end(self):
+        self.stdscr.erase()
+        lines = [self.end_headline, ""] + self.end_lines + ["", "Press any key to continue..."]
+        for i, line in enumerate(lines):
+            ui.safe_addstr(self.stdscr, i, 0, line, curses.color_pair(ui.PAIR_HUD) | curses.A_BOLD)
+        self.stdscr.refresh()
+
+    def run_blocking(self):
+        while not self.done:
+            self.step()
+
+
+def main(stdscr):
+    curses.curs_set(0)
+    stdscr.keypad(True)
+    ui.init_colors()
+    App(stdscr).run_blocking()
+
+</script>
+<script type="text/x-python" id="py-bridge">
+"""
+TDFIF web bridge.
+
+By the time this runs, the boot script has already written every
+tdfif/*.py file into Pyodide's virtual filesystem and put its parent
+directory on sys.path, so `import tdfif` here is a completely ordinary
+package import - relative imports inside tdfif/*.py (from . import
+constants, etc.) work exactly as they do under the real interpreter.
+'curses' in sys.modules is the web_curses shim, registered before that
+import happened.
+
+TDFIF is a menu-driven turn-based game, not a real-time one, but the
+overworld phase still runs on a tick loop (guard patrol/alert AI), so
+this bridge is shaped the same way TDF's is: push a keystroke, advance
+exactly one App.step(), read back the rendered screen. There's no
+curses.wrapper() call here - the web build owns the tick loop itself
+(see web_tick()), so it drives App.step() directly instead of going
+through App/run.py's blocking run_blocking().
+"""
+import json
+import sys
+
+curses = sys.modules["curses"]
+
+from tdfif import overworld as tdfif_overworld
+from tdfif import ui as tdfif_ui
+from tdfif.app import App
+
+_screen = curses.Screen(cols=120, rows=40)
+tdfif_ui.init_colors()
+_app = App(_screen)
+
+# The web build runs at 2.5x TDFIF's own overworld tick rate. This only
+# changes how often the JS timer calls web_tick() (see web_tick_ms()
+# below) - the standalone curses build still paces itself off
+# overworld.TICK_MS directly and is untouched by this.
+WEB_TICK_SPEEDUP = 2.5
+
+
+def web_min_size():
+    return json.dumps({"cols": tdfif_overworld.MIN_TERM_W, "rows": tdfif_overworld.MIN_TERM_H})
+
+
+def web_tick_ms():
+    return tdfif_overworld.TICK_MS / WEB_TICK_SPEEDUP
+
+
+def web_resize(cols, rows):
+    _screen.resize(cols, rows)
+
+
+def web_key(code):
+    _screen.push_key(code)
+
+
+def web_tick():
+    _app.step()
+    return json.dumps(_screen.render_rows())
+
+</script>
+
+<script>
+/* ============================================================== bootstrap */
+// To play fully offline / self-hosted: download a Pyodide release
+// (https://github.com/pyodide/pyodide/releases -> pyodide-0.26.4.tar.bz2),
+// unpack it next to this file as ./pyodide/, and change PYODIDE_BASE to "./pyodide/".
+const PYODIDE_BASE = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+
+const LOAD_MODULE_SRC = `
+import sys, types
+def _load_module(name, source):
+    mod = types.ModuleType(name)
+    exec(compile(source, name, "exec"), mod.__dict__)
+    sys.modules[name] = mod
+    return mod
+`;
+
+// TDFIF is a real package (relative imports throughout), unlike TDF's
+// single-file game - so instead of exec'ing each module as a flat blob,
+// every file gets written into Pyodide's virtual filesystem as a real
+// tdfif/*.py, and `import tdfif.app` below is a completely ordinary
+// package import that resolves those relative imports itself.
+const TDFIF_MODULES = [
+  ["init", "__init__.py"],
+  ["constants", "constants.py"],
+  ["mapgen", "mapgen.py"],
+  ["party", "party.py"],
+  ["enemies", "enemies.py"],
+  ["battle", "battle.py"],
+  ["ui", "ui.py"],
+  ["battle_ui", "battle_ui.py"],
+  ["overworld", "overworld.py"],
+  ["app", "app.py"],
+];
+
+let webTick, webKey, webResize, webMinSize, webTickMs;
+
+async function boot() {
+  const s = document.createElement("script");
+  s.src = PYODIDE_BASE + "pyodide.js";
+  s.onload = async () => {
+    try {
+      const py = await loadPyodide({ indexURL: PYODIDE_BASE });
+      py.runPython(LOAD_MODULE_SRC);
+      const loadModule = py.globals.get("_load_module");
+      loadModule("curses", document.getElementById("py-curses").textContent);
+      loadModule.destroy();
+
+      py.FS.mkdirTree("/tdfif_pkg/tdfif");
+      for (const [id, file] of TDFIF_MODULES) {
+        const src = document.getElementById("py-tdfif-" + id).textContent;
+        py.FS.writeFile(`/tdfif_pkg/tdfif/${file}`, src);
+      }
+      py.runPython("import sys\nsys.path.insert(0, '/tdfif_pkg')\n");
+
+      py.runPython(document.getElementById("py-bridge").textContent);
+
+      webTick = py.globals.get("web_tick");
+      webKey = py.globals.get("web_key");
+      webResize = py.globals.get("web_resize");
+      webMinSize = py.globals.get("web_min_size");
+      webTickMs = py.globals.get("web_tick_ms")();
+
+      startGame();
+    } catch (err) {
+      document.getElementById("boot").textContent =
+        "Boot failed: " + err + "\n(see the browser console for details).";
+    }
+  };
+  s.onerror = () => {
+    document.getElementById("boot").textContent =
+      "Could not load the Python runtime. If you are offline, vendor Pyodide " +
+      "locally (see the comment at the top of this file's script).";
+  };
+  document.head.appendChild(s);
+}
+
+/* ============================================================== terminal grid */
+const $viewport = document.getElementById("viewport");
+const $term = document.getElementById("term");
+const $focushint = document.getElementById("focushint");
+const $boot = document.getElementById("boot");
+
+let cellW = 8, cellH = 16;
+let cols = 120, rows = 40;
+
+function measureCell() {
+  const probe = document.createElement("div");
+  probe.className = "row";
+  probe.style.visibility = "hidden";
+  probe.style.position = "absolute";
+  probe.textContent = "M".repeat(80);
+  $term.appendChild(probe);
+  const r = probe.getBoundingClientRect();
+  $term.removeChild(probe);
+  return { w: r.width / 80, h: r.height };
+}
+
+function layout() {
+  const cell = measureCell();
+  cellW = cell.w || cellW;
+  cellH = cell.h || cellH;
+  const avail = $viewport.getBoundingClientRect();
+  let minCols = 92, minRows = 27;
+  try {
+    const m = JSON.parse(webMinSize());
+    minCols = m.cols; minRows = m.rows;
+  } catch (e) { /* pre-boot; use defaults */ }
+  cols = Math.max(minCols, Math.floor((avail.width - 12) / cellW));
+  rows = Math.max(minRows, Math.floor((avail.height - 8) / cellH));
+  if (webResize) webResize(cols, rows);
+}
+
+const esc = t => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function renderScreen(json) {
+  const view = JSON.parse(json);
+  let html = "";
+  for (const runs of view.data) {
+    html += '<div class="row">';
+    for (const [text, fg, bg, bold, dim] of runs) {
+      let style = `color:${fg}`;
+      if (bg) style += `;background:${bg}`;
+      if (bold) style += ";font-weight:700";
+      if (dim) style += ";opacity:.6";
+      html += `<span style="${style}">${esc(text)}</span>`;
+    }
+    html += "</div>";
+  }
+  $term.innerHTML = html;
+}
+
+function tickLoop() {
+  renderScreen(webTick());
+}
+
+function startGame() {
+  $boot.remove();
+  $viewport.style.display = "block";
+  layout();
+  $viewport.focus();
+  setInterval(tickLoop, webTickMs);
+  window.addEventListener("resize", () => layout());
+}
+
+/* ============================================================== input */
+const KEYMAP = {
+  ArrowUp: 1001, ArrowDown: 1002, ArrowLeft: 1003, ArrowRight: 1004,
+};
+
+function keyToCode(e) {
+  if (KEYMAP[e.key] !== undefined) return KEYMAP[e.key];
+  if (e.key === "Enter") return 10;
+  if (e.key === "Escape") return 27;
+  if (e.key === "Backspace") return 8;
+  if (e.key === " ") return 32;
+  if (e.key.length === 1) return e.key.charCodeAt(0);
+  return null;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const code = keyToCode(e);
+  if (code === null || !webKey) return;
+  e.preventDefault();
+  $focushint.classList.add("hidden");
+  webKey(code);
+});
+
+// TDFIF has no mouse input (WASD/arrows to move, Enter/Space to confirm
+// in menus) - clicking the viewport only needs to grab keyboard focus
+// and dismiss the hint.
+$viewport.addEventListener("mousedown", () => {
+  $focushint.classList.add("hidden");
+  $viewport.focus();
+});
+$focushint.addEventListener("click", () => {
+  $focushint.classList.add("hidden");
+  $viewport.focus();
+});
+
+boot();
+</script>
+</body>
+</html>
