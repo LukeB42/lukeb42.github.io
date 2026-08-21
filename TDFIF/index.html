@@ -2201,7 +2201,17 @@ class App:
             self.overworld.running = False
 
     def _end_mission(self, reason):
-        if reason == "extracted":
+        if reason == "extracted" and self.mission_index == len(C.LEVELS) - 1:
+            self.end_headline = "TOUR DE FORCE COMPLETE"
+            self.end_lines = [
+                f"{C.LEVELS[self.mission_index]['name']} is down. Every site on the list, cleared.",
+                "Congratulations - four new bodies are already printing, flesh and blood",
+                "this time, not swarm. The suits power down for good and go back in the crate.",
+                f"{', '.join(C.SQUAD_NAMES[:-1])}, and {C.SQUAD_NAMES[-1]}: welcome back.",
+                "Go live a life nobody at DISA will ever admit you were away from.",
+                f"Map explored: {self.overworld.map_percent() if self.overworld else 0}%",
+            ]
+        elif reason == "extracted":
             self.end_headline = "MISSION COMPLETE"
             self.end_lines = ["Fireteam extracted clean.",
                                f"Map explored: {self.overworld.map_percent() if self.overworld else 0}%"]
