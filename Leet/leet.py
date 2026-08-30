@@ -1,0 +1,2517 @@
+#!/usr/bin/env python3
+"""
+L.E.E.T. - a terminal-based tribute to Elite.
+
+You are an independent commander with a leased freighter, a handful of
+credits, and a galaxy of procedurally generated systems to make a living
+in. Dock at stations to trade commodities, refit your ship, take on
+delivery and bounty contracts, and build a combat reputation - or fly out
+into the black and get yourself killed by pirates. Nothing here saves
+your hand for you.
+
+Controls:
+    In flight (full 3D, first-person cockpit view - real Elite style:
+    no yaw, you roll then pitch to turn, and throttle sets a cruising
+    speed rather than free thrust):
+        Mouse               - the ship's nose homes onto wherever the
+                              cursor is pointing, and settles once it
+                              gets there (also auto-levels roll while
+                              doing so). C toggles between two modes:
+                                Seek Cursor - only homes while you hold
+                                       the left button and drag it
+                                       (default; reliable everywhere,
+                                       like the RTS's drag-select)
+                                Auto Seek Cursor - homes continuously,
+                                       no button needed - depends on the
+                                       terminal forwarding plain cursor
+                                       motion, which not all do; falls
+                                       back to Seek Cursor's behavior if
+                                       your terminal doesn't support it
+        Left/Right          - roll
+        Up/Down             - pitch
+        .  /  ,             - throttle up / down (holds past zero into
+                              a slower reverse)
+        Space               - fire laser
+        M                   - fire missile at locked target
+        Tab                 - cycle target lock
+        E                   - fire ECM burst (jams nearby missiles)
+        D                   - request docking (must be close & slow, or
+                              let a docking computer do it automatically)
+        G                   - open the galaxy map
+        Q                   - pause menu (save / quit to title)
+        ?                   - help overlay
+
+    Galaxy map:
+        Up/Down             - cycle nearby systems by distance
+        Enter / J           - jump to selected system (consumes fuel)
+        G / Esc             - close map
+
+    Docked at a station:
+        Up/Down, Enter       - navigate menus
+        Esc                  - back out one level
+        Market screen: Up/Down select commodity, B buy, S sell, type a
+        quantity and Enter to confirm, Esc to cancel the amount.
+"""
+
+import curses
+import json
+import math
+import os
+import random
+
+os.environ.setdefault("ESCDELAY", "25")
+from collections import deque
+from dataclasses import dataclass, field
+
+# --------------------------------------------------------------------------
+# Layout / timing
+# --------------------------------------------------------------------------
+
+GAME_TITLE = "L.E.E.T."
+SAVE_PATH = os.path.expanduser("~/.leet_save.json")
+
+SIDEBAR_W = 24
+TOP_H = 1
+BOTTOM_H = 4
+MIN_TERM_W = 92
+MIN_TERM_H = 30
+
+TICK_MS = 80
+
+# --------------------------------------------------------------------------
+# Space / physics constants
+# --------------------------------------------------------------------------
+
+# LOCAL_SPACE is the flyable cube's extent - big enough that its edges are
+# basically never encountered in normal play. Everything gameplay actually
+# touches (station, star, jump arrival, NPC traffic) lives in a fixed-size
+# "activity bubble" around the station instead of scaling with this, so
+# widening the cube doesn't spread the world thinner or make anything
+# harder to find - it just gives roll/pitch room to breathe in every axis.
+LOCAL_SPACE = 8000.0
+STATION_POS = (LOCAL_SPACE / 2.0, LOCAL_SPACE / 2.0, LOCAL_SPACE / 2.0)
+STAR_POS = (STATION_POS[0] - 1300.0, STATION_POS[1] - 900.0, STATION_POS[2] - 750.0)
+STAR_HAZARD_RADIUS = 70.0
+STAR_SCOOP_RADIUS = 240.0
+
+DOCK_RANGE = 45.0
+DOCK_MAX_SPEED = 12.0
+NO_JUMP_RANGE = 60.0  # can't open a hyperspace jump this close to the station
+
+ARRIVAL_DISTANCE = 1600.0        # how far a hyperspace jump drops you from the station
+NPC_SPAWN_MIN = 200.0
+NPC_SPAWN_MAX = 1400.0
+STARFIELD_HALF = 3900.0          # background stars scatter within this of the station
+STARFIELD_COUNT = 2200
+REVERSE_FRACTION = 0.3           # max reverse throttle, as a fraction of forward top speed
+
+VIEW_RANGE = 2400.0     # nothing is drawn past this distance
+NEAR_PLANE = 3.0        # geometry closer than this (or behind) the camera is clipped
+PROJ_SCALE_X = 46.0
+PROJ_SCALE_Y = 23.0     # ~half of X: terminal cells are roughly twice as tall as wide
+
+SCANNER_RANGE = 2200.0
+SCANNER_W = 17
+SCANNER_H = 9
+
+DETECT_RANGE = 520.0
+LASER_CONE = math.radians(12)
+MISSILE_SPEED = 9.0
+MISSILE_TURN = 0.12
+MISSILE_LIFE_TICKS = 130
+MISSILE_DAMAGE = 55
+MISSILE_HIT_RADIUS = 20.0
+ECM_RADIUS = 260.0
+LASER_FX_TICKS = 6      # how long a laser tracer stays drawn after firing
+MISSILE_TRAIL_LEN = 22.0  # length of the exhaust streak drawn behind a missile
+# The camera itself always projects to dead center - a beam that starts (and,
+# on a miss, ends) exactly there collapses to a single pixel under the
+# crosshair and gets drawn over by it. Firing from a muzzle point offset
+# below/ahead of the eye avoids that degenerate case entirely.
+LASER_MUZZLE_OFFSET = (0.0, -8.0, 8.0)  # (right, up, forward) in ship-local space
+
+MAX_NPCS = 7
+
+# --------------------------------------------------------------------------
+# Galaxy generation constants
+# --------------------------------------------------------------------------
+
+GALAXY_W = 120.0
+GALAXY_H = 80.0
+N_SYSTEMS = 60
+MIN_SYS_SEP = 3.5
+
+_SYLL_A = ["Lav", "Za", "Di", "Ri", "Er", "Al", "Mor", "Ke", "Xer", "Ve",
+           "Bel", "Cor", "Ny", "Or", "Ta", "Fen", "Gal", "Hu", "In", "Ju",
+           "Sol", "Nir", "Os", "Pra", "Quel", "Rho", "Sy", "Ust", "Vor", "Wex"]
+_SYLL_B = ["a", "e", "o", "en", "an", "ar", "or", "un", "in", "ae",
+           "is", "os", "ir", "ol", "ux", "yn", "ea", "ou", "av", "im"]
+_SYLL_C = ["ce", "th", "ra", "nor", "dis", "mos", "ric", "ka", "vor", "za",
+           "lia", "tion", "gard", "heim", "ton", "burg", "ark", "eon", "iss", "ux"]
+
+# --------------------------------------------------------------------------
+# Commodities
+# --------------------------------------------------------------------------
+
+COMMODITIES = [
+    dict(name="Food",           unit="t", base=12,  cat="agri"),
+    dict(name="Textiles",       unit="t", base=18,  cat="agri"),
+    dict(name="Liquor & Wines", unit="t", base=55,  cat="agri"),
+    dict(name="Furs",           unit="t", base=140, cat="agri"),
+    dict(name="Machinery",      unit="t", base=90,  cat="industrial"),
+    dict(name="Alloys",         unit="t", base=65,  cat="industrial"),
+    dict(name="Robots",         unit="t", base=180, cat="industrial"),
+    dict(name="Computers",      unit="t", base=210, cat="tech"),
+    dict(name="Luxuries",       unit="t", base=320, cat="tech"),
+    dict(name="Gem-Stones",     unit="t", base=520, cat="tech"),
+    dict(name="Minerals",       unit="t", base=28,  cat="mineral"),
+    dict(name="Radioactives",   unit="t", base=48,  cat="mineral"),
+    dict(name="Gold",           unit="t", base=440, cat="mineral"),
+    dict(name="Platinum",       unit="t", base=680, cat="mineral"),
+    dict(name="Narcotics",      unit="t", base=380, cat="illegal", illegal=True),
+    dict(name="Firearms",       unit="t", base=260, cat="illegal", illegal=True),
+    dict(name="Alien Items",    unit="t", base=900, cat="rare"),
+]
+for _c in COMMODITIES:
+    _c.setdefault("illegal", False)
+COMMODITY_NAMES = [c["name"] for c in COMMODITIES]
+COMMODITY_BY_NAME = {c["name"]: c for c in COMMODITIES}
+
+ECONOMY_TYPES = ["Agricultural", "Industrial", "High Tech", "Extraction", "Rich", "Poor"]
+ECONOMY_MULT = {
+    "Agricultural": {"agri": 0.6,  "industrial": 1.3, "tech": 1.5,  "mineral": 1.1,  "illegal": 1.0, "rare": 1.4},
+    "Industrial":   {"agri": 1.3,  "industrial": 0.6, "tech": 1.1,  "mineral": 0.9,  "illegal": 1.0, "rare": 1.2},
+    "High Tech":    {"agri": 1.4,  "industrial": 1.0, "tech": 0.6,  "mineral": 1.2,  "illegal": 0.9, "rare": 0.8},
+    "Extraction":   {"agri": 1.4,  "industrial": 1.1, "tech": 1.5,  "mineral": 0.55, "illegal": 1.1, "rare": 1.3},
+    "Rich":         {"agri": 1.1,  "industrial": 1.0, "tech": 0.85, "mineral": 1.0,  "illegal": 0.8, "rare": 0.7},
+    "Poor":         {"agri": 0.9,  "industrial": 1.0, "tech": 1.3,  "mineral": 1.0,  "illegal": 1.2, "rare": 1.5},
+}
+
+GOVERNMENTS = {
+    "Anarchy":          dict(security=0, pirate=3, tolerance=3),
+    "Feudal":           dict(security=1, pirate=2, tolerance=2),
+    "Multi-Government": dict(security=1, pirate=2, tolerance=2),
+    "Dictatorship":      dict(security=2, pirate=1, tolerance=1),
+    "Communist":        dict(security=2, pirate=1, tolerance=1),
+    "Confederacy":      dict(security=2, pirate=1, tolerance=1),
+    "Democracy":        dict(security=3, pirate=1, tolerance=0),
+    "Corporate State":  dict(security=3, pirate=0, tolerance=0),
+}
+GOVERNMENT_NAMES = list(GOVERNMENTS.keys())
+
+# --------------------------------------------------------------------------
+# Ships
+# --------------------------------------------------------------------------
+
+SHIP_TYPES = {
+    "Shuttle": dict(price=0, cargo=8, fuel=4.0, hull=60, shield=20, speed=26,
+                     accel=3.0, turn=0.24, missiles=0,
+                     desc="A cheap orbital hauler. Barely armed, barely armored."),
+    "Moth": dict(price=8000, cargo=20, fuel=7.0, hull=100, shield=60, speed=32,
+                  accel=4.0, turn=0.28, missiles=2,
+                  desc="Dependable multirole tramp freighter. Most commanders start here."),
+    "Harrier": dict(price=15000, cargo=12, fuel=6.0, hull=90, shield=80, speed=42,
+                     accel=6.0, turn=0.40, missiles=3,
+                     desc="Light interceptor. Fast and vicious, thin on cargo."),
+    "Bulk Trader": dict(price=32000, cargo=60, fuel=9.0, hull=140, shield=70, speed=20,
+                          accel=2.4, turn=0.16, missiles=1,
+                          desc="Slow, fat, and profitable. A flying warehouse."),
+    "Anvil": dict(price=60000, cargo=35, fuel=10.0, hull=220, shield=140, speed=30,
+                    accel=4.2, turn=0.22, missiles=4,
+                    desc="Armored multirole cruiser. Expensive, and worth it."),
+    "Vanguard": dict(price=120000, cargo=25, fuel=12.0, hull=300, shield=220, speed=38,
+                       accel=5.5, turn=0.30, missiles=6,
+                       desc="Top-tier combat frame. If you can afford it, you've made it."),
+}
+SHIP_ORDER = ["Shuttle", "Moth", "Harrier", "Bulk Trader", "Anvil", "Vanguard"]
+
+LASER_STATS = {
+    "Pulse Laser":    dict(dmg=6,  cooldown=4, energy=4,  range=140, price=0),
+    "Mining Laser":   dict(dmg=4,  cooldown=6, energy=3,  range=100, price=2500),
+    "Beam Laser":     dict(dmg=10, cooldown=3, energy=7,  range=160, price=4000),
+    "Military Laser": dict(dmg=18, cooldown=3, energy=12, range=180, price=15000),
+}
+LASER_ORDER = ["Pulse Laser", "Mining Laser", "Beam Laser", "Military Laser"]
+
+EQUIPMENT_CATALOG = {
+    "fuel_scoop":        dict(name="Fuel Scoop",           price=2500, kind="bool",
+                                desc="Scoop fuel from stars and collect cargo canisters."),
+    "ecm":               dict(name="ECM System",           price=6000, kind="bool",
+                                desc="Fire a burst that jams nearby missiles (key: E)."),
+    "docking_computer":  dict(name="Docking Computer",     price=5000, kind="bool",
+                                desc="Docks for you automatically once in range."),
+    "energy_unit":       dict(name="Extra Energy Unit",    price=7000, kind="bool",
+                                desc="Faster shield and weapon energy recharge."),
+    "escape_pod":        dict(name="Escape Pod",           price=3500, kind="bool",
+                                desc="Survive your ship's destruction, once."),
+    "cargo_expansion":   dict(name="Cargo Bay Expansion",  price=3000, kind="stack", max=3, per=10,
+                                desc="+10 cargo capacity, up to 3 times."),
+    "shield_booster":    dict(name="Shield Booster",       price=4500, kind="stack", max=2, per=40,
+                                desc="+40 max shield, up to 2 times."),
+    "missile_pack":      dict(name="Missile (single)",     price=600,  kind="consume",
+                                desc="+1 missile, up to your ship's mounts."),
+}
+EQUIP_ORDER = ["fuel_scoop", "ecm", "docking_computer", "energy_unit", "escape_pod",
+               "cargo_expansion", "shield_booster", "missile_pack"]
+
+RANK_THRESHOLDS = [0, 5, 20, 50, 100, 200, 400, 800, 1600]
+RANK_NAMES = ["Harmless", "Mostly Harmless", "Poor", "Average", "Above Average",
+              "Competent", "Dangerous", "Deadly", "Elite"]
+
+LEGAL_CLEAN, LEGAL_OFFENDER, LEGAL_FUGITIVE = "Clean", "Offender", "Fugitive"
+LEGAL_DECAY_TICKS = 900
+
+CP_PLAYER = 1
+CP_HOSTILE = 2
+CP_NEUTRAL = 3
+CP_HUD = 4
+CP_DANGER = 5
+CP_WARN = 6
+CP_POLICE = 7
+CP_REVERSE = 8
+
+# "Back/cancel" keys, so Q and Backspace work anywhere Esc does (many
+# terminals eat Esc or delay it). CANCEL_KEYS omits Backspace for the two
+# text-entry contexts (commander name, buy/sell quantity) where Backspace
+# already means "delete the last character typed" - remapping it there
+# would make it impossible to fix a typo instead of giving you a second way
+# to cancel.
+CANCEL_KEYS = (27, ord('q'), ord('Q'))
+BACK_KEYS = CANCEL_KEYS + (curses.KEY_BACKSPACE, 127, 8)
+
+
+def clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+
+# --------------------------------------------------------------------------
+# 3D vector math and orientation
+#
+# A ship's orientation is an orthonormal (forward, up, right) basis, with
+# right = cross(up, forward) - the same convention real Elite used, and the
+# one apply_pitch_roll()/derive_basis() below both re-derive from, so a
+# basis built either way is safe to keep composing. Player orientation is
+# stateful (pitch/roll accumulate via keys or mouse, exactly like a flight
+# stick - there is deliberately no yaw control). AI ships instead recompute
+# their basis fresh from "forward" every frame via derive_basis(), which
+# auto-levels them against world-up - simpler than simulating AI roll, and
+# it reads fine since only the player's own roll is ever visible on screen.
+# --------------------------------------------------------------------------
+
+WORLD_UP = (0.0, 1.0, 0.0)
+
+
+def v_add(a, b):
+    return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
+
+
+def v_sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def v_scale(a, s):
+    return (a[0] * s, a[1] * s, a[2] * s)
+
+
+def v_dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def v_cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0])
+
+
+def v_len(a):
+    return math.sqrt(v_dot(a, a))
+
+
+def v_norm(a):
+    l = v_len(a)
+    return (a[0] / l, a[1] / l, a[2] / l) if l > 1e-9 else (0.0, 0.0, 1.0)
+
+
+def random_unit_vector():
+    theta = random.uniform(0, 2 * math.pi)
+    zc = random.uniform(-1.0, 1.0)
+    r = math.sqrt(max(0.0, 1.0 - zc * zc))
+    return (r * math.cos(theta), r * math.sin(theta), zc)
+
+
+def derive_basis(fwd):
+    fwd = v_norm(fwd)
+    ref = WORLD_UP if abs(v_dot(fwd, WORLD_UP)) < 0.999 else (1.0, 0.0, 0.0)
+    right = v_norm(v_cross(ref, fwd))
+    up = v_norm(v_cross(fwd, right))
+    return fwd, up, right
+
+
+def apply_pitch_roll(fwd, up, right, pitch_amt, roll_amt):
+    if pitch_amt:
+        c, s = math.cos(pitch_amt), math.sin(pitch_amt)
+        fwd, up = v_norm(v_add(v_scale(fwd, c), v_scale(up, s))), \
+                  v_norm(v_sub(v_scale(up, c), v_scale(fwd, s)))
+    if roll_amt:
+        c, s = math.cos(roll_amt), math.sin(roll_amt)
+        up, right = v_norm(v_add(v_scale(up, c), v_scale(right, s))), \
+                    v_norm(v_sub(v_scale(right, c), v_scale(up, s)))
+    right = v_norm(v_cross(up, fwd))
+    up = v_norm(v_cross(fwd, right))
+    return fwd, up, right
+
+
+def clip_near(p0, p1, near):
+    z0, z1 = p0[2], p1[2]
+    if z0 >= near and z1 >= near:
+        return p0, p1
+    if z0 < near and z1 < near:
+        return None
+    t = (near - z0) / (z1 - z0)
+    mid = (p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t, near)
+    return (mid, p1) if z0 < near else (p0, mid)
+
+
+def local_to_world(origin, right, up, fwd, local):
+    lx, ly, lz = local
+    return (origin[0] + right[0] * lx + up[0] * ly + fwd[0] * lz,
+            origin[1] + right[1] * lx + up[1] * ly + fwd[1] * lz,
+            origin[2] + right[2] * lx + up[2] * ly + fwd[2] * lz)
+
+
+# --------------------------------------------------------------------------
+# Wireframe models (local space: x=right, y=up, z=forward)
+# --------------------------------------------------------------------------
+
+MODEL_WEDGE = dict(
+    verts=[(0, 0, 16), (-7, -3, -9), (7, -3, -9), (0, 5, -9), (0, -1, -11)],
+    edges=[(0, 1), (0, 2), (0, 3), (1, 2), (2, 3), (3, 1), (1, 4), (2, 4), (3, 4)],
+)
+MODEL_BOX = dict(
+    verts=[(-6, -4, 11), (6, -4, 11), (6, 4, 11), (-6, 4, 11),
+           (-6, -4, -11), (6, -4, -11), (6, 4, -11), (-6, 4, -11)],
+    edges=[(0, 1), (1, 2), (2, 3), (3, 0), (4, 5), (5, 6), (6, 7), (7, 4),
+           (0, 4), (1, 5), (2, 6), (3, 7)],
+)
+MODEL_CROSS = dict(
+    verts=[(0, 0, 18), (0, 0, -18), (-15, 0, -4), (15, 0, -4), (0, 9, -6), (0, -9, -6)],
+    edges=[(0, 1), (2, 3), (4, 5), (0, 2), (0, 3), (0, 4), (0, 5), (1, 2), (1, 3)],
+)
+SHIP_MODEL = {"Shuttle": MODEL_BOX, "Moth": MODEL_WEDGE, "Harrier": MODEL_WEDGE,
+              "Bulk Trader": MODEL_BOX, "Anvil": MODEL_BOX, "Vanguard": MODEL_CROSS}
+
+
+def _build_station_model(radius=90.0, depth=22.0, n=8):
+    verts = [(radius * math.cos(2 * math.pi * i / n), radius * math.sin(2 * math.pi * i / n), depth)
+              for i in range(n)]
+    verts += [(radius * math.cos(2 * math.pi * i / n), radius * math.sin(2 * math.pi * i / n), -depth)
+               for i in range(n)]
+    verts.append((radius * 0.4, 0.0, depth))  # docking slot marker
+    edges = []
+    for i in range(n):
+        edges.append((i, (i + 1) % n))
+        edges.append((n + i, n + (i + 1) % n))
+        edges.append((i, n + i))
+    edges.append((0, 2 * n))
+    return dict(verts=verts, edges=edges, slot_edge_index=len(edges) - 1)
+
+
+STATION_MODEL = _build_station_model()
+
+
+# --------------------------------------------------------------------------
+# Galaxy
+# --------------------------------------------------------------------------
+
+@dataclass
+class System:
+    name: str
+    x: float
+    y: float
+    economy: str
+    government: str
+    tech: int
+    population: str
+    market: dict = field(default_factory=dict)
+    market_last_tick: int = 0
+    visited: bool = False
+    bulletin: list = field(default_factory=list)
+    bulletin_tick: int = -99999
+
+
+def _gen_name(used):
+    for _ in range(50):
+        parts = [random.choice(_SYLL_A), random.choice(_SYLL_B)]
+        if random.random() < 0.6:
+            parts.append(random.choice(_SYLL_C))
+        name = "".join(parts)
+        name = name[0].upper() + name[1:]
+        if name not in used:
+            used.add(name)
+            return name
+    name = f"System-{len(used)}"
+    used.add(name)
+    return name
+
+
+def _security_of(gov):
+    return GOVERNMENTS[gov]["security"]
+
+
+def generate_market(system):
+    mult = ECONOMY_MULT[system.economy]
+    market = {}
+    for c in COMMODITIES:
+        base = c["base"] * mult.get(c["cat"], 1.0)
+        base *= random.uniform(0.85, 1.15)
+        if c["illegal"] and GOVERNMENTS[system.government]["tolerance"] == 0:
+            base *= 1.4  # scarce & pricier where it's actually enforced
+        stock = random.randint(15, 60)
+        if c["illegal"]:
+            stock = random.randint(0, 20)
+        market[c["name"]] = dict(price=round(base, 1), stock=stock, baseline=round(base, 1))
+    system.market = market
+
+
+def generate_galaxy():
+    used = set()
+    systems = {}
+    pts = []
+    attempts = 0
+    while len(pts) < N_SYSTEMS and attempts < N_SYSTEMS * 40:
+        attempts += 1
+        x = random.uniform(0, GALAXY_W)
+        y = random.uniform(0, GALAXY_H)
+        if all(math.hypot(x - ox, y - oy) >= MIN_SYS_SEP for ox, oy in pts):
+            pts.append((x, y))
+    for (x, y) in pts:
+        name = _gen_name(used)
+        economy = random.choice(ECONOMY_TYPES)
+        government = random.choice(GOVERNMENT_NAMES)
+        tech = random.randint(1, 14)
+        population = random.choice(["sparse", "low", "moderate", "high", "dense"])
+        sys_ = System(name=name, x=x, y=y, economy=economy, government=government,
+                      tech=tech, population=population)
+        generate_market(sys_)
+        systems[name] = sys_
+
+    # Force a friendly, well-stocked home system near the galactic center.
+    home_name = min(systems, key=lambda n: math.hypot(systems[n].x - GALAXY_W / 2,
+                                                        systems[n].y - GALAXY_H / 2))
+    home = systems[home_name]
+    home.economy, home.government, home.tech, home.population = "Industrial", "Democracy", 9, "high"
+    generate_market(home)
+    home.visited = True
+    _guarantee_home_neighbors(systems, home_name)
+    return systems, home_name
+
+
+def _guarantee_home_neighbors(systems, home_name, min_count=3, near_lo=2.5, near_hi=6.0):
+    # A freshly generated galaxy can scatter every system outside a starter
+    # ship's fuel range, soft-locking the commander in the home system - pull
+    # the closest few systems in close enough to reach on the starting tank.
+    home = systems[home_name]
+    others = sorted((n for n in systems if n != home_name),
+                     key=lambda n: math.hypot(systems[n].x - home.x, systems[n].y - home.y))
+    already_close = sum(1 for n in others
+                         if math.hypot(systems[n].x - home.x, systems[n].y - home.y) <= near_hi)
+    need = min_count - already_close
+    for n in others:
+        if need <= 0:
+            break
+        d = math.hypot(systems[n].x - home.x, systems[n].y - home.y)
+        if d <= near_hi:
+            continue
+        ang = random.uniform(0, 2 * math.pi)
+        r = random.uniform(near_lo, near_hi)
+        systems[n].x = clamp(home.x + math.cos(ang) * r, 0, GALAXY_W)
+        systems[n].y = clamp(home.y + math.sin(ang) * r, 0, GALAXY_H)
+        need -= 1
+
+
+# --------------------------------------------------------------------------
+# Runtime entities
+# --------------------------------------------------------------------------
+
+def _new_id():
+    _new_id.n += 1
+    return _new_id.n
+_new_id.n = 0
+
+
+@dataclass
+class NPCShip:
+    id: int
+    kind: str  # Trader / Pirate / Police
+    ship_type: str
+    x: float
+    y: float
+    z: float
+    fx: float = 0.0
+    fy: float = 0.0
+    fz: float = 1.0
+    speed: float = 0.0
+    hull: float = 0.0
+    max_hull: float = 0.0
+    shield: float = 0.0
+    max_shield: float = 0.0
+    cooldown: int = 0
+    ai_state: str = "patrol"
+    wander_dir: object = None
+    wander_ticks: int = 0
+    hostile_to_player: bool = False
+    cargo: str = ""
+    alive: bool = True
+    target_ref: object = None
+
+
+@dataclass
+class Missile:
+    id: int
+    owner: str  # "player" or npc id (int) as string
+    x: float
+    y: float
+    z: float
+    fx: float
+    fy: float
+    fz: float
+    target_id: object
+    life: int = MISSILE_LIFE_TICKS
+    dmg: int = MISSILE_DAMAGE
+
+
+@dataclass
+class Canister:
+    x: float
+    y: float
+    z: float
+    commodity: str
+    qty: int
+    ttl: int = 900
+
+
+@dataclass
+class Mission:
+    id: int
+    kind: str  # "delivery" or "bounty"
+    origin: str
+    dest: str = ""
+    commodity: str = ""
+    qty: int = 0
+    reward: int = 0
+    deadline: int = 0
+    required_kills: int = 0
+    start_kills: int = 0
+
+    def describe(self):
+        if self.kind == "delivery":
+            return f"Deliver {self.qty}t {self.commodity} to {self.dest} - {self.reward}cr"
+        return f"Bounty: destroy {self.required_kills} pirates - {self.reward}cr"
+
+
+def ship_stats(ship_type):
+    return SHIP_TYPES[ship_type]
+
+
+# --------------------------------------------------------------------------
+# Game
+# --------------------------------------------------------------------------
+
+class Game:
+    def __init__(self, stdscr, commander_name, load_data=None):
+        self.stdscr = stdscr
+        self.running = True
+        self.dead = False
+        self.messages = deque(maxlen=6)
+        self.fx_lines = []  # transient laser-fire visuals: [x1,y1,x2,y2,ttl]
+        self.clock = 0
+
+        if load_data:
+            self._load_from(load_data)
+        else:
+            self._new_commander(commander_name)
+
+        self.mode = "flight"
+        self.target_id = None
+        self.mouse_screen = None
+        self.mouse_engaged = False      # steering is live only while the mouse button is held
+        self.mouse_mode = "auto"  # "seek" = homes on the cursor only while held; "auto" = always
+        self._mouse_seek_screen = None  # last mouse_screen the seek target was cast from
+        self.mouse_seek_target = None   # world-space direction seek mode is turning toward
+        self.mouse_turn_rate = 0.0      # eases toward max turn while steering, and back to 0 when not
+        self.map_index = 0
+        self.qty_buffer = ""
+        self.qty_ctx = None
+        self.confirm_ctx = None
+        self.shipyard_index = 0
+        self.outfit_index = 0
+        self.market_index = 0
+        self.missions_index = 0
+        self.station_index = 0
+        self.prev_mode = "flight"
+        self._enter_system(self.current_system_name, arrival="start")
+        self.mode = "station" if self.docked else "flight"
+
+    # ---------------------------------------------------------------- init
+
+    def _new_commander(self, name):
+        self.commander_name = name
+        self.credits = 1000
+        self.kills = 0
+        self.legal_status = LEGAL_CLEAN
+        self.heat_ticks = 0
+
+        self.ship_type = "Moth"
+        st = ship_stats(self.ship_type)
+        self.max_hull = float(st["hull"])
+        self.hull = self.max_hull
+        self.max_shield = float(st["shield"])
+        self.shield = self.max_shield
+        self.max_energy = 100.0
+        self.energy = self.max_energy
+        self.max_fuel = float(st["fuel"])
+        self.fuel = self.max_fuel
+        self.cargo_capacity = st["cargo"]
+        self.cargo = {}
+        self.laser = "Pulse Laser"
+        self.missile_mounts = st["missiles"]
+        self.missiles = min(2, self.missile_mounts)
+        self.equipment = {"fuel_scoop": False, "ecm": False, "docking_computer": False,
+                           "energy_unit": False, "escape_pod": False,
+                           "cargo_expansion": 0, "shield_booster": 0}
+
+        self.px, self.py, self.pz = STATION_POS
+        self.p_fwd, self.p_up, self.p_right = derive_basis((0.0, 0.0, 1.0))
+        self.throttle = 0.0
+        self.speed = 0.0
+        self.docked = True
+
+        self.galaxy, self.current_system_name = generate_galaxy()
+        self.missions = []
+        self.npcs = []
+        self.missiles_air = []
+        self.canisters = []
+        self.laser_cooldown = 0
+        self.ecm_cooldown = 0
+
+    def _load_from(self, d):
+        self.commander_name = d["commander_name"]
+        self.credits = d["credits"]
+        self.kills = d["kills"]
+        self.legal_status = d["legal_status"]
+        self.heat_ticks = d["heat_ticks"]
+        self.ship_type = d["ship_type"]
+        self.max_hull = d["max_hull"]
+        self.hull = d["hull"]
+        self.max_shield = d["max_shield"]
+        self.shield = d["shield"]
+        self.max_energy = d.get("max_energy", 100.0)
+        self.energy = d.get("energy", self.max_energy)
+        self.max_fuel = d["max_fuel"]
+        self.fuel = d["fuel"]
+        self.cargo_capacity = d["cargo_capacity"]
+        self.cargo = dict(d["cargo"])
+        self.laser = d["laser"]
+        self.missile_mounts = d["missile_mounts"]
+        self.missiles = d["missiles"]
+        self.equipment = dict(d["equipment"])
+        self.current_system_name = d["current_system"]
+        self.clock = d.get("clock", 0)
+
+        self.galaxy = {}
+        for name, sd in d["galaxy"].items():
+            sys_ = System(name=name, x=sd["x"], y=sd["y"], economy=sd["economy"],
+                          government=sd["government"], tech=sd["tech"],
+                          population=sd["population"], market=sd["market"],
+                          market_last_tick=sd.get("market_last_tick", 0),
+                          visited=sd.get("visited", False),
+                          bulletin_tick=sd.get("bulletin_tick", -99999))
+            bl = []
+            for md in sd.get("bulletin", []):
+                bl.append(Mission(**md))
+            sys_.bulletin = bl
+            self.galaxy[name] = sys_
+
+        self.missions = [Mission(**md) for md in d.get("missions", [])]
+        self.px, self.py, self.pz = STATION_POS
+        self.p_fwd, self.p_up, self.p_right = derive_basis((0.0, 0.0, 1.0))
+        self.throttle = 0.0
+        self.speed = 0.0
+        self.docked = True
+        self.npcs = []
+        self.missiles_air = []
+        self.canisters = []
+        self.laser_cooldown = 0
+        self.ecm_cooldown = 0
+
+    def to_dict(self):
+        gdict = {}
+        for name, s in self.galaxy.items():
+            gdict[name] = dict(x=s.x, y=s.y, economy=s.economy, government=s.government,
+                                 tech=s.tech, population=s.population, market=s.market,
+                                 market_last_tick=s.market_last_tick, visited=s.visited,
+                                 bulletin_tick=s.bulletin_tick,
+                                 bulletin=[vars(m) for m in s.bulletin])
+        return dict(
+            commander_name=self.commander_name, credits=self.credits, kills=self.kills,
+            legal_status=self.legal_status, heat_ticks=self.heat_ticks,
+            ship_type=self.ship_type, max_hull=self.max_hull, hull=self.hull,
+            max_shield=self.max_shield, shield=self.shield,
+            max_energy=self.max_energy, energy=self.energy,
+            max_fuel=self.max_fuel, fuel=self.fuel,
+            cargo_capacity=self.cargo_capacity, cargo=self.cargo, laser=self.laser,
+            missile_mounts=self.missile_mounts, missiles=self.missiles,
+            equipment=self.equipment, current_system=self.current_system_name,
+            clock=self.clock, galaxy=gdict, missions=[vars(m) for m in self.missions],
+        )
+
+    def save(self):
+        try:
+            with open(SAVE_PATH, "w") as f:
+                json.dump(self.to_dict(), f)
+            self._msg("Commander log saved.")
+        except OSError as e:
+            self._msg(f"Save failed: {e}")
+
+    # ------------------------------------------------------------ helpers
+
+    def _msg(self, text):
+        self.messages.append(text)
+
+    def sys(self):
+        return self.galaxy[self.current_system_name]
+
+    def rank_name(self):
+        idx = 0
+        for i, t in enumerate(RANK_THRESHOLDS):
+            if self.kills >= t:
+                idx = i
+        return RANK_NAMES[idx]
+
+    def cargo_used(self):
+        return sum(self.cargo.values())
+
+    def full_cargo_capacity(self):
+        return self.cargo_capacity + self.equipment.get("cargo_expansion", 0) * \
+            EQUIPMENT_CATALOG["cargo_expansion"]["per"]
+
+    def full_max_shield(self):
+        return self.max_shield + self.equipment.get("shield_booster", 0) * \
+            EQUIPMENT_CATALOG["shield_booster"]["per"]
+
+    def has_illegal_cargo(self):
+        return any(qty > 0 and COMMODITY_BY_NAME[name]["illegal"]
+                   for name, qty in self.cargo.items())
+
+    def raise_legal(self, level):
+        order = [LEGAL_CLEAN, LEGAL_OFFENDER, LEGAL_FUGITIVE]
+        if order.index(level) > order.index(self.legal_status):
+            self.legal_status = level
+            self._msg(f"Legal status: {level}!")
+        self.heat_ticks = 0
+
+    # -------------------------------------------------------- system entry
+
+    def _enter_system(self, name, arrival="jump"):
+        self.current_system_name = name
+        s = self.galaxy[name]
+        s.visited = True
+        self.npcs = []
+        self.missiles_air = []
+        self.canisters = []
+        self.target_id = None
+        self._mouse_seek_screen = None
+        self.mouse_seek_target = None
+        self.mouse_turn_rate = 0.0
+        self.station_rotation = random.uniform(0, 2 * math.pi)
+        rnd = random.Random(hash(name) & 0xffffffff)
+        self.starfield = [(STATION_POS[0] + rnd.uniform(-STARFIELD_HALF, STARFIELD_HALF),
+                            STATION_POS[1] + rnd.uniform(-STARFIELD_HALF, STARFIELD_HALF),
+                            STATION_POS[2] + rnd.uniform(-STARFIELD_HALF, STARFIELD_HALF))
+                           for _ in range(STARFIELD_COUNT)]
+
+        if arrival == "jump":
+            pos = v_add(STATION_POS, v_scale(random_unit_vector(), ARRIVAL_DISTANCE))
+            self.px, self.py, self.pz = pos
+            self.throttle = 0.0
+            self.speed = 0.0
+            self.p_fwd, self.p_up, self.p_right = derive_basis(v_sub(STATION_POS, pos))
+            self.docked = False
+            self._msg(f"Dropped out of hyperspace at {name}.")
+            if random.random() < 0.10 * (1 + GOVERNMENTS[s.government]["pirate"]):
+                self._spawn_npc(force="Pirate")
+                self._msg("Sensors ping a contact closing fast!")
+        else:
+            self.px, self.py, self.pz = STATION_POS
+            self.throttle = 0.0
+            self.speed = 0.0
+            self.docked = True
+
+        self._refresh_market(s)
+        self._refresh_bulletin(s)
+
+    def _refresh_market(self, s):
+        elapsed = max(0, self.clock - s.market_last_tick)
+        if elapsed <= 0 and s.market_last_tick != 0:
+            return
+        for name, row in s.market.items():
+            regen = elapsed / 400.0
+            row["stock"] = min(80, row["stock"] + regen)
+            row["price"] += random.uniform(-0.5, 0.5) * min(1.0, elapsed / 400.0)
+            row["price"] = max(1.0, row["price"])
+        s.market_last_tick = self.clock
+
+    def _refresh_bulletin(self, s):
+        if self.clock - s.bulletin_tick < 1500 and s.bulletin:
+            return
+        s.bulletin_tick = self.clock
+        board = []
+        n = random.randint(2, 4)
+        others = [n2 for n2 in self.galaxy if n2 != s.name]
+        for _ in range(n):
+            if random.random() < 0.55 and others:
+                dest = random.choice(others)
+                commodity = random.choice(COMMODITY_NAMES)
+                qty = random.randint(3, 15)
+                dist = math.hypot(self.galaxy[dest].x - s.x, self.galaxy[dest].y - s.y)
+                reward = int(qty * COMMODITY_BY_NAME[commodity]["base"] * random.uniform(1.4, 2.4)
+                             + dist * 25)
+                board.append(Mission(id=_new_id(), kind="delivery", origin=s.name, dest=dest,
+                                       commodity=commodity, qty=qty, reward=reward,
+                                       deadline=self.clock + int(3000 + dist * 60)))
+            else:
+                need = random.randint(2, 6)
+                reward = need * random.randint(180, 420)
+                board.append(Mission(id=_new_id(), kind="bounty", origin=s.name,
+                                       required_kills=need, reward=reward,
+                                       deadline=self.clock + 6000))
+        s.bulletin = board
+
+    # ---------------------------------------------------------- top loop
+
+    def tick_once(self):
+        self.draw()
+        key = self.stdscr.getch()
+        if key != -1:
+            self._handle_key(key)
+        if self.mode == "flight" and not self.docked:
+            self._update_flight()
+        self.clock += 1
+        if self.hull <= 0 and not self.dead:
+            self._on_player_destroyed()
+
+    # -------------------------------------------------------------- input
+
+    def _handle_key(self, key):
+        if key == curses.KEY_MOUSE:
+            self._handle_mouse()
+            return
+        if self.mode == "flight":
+            self._key_flight(key)
+        elif self.mode == "galaxy_map":
+            self._key_map(key)
+        elif self.mode == "station":
+            self._key_station(key)
+        elif self.mode == "market":
+            self._key_market(key)
+        elif self.mode == "qty_input":
+            self._key_qty(key)
+        elif self.mode == "shipyard":
+            self._key_shipyard(key)
+        elif self.mode == "confirm":
+            self._key_confirm(key)
+        elif self.mode == "outfitting":
+            self._key_outfitting(key)
+        elif self.mode == "missions":
+            self._key_missions(key)
+        elif self.mode == "status":
+            self._key_status(key)
+        elif self.mode == "help":
+            if key != -1:
+                self.mode = self.prev_mode
+        elif self.mode == "pause":
+            self._key_pause(key)
+
+    def _handle_mouse(self):
+        # "Seek Cursor" only steers while a button is held (press-and-drag),
+        # matching terminal.py's box-select drag - that only needs "button
+        # event" tracking, which is far more broadly supported than "any
+        # event" tracking. "Auto Seek Cursor" instead tracks every motion
+        # report regardless of button state, for hands-free aiming - that
+        # does need "any event" tracking, so it depends on the terminal (and
+        # anything in between, like tmux/ssh) actually forwarding plain
+        # hover motion; Seek Cursor is the reliable fallback if it doesn't.
+        try:
+            _id, mx, my, _z, bstate = curses.getmouse()
+        except curses.error:
+            return
+        if bstate & curses.BUTTON1_PRESSED:
+            self.mouse_engaged = True
+        elif bstate & curses.BUTTON1_RELEASED:
+            self.mouse_engaged = False
+            if self.mouse_mode == "seek":
+                self.mouse_screen = None
+            return
+        if self.mode != "flight":
+            return
+        if self.mouse_mode == "seek" and not self.mouse_engaged:
+            return
+        max_y, max_x = self.stdscr.getmaxyx()
+        view_w = max_x - SIDEBAR_W
+        view_h = max_y - TOP_H - BOTTOM_H
+        if 0 <= mx < view_w and TOP_H <= my < TOP_H + view_h:
+            self.mouse_screen = (mx, my)
+
+    def _apply_rotation(self, pitch_amt, roll_amt):
+        self.p_fwd, self.p_up, self.p_right = apply_pitch_roll(
+            self.p_fwd, self.p_up, self.p_right, pitch_amt, roll_amt)
+
+    def _key_flight(self, key):
+        st = ship_stats(self.ship_type)
+        if key == curses.KEY_LEFT:
+            self._apply_rotation(0.0, -st["turn"])
+        elif key == curses.KEY_RIGHT:
+            self._apply_rotation(0.0, st["turn"])
+        elif key == curses.KEY_UP:
+            self._apply_rotation(st["turn"], 0.0)
+        elif key == curses.KEY_DOWN:
+            self._apply_rotation(-st["turn"], 0.0)
+        elif key == ord('.'):
+            self.throttle = clamp(self.throttle + st["speed"] * 0.1,
+                                    -st["speed"] * REVERSE_FRACTION, st["speed"])
+        elif key == ord(','):
+            self.throttle = clamp(self.throttle - st["speed"] * 0.1,
+                                    -st["speed"] * REVERSE_FRACTION, st["speed"])
+        elif key == ord(' '):
+            self._fire_laser()
+        elif key in (ord('m'), ord('M')):
+            self._fire_missile()
+        elif key == ord('\t'):
+            self._cycle_target()
+        elif key in (ord('e'), ord('E')):
+            self._fire_ecm()
+        elif key in (ord('d'), ord('D')):
+            self._try_dock()
+        elif key in (ord('g'), ord('G')):
+            self._open_map()
+        elif key in (ord('c'), ord('C')):
+            self.mouse_mode = "auto" if self.mouse_mode == "seek" else "seek"
+            label = "Auto Seek Cursor" if self.mouse_mode == "auto" else "Seek Cursor"
+            self._msg(f"Mouse control: {label}.")
+        elif key in (ord('q'), ord('Q')):
+            self.prev_mode = "flight"
+            self.mode = "pause"
+        elif key == ord('?'):
+            self.prev_mode = "flight"
+            self.mode = "help"
+
+    def _open_map(self):
+        others = sorted((n for n in self.galaxy if n != self.current_system_name),
+                          key=lambda n: self._dist_ly(n))
+        self._map_order = others
+        self.map_index = 0
+        self.prev_mode = self.mode
+        self.mode = "galaxy_map"
+
+    def _dist_ly(self, name):
+        s = self.sys()
+        t = self.galaxy[name]
+        return math.hypot(t.x - s.x, t.y - s.y)
+
+    def _key_map(self, key):
+        if not self._map_order:
+            if key in (ord('g'), ord('G')) + BACK_KEYS:
+                self.mode = self.prev_mode
+            return
+        if key in (curses.KEY_UP,):
+            self.map_index = (self.map_index - 1) % len(self._map_order)
+        elif key in (curses.KEY_DOWN,):
+            self.map_index = (self.map_index + 1) % len(self._map_order)
+        elif key in (10, 13, curses.KEY_ENTER, ord('j'), ord('J')):
+            self._attempt_jump(self._map_order[self.map_index])
+        elif key in (ord('g'), ord('G')) + BACK_KEYS:
+            self.mode = self.prev_mode
+
+    def _attempt_jump(self, dest_name):
+        if self.docked:
+            self._msg("Launch before plotting a jump.")
+            return
+        if math.dist((self.px, self.py, self.pz), STATION_POS) < NO_JUMP_RANGE:
+            self._msg("Too close to the station's mass to jump.")
+            return
+        dist = self._dist_ly(dest_name)
+        if dist > self.fuel:
+            self._msg(f"Insufficient fuel for {dest_name} ({dist:.1f} LY, {self.fuel:.1f} in tank).")
+            return
+        self.fuel -= dist
+        self.clock += int(dist * 90)
+        self._enter_system(dest_name, arrival="jump")
+        self.mode = "flight"
+
+    def _key_station(self, key):
+        options = self._station_options()
+        if key in (curses.KEY_UP,):
+            self.station_index = (self.station_index - 1) % len(options)
+        elif key in (curses.KEY_DOWN,):
+            self.station_index = (self.station_index + 1) % len(options)
+        elif key in (10, 13, curses.KEY_ENTER):
+            self._select_station_option(options[self.station_index])
+        elif key in BACK_KEYS:
+            self._launch()
+
+    def _station_options(self):
+        return ["Commodity Market", "Shipyard", "Outfitting", "Bulletin Board",
+                "Commander Status", "Refuel & Repair", "Save Commander Log", "Launch"]
+
+    def _select_station_option(self, opt):
+        if opt == "Commodity Market":
+            self.market_index = 0
+            self.mode = "market"
+        elif opt == "Shipyard":
+            self.shipyard_index = 0
+            self.mode = "shipyard"
+        elif opt == "Outfitting":
+            self.outfit_index = 0
+            self.mode = "outfitting"
+        elif opt == "Bulletin Board":
+            self.missions_index = 0
+            self.mode = "missions"
+        elif opt == "Commander Status":
+            self.mode = "status"
+        elif opt == "Refuel & Repair":
+            self._refuel_repair()
+        elif opt == "Save Commander Log":
+            self.save()
+        elif opt == "Launch":
+            self._launch()
+
+    def _refuel_repair(self):
+        s = self.sys()
+        need_fuel = self.max_fuel - self.fuel
+        fuel_cost = int(need_fuel * 14)
+        need_hull = self.max_hull - self.hull
+        repair_cost = int(need_hull * 4)
+        total = fuel_cost + repair_cost
+        if total == 0:
+            self._msg("Fuel and hull are already at capacity.")
+            return
+        if self.credits < total:
+            afford_fuel = min(need_fuel, self.credits / 14.0) if 14 else 0
+            self.fuel += afford_fuel
+            self.credits -= int(afford_fuel * 14)
+            self._msg("Partial refuel only - not enough credits for a full service.")
+            return
+        self.credits -= total
+        self.fuel = self.max_fuel
+        self.hull = self.max_hull
+        self._msg(f"Refueled and repaired for {total}cr.")
+
+    def _launch(self):
+        self.docked = False
+        self.px, self.py, self.pz = STATION_POS
+        self.throttle = 0.0
+        self.speed = 2.0
+        theta = random.uniform(0, 2 * math.pi)
+        self.p_fwd, self.p_up, self.p_right = derive_basis((math.cos(theta), 0.15, math.sin(theta)))
+        self._mouse_seek_screen = None
+        self.mouse_seek_target = None
+        self.mouse_turn_rate = 0.0
+        self.mode = "flight"
+        self._msg("Departure clearance granted.")
+
+    def _key_market(self, key):
+        s = self.sys()
+        names = COMMODITY_NAMES
+        if key in (curses.KEY_UP,):
+            self.market_index = (self.market_index - 1) % len(names)
+        elif key in (curses.KEY_DOWN,):
+            self.market_index = (self.market_index + 1) % len(names)
+        elif key in (ord('b'), ord('B')):
+            self._begin_qty("buy", names[self.market_index], "market")
+        elif key in (ord('s'), ord('S')):
+            self._begin_qty("sell", names[self.market_index], "market")
+        elif key in BACK_KEYS:
+            self.mode = "station"
+
+    def _begin_qty(self, action, commodity, return_mode):
+        self.qty_buffer = ""
+        self.qty_ctx = dict(action=action, commodity=commodity, return_mode=return_mode)
+        self.mode = "qty_input"
+
+    def _key_qty(self, key):
+        # Backspace deletes a typed digit here, so it can't also mean
+        # "cancel" (CANCEL_KEYS, not BACK_KEYS) - otherwise fixing a typo
+        # would cancel the whole prompt instead.
+        if key in (10, 13, curses.KEY_ENTER):
+            self._commit_qty()
+        elif key in CANCEL_KEYS:
+            self.mode = self.qty_ctx["return_mode"]
+        elif key in (curses.KEY_BACKSPACE, 127, 8):
+            self.qty_buffer = self.qty_buffer[:-1]
+        elif 48 <= key <= 57 and len(self.qty_buffer) < 4:
+            self.qty_buffer += chr(key)
+
+    def _commit_qty(self):
+        ctx = self.qty_ctx
+        self.mode = ctx["return_mode"]
+        if not self.qty_buffer:
+            return
+        qty = int(self.qty_buffer)
+        if qty <= 0:
+            return
+        s = self.sys()
+        row = s.market[ctx["commodity"]]
+        if ctx["action"] == "buy":
+            qty = min(qty, int(row["stock"]))
+            space = self.full_cargo_capacity() - self.cargo_used()
+            qty = min(qty, space)
+            cost = int(qty * row["price"])
+            if qty <= 0:
+                self._msg("Can't buy that - check cargo space or stock.")
+                return
+            if cost > self.credits:
+                qty = int(self.credits / row["price"])
+                cost = int(qty * row["price"])
+            if qty <= 0:
+                self._msg("Not enough credits.")
+                return
+            self.credits -= cost
+            self.cargo[ctx["commodity"]] = self.cargo.get(ctx["commodity"], 0) + qty
+            row["stock"] -= qty
+            row["price"] *= 1.0 + 0.01 * qty
+            self._msg(f"Bought {qty}t {ctx['commodity']} for {cost}cr.")
+        else:
+            held = self.cargo.get(ctx["commodity"], 0)
+            qty = min(qty, held)
+            if qty <= 0:
+                self._msg("You don't have that to sell.")
+                return
+            revenue = int(qty * row["price"] * 0.92)
+            self.cargo[ctx["commodity"]] = held - qty
+            if self.cargo[ctx["commodity"]] <= 0:
+                del self.cargo[ctx["commodity"]]
+            row["stock"] += qty
+            row["price"] *= 1.0 - 0.01 * qty
+            self.credits += revenue
+            self._msg(f"Sold {qty}t {ctx['commodity']} for {revenue}cr.")
+
+    def _key_shipyard(self, key):
+        if key in (curses.KEY_UP,):
+            self.shipyard_index = (self.shipyard_index - 1) % len(SHIP_ORDER)
+        elif key in (curses.KEY_DOWN,):
+            self.shipyard_index = (self.shipyard_index + 1) % len(SHIP_ORDER)
+        elif key in (10, 13, curses.KEY_ENTER):
+            self._begin_ship_purchase(SHIP_ORDER[self.shipyard_index])
+        elif key in BACK_KEYS:
+            self.mode = "station"
+
+    def _begin_ship_purchase(self, ship_type):
+        if ship_type == self.ship_type:
+            self._msg("You're already flying that.")
+            return
+        newstats = SHIP_TYPES[ship_type]
+        if self.cargo_used() > newstats["cargo"]:
+            self._msg("Sell cargo first - it won't fit in that hull.")
+            return
+        trade_in = int(SHIP_TYPES[self.ship_type]["price"] * 0.4 * (self.hull / self.max_hull))
+        price = newstats["price"] - trade_in
+        self.confirm_ctx = dict(kind="buy_ship", ship_type=ship_type, price=price,
+                                  trade_in=trade_in,
+                                  prompt=f"Trade in {self.ship_type} (+{trade_in}cr) for "
+                                         f"{ship_type} ({newstats['price']}cr)? Net {price}cr. Y/N")
+        self.prev_mode = "shipyard"
+        self.mode = "confirm"
+
+    def _key_confirm(self, key):
+        if key in (ord('y'), ord('Y')):
+            ctx = self.confirm_ctx
+            if ctx["kind"] == "buy_ship":
+                if ctx["price"] > self.credits:
+                    self._msg("Not enough credits for that trade.")
+                else:
+                    self.credits -= ctx["price"]
+                    self.ship_type = ctx["ship_type"]
+                    st = ship_stats(self.ship_type)
+                    self.max_hull = float(st["hull"])
+                    self.hull = self.max_hull
+                    self.max_shield = float(st["shield"])
+                    self.shield = self.max_shield
+                    self.max_fuel = float(st["fuel"])
+                    self.fuel = min(self.fuel, self.max_fuel)
+                    self.cargo_capacity = st["cargo"]
+                    self.missile_mounts = st["missiles"]
+                    self.missiles = min(self.missiles, self.missile_mounts)
+                    self.laser = "Pulse Laser"
+                    self._msg(f"Welcome to your new {self.ship_type}.")
+            self.mode = self.prev_mode
+        elif key in (ord('n'), ord('N')) + BACK_KEYS:
+            self.mode = self.prev_mode
+
+    def _key_outfitting(self, key):
+        if key in (curses.KEY_UP,):
+            self.outfit_index = (self.outfit_index - 1) % (len(EQUIP_ORDER) + len(LASER_ORDER))
+        elif key in (curses.KEY_DOWN,):
+            self.outfit_index = (self.outfit_index + 1) % (len(EQUIP_ORDER) + len(LASER_ORDER))
+        elif key in (10, 13, curses.KEY_ENTER):
+            self._buy_outfit_item()
+        elif key in BACK_KEYS:
+            self.mode = "station"
+
+    def _buy_outfit_item(self):
+        if self.outfit_index < len(LASER_ORDER):
+            name = LASER_ORDER[self.outfit_index]
+            spec = LASER_STATS[name]
+            if name == self.laser:
+                self._msg("Already mounted.")
+                return
+            if spec["price"] > self.credits:
+                self._msg("Not enough credits.")
+                return
+            self.credits -= spec["price"]
+            self.laser = name
+            self._msg(f"{name} mounted.")
+            return
+        key = EQUIP_ORDER[self.outfit_index - len(LASER_ORDER)]
+        item = EQUIPMENT_CATALOG[key]
+        if item["kind"] == "bool":
+            if self.equipment.get(key):
+                self._msg("Already installed.")
+                return
+            if item["price"] > self.credits:
+                self._msg("Not enough credits.")
+                return
+            self.credits -= item["price"]
+            self.equipment[key] = True
+            self._msg(f"{item['name']} installed.")
+        elif item["kind"] == "stack":
+            cur = self.equipment.get(key, 0)
+            if cur >= item["max"]:
+                self._msg("Already at maximum.")
+                return
+            if item["price"] > self.credits:
+                self._msg("Not enough credits.")
+                return
+            self.credits -= item["price"]
+            self.equipment[key] = cur + 1
+            if key == "shield_booster":
+                self.shield += item["per"]
+            self._msg(f"{item['name']} installed ({cur + 1}/{item['max']}).")
+        elif item["kind"] == "consume":
+            if self.missiles >= self.missile_mounts:
+                self._msg("No free missile mounts.")
+                return
+            if item["price"] > self.credits:
+                self._msg("Not enough credits.")
+                return
+            self.credits -= item["price"]
+            self.missiles += 1
+            self._msg("Missile loaded.")
+
+    def _key_missions(self, key):
+        s = self.sys()
+        board = s.bulletin
+        n = max(1, len(board))
+        if key in (curses.KEY_UP,):
+            self.missions_index = (self.missions_index - 1) % n
+        elif key in (curses.KEY_DOWN,):
+            self.missions_index = (self.missions_index + 1) % n
+        elif key in (10, 13, curses.KEY_ENTER) and board:
+            self._accept_mission(board[self.missions_index])
+        elif key in BACK_KEYS:
+            self.mode = "station"
+
+    def _accept_mission(self, m):
+        if m in self.missions:
+            self._msg("Already accepted.")
+            return
+        if m.kind == "delivery":
+            space = self.full_cargo_capacity() - self.cargo_used()
+            if space < m.qty:
+                self._msg("Not enough free cargo space to accept.")
+                return
+            self.cargo[m.commodity] = self.cargo.get(m.commodity, 0) + m.qty
+        else:
+            m.start_kills = self.kills
+        self.sys().bulletin.remove(m)
+        self.missions.append(m)
+        self.missions_index = 0
+        self._msg(f"Contract accepted: {m.describe()}")
+
+    def _key_status(self, key):
+        if key != -1:
+            self.mode = "station"
+
+    def _key_pause(self, key):
+        # Q already means "save & quit" here, a much bigger action than
+        # "resume" - it deliberately isn't added as a resume-equivalent too
+        # (unlike everywhere else, Q stays Q-shaped). Backspace still works
+        # as a second way to resume alongside Esc.
+        if key in (ord('s'), ord('S')):
+            self.save()
+        elif key in (ord('q'), ord('Q')):
+            self.save()
+            self.running = False
+        elif key in (27, curses.KEY_BACKSPACE, 127, 8):
+            self.mode = self.prev_mode
+
+    # ------------------------------------------------------------ physics
+
+    def _update_flight(self):
+        st = ship_stats(self.ship_type)
+        # Both mouse modes steer the same way - point the nose at wherever
+        # the cursor is - and only differ in how mouse_screen gets set/
+        # cleared (see _handle_mouse): "Seek Cursor" only while a button is
+        # held, "Auto Seek Cursor" continuously.
+        if self.mouse_screen is not None:
+            # Cast the cursor's screen position out as a 3D ray (the same
+            # projection the renderer uses, run backwards) *once* per cursor
+            # position and cache it as a fixed world-space direction -
+            # re-deriving it from the ship's current basis every tick would
+            # make the target rotate in lockstep with the ship (it would
+            # never converge, just chase its tail).
+            max_y, max_x = self.stdscr.getmaxyx()
+            view_w = max_x - SIDEBAR_W
+            view_h = max_y - TOP_H - BOTTOM_H
+            cx, cy = view_w // 2, TOP_H + view_h // 2
+            if self.mouse_screen != self._mouse_seek_screen:
+                self._mouse_seek_screen = self.mouse_screen
+                lx = (self.mouse_screen[0] - cx) / PROJ_SCALE_X
+                ly = -(self.mouse_screen[1] - cy) / PROJ_SCALE_Y
+                self.mouse_seek_target = v_norm(v_add(
+                    self.p_fwd, v_add(v_scale(self.p_right, lx), v_scale(self.p_up, ly))))
+            # Momentum: mouse_turn_rate eases up toward the ship's max turn
+            # (spin-up) while actively steering...
+            self.mouse_turn_rate = min(st["turn"], self.mouse_turn_rate + st["turn"] * 0.15)
+        else:
+            # ...and eases back down to 0 once you stop (spin-down/coast) -
+            # the cached target is deliberately left in place so the turn
+            # keeps easing toward it as the rate decays, rather than
+            # halting dead the instant Seek Cursor's button comes up.
+            self.mouse_turn_rate = max(0.0, self.mouse_turn_rate - st["turn"] * 0.15)
+
+        # Ease the forward vector toward the cached target (the same
+        # lerp-and-renormalize technique NPCs/missiles home with, which
+        # provably always closes the angle) rather than decomposing the turn
+        # into separate pitch/roll steps - roll alone doesn't reduce the aim
+        # angle at all, it only re-aims where pitch would go, so treating
+        # them as two independent proportional corrections can settle into a
+        # stable *non-zero* angle instead of ever reaching zero. The
+        # tradeoff: this also re-levels roll to world-up each tick, like a
+        # simple auto-align autopilot - full free roll only comes from the
+        # keyboard.
+        if self.mouse_seek_target is not None and self.mouse_turn_rate > 1e-4:
+            target_dir = self.mouse_seek_target
+            if v_dot(target_dir, self.p_fwd) < 0.99999:
+                new_fwd = v_norm(v_add(self.p_fwd,
+                                         v_scale(v_sub(target_dir, self.p_fwd), self.mouse_turn_rate)))
+                self.p_fwd, self.p_up, self.p_right = derive_basis(new_fwd)
+
+        self.speed = clamp(self.speed + clamp(self.throttle - self.speed, -st["accel"], st["accel"]),
+                             -st["speed"] * REVERSE_FRACTION, st["speed"])
+        self.px = clamp(self.px + self.p_fwd[0] * self.speed, 0, LOCAL_SPACE)
+        self.py = clamp(self.py + self.p_fwd[1] * self.speed, 0, LOCAL_SPACE)
+        self.pz = clamp(self.pz + self.p_fwd[2] * self.speed, 0, LOCAL_SPACE)
+        self.station_rotation = (self.station_rotation + 0.01) % (2 * math.pi)
+
+        # star hazard / scoop
+        dstar = math.dist((self.px, self.py, self.pz), STAR_POS)
+        if dstar < STAR_HAZARD_RADIUS and not self.equipment.get("fuel_scoop"):
+            self.hull -= 0.6
+            self._msg("Stellar heat is cooking your hull!") if self.clock % 20 == 0 else None
+        elif dstar < STAR_SCOOP_RADIUS and self.equipment.get("fuel_scoop") and self.fuel < self.max_fuel:
+            self.fuel = min(self.max_fuel, self.fuel + 0.01)
+
+        if self.laser_cooldown > 0:
+            self.laser_cooldown -= 1
+        if self.ecm_cooldown > 0:
+            self.ecm_cooldown -= 1
+        energy_regen = 0.6 if self.equipment.get("energy_unit") else 0.35
+        self.energy = min(self.max_energy, self.energy + energy_regen)
+        shield_regen = 0.25 if self.equipment.get("energy_unit") else 0.12
+        self.shield = min(self.full_max_shield(), self.shield + shield_regen)
+
+        if self.heat_ticks < LEGAL_DECAY_TICKS:
+            self.heat_ticks += 1
+        else:
+            if self.legal_status == LEGAL_FUGITIVE:
+                self.legal_status = LEGAL_OFFENDER
+                self.heat_ticks = 0
+            elif self.legal_status == LEGAL_OFFENDER:
+                self.legal_status = LEGAL_CLEAN
+                self.heat_ticks = 0
+
+        self._maybe_spawn_npc()
+        for npc in list(self.npcs):
+            self._update_npc(npc)
+        self._update_missiles()
+        self._update_canisters()
+        self._check_missions()
+        self._check_scan()
+
+        self.fx_lines = [f for f in self.fx_lines if f[6] > 0]
+        for f in self.fx_lines:
+            f[6] -= 1
+
+    def _maybe_spawn_npc(self):
+        if len(self.npcs) >= MAX_NPCS:
+            return
+        s = self.sys()
+        gov = GOVERNMENTS[s.government]
+        chance = 0.01 + 0.004 * gov["pirate"] + 0.003 * gov["security"]
+        if random.random() < chance:
+            weights = [("Trader", 5), ("Pirate", 1 + gov["pirate"]), ("Police", 1 + gov["security"])]
+            total = sum(w for _, w in weights)
+            r = random.uniform(0, total)
+            acc = 0
+            kind = "Trader"
+            for k, w in weights:
+                acc += w
+                if r <= acc:
+                    kind = k
+                    break
+            self._spawn_npc(force=kind)
+
+    def _spawn_npc(self, force=None):
+        kind = force or "Trader"
+        r = random.uniform(NPC_SPAWN_MIN, NPC_SPAWN_MAX)
+        pos = v_add(STATION_POS, v_scale(random_unit_vector(), r))
+        x = clamp(pos[0], 0, LOCAL_SPACE)
+        y = clamp(pos[1], 0, LOCAL_SPACE)
+        z = clamp(pos[2], 0, LOCAL_SPACE)
+        ship_type = {"Trader": "Bulk Trader", "Pirate": "Harrier", "Police": "Harrier"}[kind]
+        base = ship_stats(ship_type)
+        hp_scale = random.uniform(0.7, 1.1)
+        fwd = v_norm(v_sub(STATION_POS, (x, y, z)))
+        npc = NPCShip(id=_new_id(), kind=kind, ship_type=ship_type, x=x, y=y, z=z,
+                       fx=fwd[0], fy=fwd[1], fz=fwd[2],
+                       hull=base["hull"] * hp_scale, max_hull=base["hull"] * hp_scale,
+                       shield=base["shield"] * hp_scale, max_shield=base["shield"] * hp_scale,
+                       ai_state="patrol")
+        if kind == "Trader":
+            npc.cargo = random.choice(COMMODITY_NAMES)
+        self.npcs.append(npc)
+
+    def _update_npc(self, npc):
+        if not npc.alive:
+            return
+        st = ship_stats(npc.ship_type)
+        ppos = (self.px, self.py, self.pz)
+        npos = (npc.x, npc.y, npc.z)
+        d_to_player = math.dist(ppos, npos)
+
+        if npc.kind == "Pirate":
+            if d_to_player < DETECT_RANGE:
+                npc.ai_state = "attack"
+                npc.hostile_to_player = True
+            else:
+                npc.ai_state = "patrol"
+        elif npc.kind == "Police":
+            hostiles = [n for n in self.npcs if n.kind == "Pirate" and n.alive]
+            near_pirate = min(hostiles, key=lambda n: math.dist((n.x, n.y, n.z), npos)) \
+                if hostiles else None
+            if near_pirate and math.dist((near_pirate.x, near_pirate.y, near_pirate.z), npos) < DETECT_RANGE:
+                npc.ai_state = "attack_npc"
+                npc.target_ref = near_pirate
+            elif npc.hostile_to_player or (self.legal_status != LEGAL_CLEAN and d_to_player < DETECT_RANGE):
+                npc.ai_state = "attack"
+                npc.hostile_to_player = True
+            else:
+                npc.ai_state = "patrol"
+        elif npc.kind == "Trader":
+            threat = any(n.kind == "Pirate" and n.alive and
+                          math.dist((n.x, n.y, n.z), npos) < 260 for n in self.npcs)
+            if threat or npc.hostile_to_player:
+                npc.ai_state = "flee"
+            else:
+                npc.ai_state = "patrol"
+
+        if npc.ai_state == "attack":
+            self._steer_toward3(npc, ppos, st)
+            if d_to_player < LASER_STATS["Pulse Laser"]["range"] and npc.cooldown <= 0:
+                dirv = v_norm(v_sub(ppos, npos))
+                if v_dot(dirv, v_norm((npc.fx, npc.fy, npc.fz))) > math.cos(LASER_CONE * 1.6):
+                    self._apply_damage_player(8)
+                    npc.cooldown = 5
+                    self.fx_lines.append([npc.x, npc.y, npc.z, self.px, self.py, self.pz, LASER_FX_TICKS])
+        elif npc.ai_state == "attack_npc":
+            tgt = npc.target_ref
+            if tgt and tgt.alive:
+                tpos = (tgt.x, tgt.y, tgt.z)
+                self._steer_toward3(npc, tpos, st)
+                d = math.dist(npos, tpos)
+                if d < LASER_STATS["Pulse Laser"]["range"] and npc.cooldown <= 0:
+                    dirv = v_norm(v_sub(tpos, npos))
+                    if v_dot(dirv, v_norm((npc.fx, npc.fy, npc.fz))) > math.cos(LASER_CONE * 1.6):
+                        self._apply_damage_npc(tgt, 10)
+                        npc.cooldown = 5
+        elif npc.ai_state == "flee":
+            away = v_norm(v_sub(npos, ppos))
+            self._steer_toward3(npc, v_add(npos, v_scale(away, 100)), st)
+        else:  # patrol
+            npc.wander_ticks -= 1
+            if npc.wander_ticks <= 0 or npc.wander_dir is None:
+                npc.wander_dir = random_unit_vector()
+                npc.wander_ticks = random.randint(30, 90)
+            self._steer_toward3(npc, v_add(npos, v_scale(npc.wander_dir, 100)), st, thrust=0.5)
+
+        if npc.cooldown > 0:
+            npc.cooldown -= 1
+        npc.speed *= 0.985
+        npc.x = clamp(npc.x + npc.fx * npc.speed, 0, LOCAL_SPACE)
+        npc.y = clamp(npc.y + npc.fy * npc.speed, 0, LOCAL_SPACE)
+        npc.z = clamp(npc.z + npc.fz * npc.speed, 0, LOCAL_SPACE)
+        npc.shield = min(npc.max_shield, npc.shield + 0.1)
+
+        if npc.hull <= 0:
+            self._on_npc_destroyed(npc)
+
+    def _steer_toward3(self, npc, target_pos, st, thrust=1.0):
+        rel = v_sub(target_pos, (npc.x, npc.y, npc.z))
+        d = v_len(rel)
+        if d < 1e-6:
+            return
+        dirv = v_scale(rel, 1.0 / d)
+        fwd = v_norm((npc.fx, npc.fy, npc.fz))
+        newf = v_norm(v_add(fwd, v_scale(v_sub(dirv, fwd), st["turn"])))
+        npc.fx, npc.fy, npc.fz = newf
+        npc.speed = clamp(npc.speed + st["accel"] * thrust, 0.0, st["speed"])
+
+    # -------------------------------------------------------------- combat
+
+    def _fire_laser(self):
+        if self.laser_cooldown > 0 or self.docked:
+            return
+        spec = LASER_STATS[self.laser]
+        if self.energy < spec["energy"]:
+            self._msg("Insufficient energy.")
+            return
+        self.energy -= spec["energy"]
+        self.laser_cooldown = spec["cooldown"]
+        ppos = (self.px, self.py, self.pz)
+        muzzle = local_to_world(ppos, self.p_right, self.p_up, self.p_fwd, LASER_MUZZLE_OFFSET)
+        best = None
+        best_d = spec["range"]
+        for npc in self.npcs:
+            if not npc.alive:
+                continue
+            rel = (npc.x - self.px, npc.y - self.py, npc.z - self.pz)
+            d = v_len(rel)
+            if d > spec["range"] or d < 1e-6:
+                continue
+            if v_dot(v_scale(rel, 1.0 / d), self.p_fwd) < math.cos(LASER_CONE):
+                continue
+            if npc.id == self.target_id:
+                best = npc
+                break
+            if d < best_d:
+                best_d = d
+                best = npc
+        if best is None:
+            far = v_add(muzzle, v_scale(self.p_fwd, spec["range"]))
+            self.fx_lines.append([muzzle[0], muzzle[1], muzzle[2], far[0], far[1], far[2], LASER_FX_TICKS])
+            return
+        self.fx_lines.append([muzzle[0], muzzle[1], muzzle[2], best.x, best.y, best.z, LASER_FX_TICKS])
+        was_trader_or_police = best.kind in ("Trader", "Police")
+        self._apply_damage_npc(best, spec["dmg"])
+        if was_trader_or_police:
+            best.hostile_to_player = True
+            if best.kind == "Trader":
+                self.raise_legal(LEGAL_OFFENDER)
+            else:
+                self.raise_legal(LEGAL_FUGITIVE)
+
+    def _fire_missile(self):
+        if self.docked or self.missiles <= 0:
+            self._msg("No missiles loaded.")
+            return
+        target = self._get_npc(self.target_id)
+        if not target:
+            self._msg("No target locked - press Tab.")
+            return
+        self.missiles -= 1
+        m = Missile(id=_new_id(), owner="player", x=self.px, y=self.py, z=self.pz,
+                     fx=self.p_fwd[0], fy=self.p_fwd[1], fz=self.p_fwd[2], target_id=target.id)
+        self.missiles_air.append(m)
+        self._msg("Missile away.")
+
+    def _fire_ecm(self):
+        if not self.equipment.get("ecm") or self.ecm_cooldown > 0:
+            return
+        if self.energy < 20:
+            self._msg("Insufficient energy for ECM.")
+            return
+        self.energy -= 20
+        self.ecm_cooldown = 60
+        killed = 0
+        for m in list(self.missiles_air):
+            if m.owner != "player" and math.dist((m.x, m.y, m.z), (self.px, self.py, self.pz)) < ECM_RADIUS:
+                self.missiles_air.remove(m)
+                killed += 1
+        self._msg(f"ECM burst jammed {killed} missile(s)." if killed else "ECM burst - no missiles in range.")
+
+    def _cycle_target(self):
+        alive = [n for n in self.npcs if n.alive]
+        if not alive:
+            self.target_id = None
+            return
+        alive.sort(key=lambda n: math.dist((n.x, n.y, n.z), (self.px, self.py, self.pz)))
+        ids = [n.id for n in alive]
+        if self.target_id not in ids:
+            self.target_id = ids[0]
+        else:
+            i = ids.index(self.target_id)
+            self.target_id = ids[(i + 1) % len(ids)]
+
+    def _get_npc(self, npc_id):
+        for n in self.npcs:
+            if n.id == npc_id and n.alive:
+                return n
+        return None
+
+    def _update_missiles(self):
+        for m in list(self.missiles_air):
+            m.life -= 1
+            mpos = (m.x, m.y, m.z)
+            if m.owner == "player":
+                target = self._get_npc(m.target_id)
+                tpos = (target.x, target.y, target.z) if target else \
+                    v_add(mpos, v_scale((m.fx, m.fy, m.fz), 50))
+            else:
+                tpos = (self.px, self.py, self.pz)
+            dirv = v_norm(v_sub(tpos, mpos))
+            fwd = v_norm((m.fx, m.fy, m.fz))
+            newf = v_norm(v_add(fwd, v_scale(v_sub(dirv, fwd), MISSILE_TURN)))
+            m.fx, m.fy, m.fz = newf
+            m.x += m.fx * MISSILE_SPEED
+            m.y += m.fy * MISSILE_SPEED
+            m.z += m.fz * MISSILE_SPEED
+
+            hit = False
+            if m.owner == "player":
+                target = self._get_npc(m.target_id)
+                if target and math.dist((target.x, target.y, target.z), (m.x, m.y, m.z)) < MISSILE_HIT_RADIUS:
+                    self._apply_damage_npc(target, m.dmg)
+                    hit = True
+            else:
+                if math.dist((self.px, self.py, self.pz), (m.x, m.y, m.z)) < MISSILE_HIT_RADIUS:
+                    self._apply_damage_player(m.dmg)
+                    hit = True
+            out_of_bounds = not (0 <= m.x <= LOCAL_SPACE and 0 <= m.y <= LOCAL_SPACE and 0 <= m.z <= LOCAL_SPACE)
+            if hit or m.life <= 0 or out_of_bounds:
+                self.missiles_air.remove(m)
+
+    def _update_canisters(self):
+        for c in list(self.canisters):
+            c.ttl -= 1
+            d = math.dist((self.px, self.py, self.pz), (c.x, c.y, c.z))
+            if d < 20:
+                if not self.equipment.get("fuel_scoop"):
+                    if c.ttl % 40 == 0:
+                        self._msg("No cargo scoop fitted - can't collect that canister.")
+                else:
+                    space = self.full_cargo_capacity() - self.cargo_used()
+                    take = min(space, c.qty)
+                    if take > 0:
+                        self.cargo[c.commodity] = self.cargo.get(c.commodity, 0) + take
+                        self._msg(f"Scooped {take}t {c.commodity}.")
+                        self.canisters.remove(c)
+                        continue
+            if c.ttl <= 0:
+                self.canisters.remove(c)
+
+    def _apply_damage_player(self, dmg):
+        if self.shield > 0:
+            absorbed = min(self.shield, dmg)
+            self.shield -= absorbed
+            dmg -= absorbed
+        if dmg > 0:
+            self.hull -= dmg
+
+    def _apply_damage_npc(self, npc, dmg):
+        if npc.shield > 0:
+            absorbed = min(npc.shield, dmg)
+            npc.shield -= absorbed
+            dmg -= absorbed
+        if dmg > 0:
+            npc.hull -= dmg
+        if npc.hull <= 0 and npc.alive:
+            self._on_npc_destroyed(npc)
+
+    def _on_npc_destroyed(self, npc):
+        npc.alive = False
+        if npc in self.npcs:
+            self.npcs.remove(npc)
+        if self.target_id == npc.id:
+            self.target_id = None
+        if npc.cargo and random.random() < 0.7:
+            self.canisters.append(Canister(x=npc.x, y=npc.y, z=npc.z, commodity=npc.cargo,
+                                             qty=random.randint(1, 4)))
+        if npc.kind == "Pirate":
+            bounty = random.randint(150, 600)
+            self.kills += 1
+            self.credits += bounty
+            self._msg(f"Pirate destroyed. Bounty +{bounty}cr. Kills: {self.kills} ({self.rank_name()}).")
+        elif npc.kind == "Police":
+            self.raise_legal(LEGAL_FUGITIVE)
+            self._msg("You destroyed a police vessel. You will be hunted for this.")
+            for other in self.npcs:
+                if other.kind == "Police":
+                    other.hostile_to_player = True
+        elif npc.kind == "Trader":
+            self.raise_legal(LEGAL_FUGITIVE)
+            self._msg("An innocent trader is dead. Word will spread.")
+
+    def _on_player_destroyed(self):
+        self.dead = True
+        if self.equipment.get("escape_pod"):
+            self._msg("Escape pod fired - you eject as your ship breaks apart.")
+            self.equipment["escape_pod"] = False
+            self.ship_type = "Shuttle"
+            st = ship_stats(self.ship_type)
+            self.max_hull = float(st["hull"])
+            self.hull = self.max_hull
+            self.max_shield = float(st["shield"])
+            self.shield = self.max_shield
+            self.max_fuel = float(st["fuel"])
+            self.fuel = self.max_fuel
+            self.cargo_capacity = st["cargo"]
+            self.cargo = {}
+            self.missile_mounts = 0
+            self.missiles = 0
+            self.laser = "Pulse Laser"
+            self.equipment = {k: (0 if isinstance(v, int) and not isinstance(v, bool) else False)
+                                for k, v in self.equipment.items()}
+            self.px, self.py, self.pz = STATION_POS
+            self.throttle = 0.0
+            self.speed = 0.0
+            self.docked = True
+            self.mode = "station"
+            self.dead = False
+        else:
+            self.running = False
+
+    def _check_scan(self):
+        police_present = any(n.kind == "Police" for n in self.npcs)
+        if police_present and self.has_illegal_cargo() and random.random() < 0.003:
+            self._msg("Police scan detects contraband in your hold!")
+            self.raise_legal(LEGAL_OFFENDER)
+
+    def _check_missions(self):
+        for m in list(self.missions):
+            if m.kind == "bounty":
+                if self.kills - m.start_kills >= m.required_kills:
+                    self.credits += m.reward
+                    self._msg(f"Bounty contract complete: +{m.reward}cr.")
+                    self.missions.remove(m)
+                    continue
+            if self.clock > m.deadline:
+                if m.kind == "delivery" and self.cargo.get(m.commodity, 0) >= m.qty:
+                    pass
+                else:
+                    self._msg(f"Contract expired: {m.describe()}")
+                    self.missions.remove(m)
+
+    def _try_dock(self):
+        d = math.dist((self.px, self.py, self.pz), STATION_POS)
+        if d > DOCK_RANGE:
+            self._msg("Too far from the station to dock.")
+            return
+        if abs(self.speed) > DOCK_MAX_SPEED and not self.equipment.get("docking_computer"):
+            self.hull -= 4
+            self.speed *= 0.3
+            self.throttle = clamp(self.throttle, -abs(self.speed), abs(self.speed))
+            self._msg("Docking port scrapes your hull - too fast.")
+            return
+        self._complete_dock()
+
+    def _complete_dock(self):
+        self.docked = True
+        self.mode = "station"
+        self.station_index = 0
+        self._msg(f"Docked at {self.current_system_name}.")
+        self._refresh_market(self.sys())
+        self._refresh_bulletin(self.sys())
+        self._complete_deliveries()
+
+    def _complete_deliveries(self):
+        for m in list(self.missions):
+            if m.kind == "delivery" and m.dest == self.current_system_name:
+                if self.cargo.get(m.commodity, 0) >= m.qty:
+                    self.cargo[m.commodity] -= m.qty
+                    if self.cargo[m.commodity] <= 0:
+                        del self.cargo[m.commodity]
+                    self.credits += m.reward
+                    self._msg(f"Delivery complete: +{m.reward}cr.")
+                    self.missions.remove(m)
+
+    # -------------------------------------------------------------- draw
+
+    def _safe_addstr(self, y, x, text, attr=0):
+        max_y, max_x = self.stdscr.getmaxyx()
+        if y < 0 or y >= max_y or x >= max_x or x < 0:
+            return
+        text = text[:max(0, max_x - x - 1)]
+        if not text:
+            return
+        try:
+            self.stdscr.addstr(y, x, text, attr)
+        except curses.error:
+            pass
+
+    def _safe_addch(self, y, x, ch, attr=0):
+        max_y, max_x = self.stdscr.getmaxyx()
+        if 0 <= y < max_y and 0 <= x < max_x - 1:
+            try:
+                self.stdscr.addch(y, x, ch, attr)
+            except curses.error:
+                pass
+
+    def draw(self):
+        self.stdscr.erase()
+        max_y, max_x = self.stdscr.getmaxyx()
+        if max_y < MIN_TERM_H or max_x < MIN_TERM_W:
+            msg = f"Terminal too small ({max_x}x{max_y}). Need at least {MIN_TERM_W}x{MIN_TERM_H}."
+            self._safe_addstr(0, 0, msg, curses.color_pair(CP_DANGER))
+            self.stdscr.refresh()
+            return
+
+        if self.mode in ("flight", "galaxy_map"):
+            self._draw_flight(max_x, max_y)
+            if self.mode == "galaxy_map":
+                self._draw_map_overlay(max_x, max_y)
+        elif self.mode == "station":
+            self._draw_station(max_x, max_y)
+        elif self.mode == "market":
+            self._draw_market(max_x, max_y)
+        elif self.mode == "qty_input":
+            self._draw_market(max_x, max_y)
+            self._draw_qty_prompt(max_x, max_y)
+        elif self.mode == "shipyard":
+            self._draw_shipyard(max_x, max_y)
+        elif self.mode == "confirm":
+            if self.prev_mode == "shipyard":
+                self._draw_shipyard(max_x, max_y)
+            else:
+                self._draw_station(max_x, max_y)
+            self._draw_confirm(max_x, max_y)
+        elif self.mode == "outfitting":
+            self._draw_outfitting(max_x, max_y)
+        elif self.mode == "missions":
+            self._draw_missions(max_x, max_y)
+        elif self.mode == "status":
+            self._draw_status(max_x, max_y)
+        elif self.mode == "help":
+            self._draw_help(max_x, max_y)
+        elif self.mode == "pause":
+            self._draw_flight(max_x, max_y)
+            self._draw_pause(max_x, max_y)
+
+        self.stdscr.refresh()
+
+    def _draw_topbar(self, max_x):
+        s = self.sys()
+        left = (f"{GAME_TITLE}  {self.commander_name}  {s.name} "
+                f"({s.economy}/{s.government}, TL{s.tech})  {self.credits}cr")
+        self._safe_addstr(0, 0, left, curses.color_pair(CP_HUD))
+        legal_pair = CP_HUD if self.legal_status == LEGAL_CLEAN else \
+            (CP_WARN if self.legal_status == LEGAL_OFFENDER else CP_DANGER)
+        right = f"{self.legal_status}  {self.rank_name()} ({self.kills})"
+        self._safe_addstr(0, max(0, max_x - len(right)), right,
+                            curses.color_pair(legal_pair) | curses.A_BOLD)
+
+    def _draw_bottombar(self, max_y, max_x):
+        y = max_y - BOTTOM_H
+        if self.mode == "flight":
+            hint = "Mouse:aim(C:mode)  L/R:roll  U/D:pitch  ,/.:throttle  Space:fire  M:missile  Tab:target  E:ecm  D:dock  G:map  Q:menu  ?:help"
+        else:
+            hint = "Up/Down:navigate  Enter:select  Esc:back"
+        self._safe_addstr(y, 0, hint[:max_x], curses.color_pair(CP_HUD))
+        for i, m in enumerate(list(self.messages)[-3:]):
+            self._safe_addstr(y + 1 + i, 0, m[:max_x], curses.color_pair(CP_WARN))
+
+    def _station_world_vert(self, local_v):
+        x, y, z = local_v
+        a = self.station_rotation
+        ca, sa = math.cos(a), math.sin(a)
+        rx, ry = x * ca - y * sa, x * sa + y * ca
+        return (STATION_POS[0] + rx, STATION_POS[1] + ry, STATION_POS[2] + z)
+
+    def _draw_flight(self, max_x, max_y):
+        self._draw_topbar(max_x)
+        view_w = max_x - SIDEBAR_W
+        view_h = max_y - TOP_H - BOTTOM_H
+        cx, cy = view_w // 2, TOP_H + view_h // 2
+        ppos = (self.px, self.py, self.pz)
+
+        def to_view(wp):
+            rel = (wp[0] - self.px, wp[1] - self.py, wp[2] - self.pz)
+            return (v_dot(rel, self.p_right), v_dot(rel, self.p_up), v_dot(rel, self.p_fwd))
+
+        def project(lp):
+            sx = lp[0] / lp[2] * PROJ_SCALE_X
+            sy = -lp[1] / lp[2] * PROJ_SCALE_Y
+            return cx + int(round(sx)), cy + int(round(sy))
+
+        def draw_point(wp, ch, attr):
+            lp = to_view(wp)
+            if lp[2] < NEAR_PLANE or lp[2] > VIEW_RANGE:
+                return
+            gx, gy = project(lp)
+            if 0 <= gx < view_w and TOP_H <= gy < TOP_H + view_h:
+                self._safe_addch(gy, gx, ch, attr)
+
+        def draw_edge(p0w, p1w, attr, ch=None):
+            clipped = clip_near(to_view(p0w), to_view(p1w), NEAR_PLANE)
+            if not clipped:
+                return
+            ax, ay = project(clipped[0])
+            bx, by = project(clipped[1])
+            dx, dy = bx - ax, by - ay
+            steps = max(abs(dx), abs(dy), 1)
+            if steps > 4000:
+                return
+            if ch is None:
+                if abs(dx) > abs(dy) * 2:
+                    c = '-'
+                elif abs(dy) > abs(dx) * 2:
+                    c = '|'
+                elif (dx > 0) == (dy > 0):
+                    c = '\\'
+                else:
+                    c = '/'
+            else:
+                c = ch
+            for i in range(steps + 1):
+                t = i / steps
+                gx = int(round(ax + dx * t))
+                gy = int(round(ay + dy * t))
+                if 0 <= gx < view_w and TOP_H <= gy < TOP_H + view_h:
+                    self._safe_addch(gy, gx, c, attr)
+
+        for star in self.starfield:
+            draw_point(star, '.', curses.A_DIM)
+
+        if math.dist(ppos, STATION_POS) < VIEW_RANGE:
+            slot_i = STATION_MODEL["slot_edge_index"]
+            for idx, (i0, i1) in enumerate(STATION_MODEL["edges"]):
+                v0 = self._station_world_vert(STATION_MODEL["verts"][i0])
+                v1 = self._station_world_vert(STATION_MODEL["verts"][i1])
+                attr = (curses.color_pair(CP_WARN) | curses.A_BOLD) if idx == slot_i \
+                    else curses.color_pair(CP_PLAYER)
+                draw_edge(v0, v1, attr)
+
+        if math.dist(ppos, STAR_POS) < VIEW_RANGE:
+            draw_point(STAR_POS, 'O', curses.color_pair(CP_WARN) | curses.A_BOLD)
+
+        for c in self.canisters:
+            draw_point((c.x, c.y, c.z), 'o', curses.color_pair(CP_HUD))
+
+        for npc in self.npcs:
+            npos = (npc.x, npc.y, npc.z)
+            if math.dist(ppos, npos) >= VIEW_RANGE:
+                continue
+            pair = {"Trader": CP_NEUTRAL, "Pirate": CP_HOSTILE, "Police": CP_POLICE}[npc.kind]
+            attr = curses.color_pair(pair) | curses.A_BOLD
+            if npc.id == self.target_id:
+                attr |= curses.A_REVERSE
+            model = MODEL_CROSS if npc.kind == "Police" else SHIP_MODEL.get(npc.ship_type, MODEL_WEDGE)
+            fwd, up, right = derive_basis((npc.fx, npc.fy, npc.fz))
+
+            def world_vert(local, npc=npc, fwd=fwd, up=up, right=right):
+                lx, ly, lz = local
+                return (npc.x + right[0] * lx + up[0] * ly + fwd[0] * lz,
+                        npc.y + right[1] * lx + up[1] * ly + fwd[1] * lz,
+                        npc.z + right[2] * lx + up[2] * ly + fwd[2] * lz)
+
+            for (i0, i1) in model["edges"]:
+                draw_edge(world_vert(model["verts"][i0]), world_vert(model["verts"][i1]), attr)
+
+        for m in self.missiles_air:
+            pair = CP_PLAYER if m.owner == "player" else CP_HOSTILE
+            attr = curses.color_pair(pair) | curses.A_BOLD
+            tail = v_sub((m.x, m.y, m.z), v_scale((m.fx, m.fy, m.fz), MISSILE_TRAIL_LEN))
+            draw_edge(tail, (m.x, m.y, m.z), attr)
+            draw_point((m.x, m.y, m.z), '*', attr)
+
+        for f in self.fx_lines:
+            x1, y1, z1, x2, y2, z2, ttl = f
+            attr = curses.color_pair(CP_WARN) | (curses.A_BOLD if ttl > LASER_FX_TICKS // 2 else 0)
+            draw_edge((x1, y1, z1), (x2, y2, z2), attr)
+
+        self._safe_addch(cy, cx, '+', curses.color_pair(CP_PLAYER) | curses.A_BOLD)
+
+        self._draw_sidebar(view_h)
+        self._draw_bottombar(max_y, max_x)
+
+    def _draw_sidebar(self, view_h):
+        max_y, max_x = self.stdscr.getmaxyx()
+        col = max_x - SIDEBAR_W + 1
+        row = TOP_H
+
+        def bar(label, val, maxval, pair, width=14):
+            frac = 0 if maxval <= 0 else clamp(val / maxval, 0, 1)
+            filled = int(frac * width)
+            b = "#" * filled + "-" * (width - filled)
+            self._safe_addstr(row_holder[0], col, f"{label}", curses.color_pair(CP_HUD))
+            self._safe_addstr(row_holder[0] + 1, col, f"[{b}]", curses.color_pair(pair))
+            row_holder[0] += 2
+
+        row_holder = [row]
+        self._safe_addstr(row_holder[0], col, f"Ship: {self.ship_type}", curses.color_pair(CP_HUD) | curses.A_BOLD)
+        row_holder[0] += 1
+        bar("Hull", self.hull, self.max_hull, CP_DANGER)
+        bar("Shield", self.shield, self.full_max_shield(), CP_PLAYER)
+        bar("Energy", self.energy, self.max_energy, CP_WARN)
+        bar("Fuel", self.fuel, self.max_fuel, CP_NEUTRAL)
+        st = ship_stats(self.ship_type)
+        self._safe_addstr(row_holder[0], col, f"Speed {self.speed:.0f}/{st['speed']:.0f} "
+                            f"(throttle {self.throttle:.0f})", curses.color_pair(CP_HUD))
+        row_holder[0] += 1
+        mouse_label = "Auto Seek Cursor" if self.mouse_mode == "auto" else "Seek Cursor"
+        self._safe_addstr(row_holder[0], col, f"Mouse: {mouse_label}", curses.color_pair(CP_HUD))
+        row_holder[0] += 1
+        self._safe_addstr(row_holder[0], col, f"Cargo {self.cargo_used()}/{self.full_cargo_capacity()}t",
+                            curses.color_pair(CP_HUD))
+        row_holder[0] += 1
+        self._safe_addstr(row_holder[0], col, f"Laser: {self.laser}", curses.color_pair(CP_HUD))
+        row_holder[0] += 1
+        self._safe_addstr(row_holder[0], col, f"Missiles: {self.missiles}/{self.missile_mounts}",
+                            curses.color_pair(CP_HUD))
+        row_holder[0] += 2
+
+        tgt = self._get_npc(self.target_id)
+        if tgt:
+            self._safe_addstr(row_holder[0], col, f"Target: {tgt.kind}", curses.color_pair(CP_HOSTILE))
+            row_holder[0] += 1
+            self._safe_addstr(row_holder[0], col, f"Hull {int(tgt.hull)}/{int(tgt.max_hull)}",
+                                curses.color_pair(CP_HUD))
+            row_holder[0] += 1
+            d = math.dist((tgt.x, tgt.y, tgt.z), (self.px, self.py, self.pz))
+            self._safe_addstr(row_holder[0], col, f"Dist {int(d)}", curses.color_pair(CP_HUD))
+            row_holder[0] += 2
+        else:
+            row_holder[0] += 1
+
+        self._safe_addstr(row_holder[0], col, "Scanner:", curses.color_pair(CP_HUD))
+        row_holder[0] += 1
+        self._draw_scanner(row_holder[0], col)
+
+    def _draw_scanner(self, top, col):
+        # A top-down-from-the-cockpit radar, like Elite's: forward is "up" on
+        # the dish, left/right is left/right, and altitude relative to the
+        # flight plane nudges the blip up or down a row - a simplified stand-in
+        # for the original's above/below stem marks.
+        hw, hh = SCANNER_W // 2, SCANNER_H // 2
+        cells = {}
+
+        def plot(relpos, ch, pair):
+            dist = v_len(relpos)
+            if dist > SCANNER_RANGE or dist < 1e-6:
+                return
+            frac = dist / SCANNER_RANGE
+            lx = v_dot(relpos, self.p_right) / dist
+            lz = v_dot(relpos, self.p_fwd) / dist
+            ly = v_dot(relpos, self.p_up)
+            gx = clamp(int(round(hw + lx * frac * hw)), 0, SCANNER_W - 1)
+            gy = clamp(int(round(hh - lz * frac * hh)), 0, SCANNER_H - 1)
+            if ly > dist * 0.3:
+                gy = clamp(gy - 1, 0, SCANNER_H - 1)
+            elif ly < -dist * 0.3:
+                gy = clamp(gy + 1, 0, SCANNER_H - 1)
+            cells[(gx, gy)] = (ch, pair)
+
+        for npc in self.npcs:
+            relpos = (npc.x - self.px, npc.y - self.py, npc.z - self.pz)
+            pair = {"Trader": CP_NEUTRAL, "Pirate": CP_HOSTILE, "Police": CP_POLICE}[npc.kind]
+            plot(relpos, npc.kind[0], pair)
+        plot((STATION_POS[0] - self.px, STATION_POS[1] - self.py, STATION_POS[2] - self.pz),
+             '@', CP_PLAYER)
+        for yy in range(SCANNER_H):
+            for xx in range(SCANNER_W):
+                if (xx, yy) == (hw, hh):
+                    ch, pair = '+', CP_HUD
+                elif (xx, yy) in cells:
+                    ch, pair = cells[(xx, yy)]
+                else:
+                    ch, pair = None, None
+                if ch:
+                    self._safe_addch(top + yy, col + xx, ch, curses.color_pair(pair))
+
+    def _draw_map_overlay(self, max_x, max_y):
+        w = min(max_x - 6, 70)
+        h = min(max_y - 6, 24)
+        x0 = (max_x - w) // 2
+        y0 = (max_y - h) // 2
+        for yy in range(h):
+            self._safe_addstr(y0 + yy, x0, " " * w, curses.color_pair(CP_HUD))
+        self._safe_addstr(y0, x0 + 2, " GALAXY MAP ", curses.color_pair(CP_HUD) | curses.A_BOLD | curses.A_REVERSE)
+
+        map_w, map_h = w - 4, h - 12
+        s = self.sys()
+        for name, sysd in self.galaxy.items():
+            gx = x0 + 2 + int((sysd.x / GALAXY_W) * (map_w - 1))
+            gy = y0 + 2 + int((sysd.y / GALAXY_H) * (map_h - 1))
+            ch = '*' if sysd.visited else '.'
+            attr = curses.color_pair(CP_NEUTRAL)
+            if name == self.current_system_name:
+                ch, attr = '@', curses.color_pair(CP_PLAYER) | curses.A_BOLD
+            elif self._map_order and name == self._map_order[self.map_index]:
+                attr = curses.color_pair(CP_WARN) | curses.A_REVERSE
+            self._safe_addch(gy, gx, ch, attr)
+
+        info_row = y0 + map_h + 3
+        if self._map_order:
+            dest = self._map_order[self.map_index]
+            d = self.galaxy[dest]
+            dist = self._dist_ly(dest)
+            reach = "IN RANGE" if dist <= self.fuel else "OUT OF RANGE"
+            reach_pair = CP_HUD if dist <= self.fuel else CP_DANGER
+            self._safe_addstr(info_row, x0 + 2, f"{dest}  {dist:.1f}LY  {reach}",
+                                curses.color_pair(reach_pair) | curses.A_BOLD)
+            self._safe_addstr(info_row + 1, x0 + 2,
+                                f"{d.economy} / {d.government}  TL{d.tech}  pop:{d.population}",
+                                curses.color_pair(CP_HUD))
+            self._safe_addstr(info_row + 2, x0 + 2, f"Security: {'*' * GOVERNMENTS[d.government]['security']}",
+                                curses.color_pair(CP_HUD))
+        self._safe_addstr(y0 + h - 2, x0 + 2, "Up/Down:select  Enter/J:jump  G/Esc:close",
+                            curses.color_pair(CP_HUD))
+
+    def _draw_menu_frame(self, max_x, max_y, title):
+        self._draw_topbar(max_x)
+        self._safe_addstr(2, 2, title, curses.color_pair(CP_HUD) | curses.A_BOLD | curses.A_UNDERLINE)
+
+    def _draw_station(self, max_x, max_y):
+        self._draw_menu_frame(max_x, max_y, f"Station Services - {self.current_system_name}")
+        opts = self._station_options()
+        for i, opt in enumerate(opts):
+            attr = curses.A_REVERSE if i == self.station_index else curses.color_pair(CP_HUD)
+            self._safe_addstr(4 + i, 4, opt, attr)
+        self._draw_bottombar(max_y, max_x)
+
+    def _draw_market(self, max_x, max_y):
+        self._draw_menu_frame(max_x, max_y, f"Commodity Market - {self.current_system_name}")
+        s = self.sys()
+        header = f"{'Commodity':<16}{'Buy':>8}{'Sell':>8}{'Stock':>8}{'Hold':>8}  Legality"
+        self._safe_addstr(4, 4, header, curses.color_pair(CP_HUD) | curses.A_BOLD)
+        for i, name in enumerate(COMMODITY_NAMES):
+            row = s.market[name]
+            held = self.cargo.get(name, 0)
+            legal = "ILLEGAL" if COMMODITY_BY_NAME[name]["illegal"] else ""
+            line = (f"{name:<16}{row['price']:>8.1f}{row['price'] * 0.92:>8.1f}"
+                    f"{int(row['stock']):>8}{held:>8}  {legal}")
+            attr = curses.A_REVERSE if i == self.market_index else curses.color_pair(CP_HUD)
+            if COMMODITY_BY_NAME[name]["illegal"] and i != self.market_index:
+                attr = curses.color_pair(CP_DANGER)
+            self._safe_addstr(5 + i, 4, line, attr)
+        self._safe_addstr(6 + len(COMMODITY_NAMES), 4,
+                            "B:buy  S:sell  Esc:back", curses.color_pair(CP_HUD))
+        self._draw_bottombar(max_y, max_x)
+
+    def _draw_qty_prompt(self, max_x, max_y):
+        w, h = 40, 5
+        x0 = (max_x - w) // 2
+        y0 = (max_y - h) // 2
+        for yy in range(h):
+            self._safe_addstr(y0 + yy, x0, " " * w, curses.color_pair(CP_HUD) | curses.A_REVERSE)
+        ctx = self.qty_ctx
+        self._safe_addstr(y0 + 1, x0 + 2, f"{ctx['action'].title()} {ctx['commodity']}",
+                            curses.color_pair(CP_HUD) | curses.A_REVERSE)
+        self._safe_addstr(y0 + 2, x0 + 2, f"Quantity: {self.qty_buffer}_",
+                            curses.color_pair(CP_HUD) | curses.A_REVERSE)
+        self._safe_addstr(y0 + 3, x0 + 2, "Enter:confirm  Esc:cancel",
+                            curses.color_pair(CP_HUD) | curses.A_REVERSE)
+
+    def _draw_shipyard(self, max_x, max_y):
+        self._draw_menu_frame(max_x, max_y, f"Shipyard - {self.current_system_name}")
+        for i, name in enumerate(SHIP_ORDER):
+            st = SHIP_TYPES[name]
+            mark = " (current)" if name == self.ship_type else ""
+            line = f"{name:<14}{st['price']:>8}cr  cargo:{st['cargo']:<4}hull:{st['hull']:<4}shield:{st['shield']:<4}{mark}"
+            attr = curses.A_REVERSE if i == self.shipyard_index else curses.color_pair(CP_HUD)
+            self._safe_addstr(4 + i, 4, line, attr)
+        desc = SHIP_TYPES[SHIP_ORDER[self.shipyard_index]]["desc"]
+        self._safe_addstr(6 + len(SHIP_ORDER), 4, desc, curses.A_DIM)
+        self._safe_addstr(8 + len(SHIP_ORDER), 4, "Enter:trade in & buy  Esc:back", curses.color_pair(CP_HUD))
+        self._draw_bottombar(max_y, max_x)
+
+    def _draw_confirm(self, max_x, max_y):
+        w, h = 50, 5
+        x0 = (max_x - w) // 2
+        y0 = (max_y - h) // 2
+        for yy in range(h):
+            self._safe_addstr(y0 + yy, x0, " " * w, curses.color_pair(CP_WARN) | curses.A_REVERSE)
+        self._safe_addstr(y0 + 2, x0 + 2, self.confirm_ctx["prompt"][:w - 4],
+                            curses.color_pair(CP_WARN) | curses.A_REVERSE)
+
+    def _draw_outfitting(self, max_x, max_y):
+        self._draw_menu_frame(max_x, max_y, f"Outfitting - {self.current_system_name}")
+        row = 4
+        self._safe_addstr(row, 4, "-- Lasers --", curses.color_pair(CP_HUD) | curses.A_BOLD)
+        row += 1
+        for i, name in enumerate(LASER_ORDER):
+            spec = LASER_STATS[name]
+            mark = " (mounted)" if name == self.laser else ""
+            line = f"{name:<16}{spec['price']:>7}cr  dmg:{spec['dmg']:<4}{mark}"
+            attr = curses.A_REVERSE if i == self.outfit_index else curses.color_pair(CP_HUD)
+            self._safe_addstr(row, 4, line, attr)
+            row += 1
+        row += 1
+        self._safe_addstr(row, 4, "-- Equipment --", curses.color_pair(CP_HUD) | curses.A_BOLD)
+        row += 1
+        for j, key in enumerate(EQUIP_ORDER):
+            item = EQUIPMENT_CATALOG[key]
+            idx = len(LASER_ORDER) + j
+            if item["kind"] == "bool":
+                status = " (installed)" if self.equipment.get(key) else ""
+            elif item["kind"] == "stack":
+                status = f" ({self.equipment.get(key, 0)}/{item['max']})"
+            else:
+                status = ""
+            line = f"{item['name']:<20}{item['price']:>7}cr  {item['desc'][:40]}{status}"
+            attr = curses.A_REVERSE if idx == self.outfit_index else curses.color_pair(CP_HUD)
+            self._safe_addstr(row, 4, line, attr)
+            row += 1
+        self._safe_addstr(row + 1, 4, "Enter:buy/install  Esc:back", curses.color_pair(CP_HUD))
+        self._draw_bottombar(max_y, max_x)
+
+    def _draw_missions(self, max_x, max_y):
+        self._draw_menu_frame(max_x, max_y, f"Bulletin Board - {self.current_system_name}")
+        board = self.sys().bulletin
+        if not board:
+            self._safe_addstr(4, 4, "(no contracts posted)", curses.A_DIM)
+        for i, m in enumerate(board):
+            attr = curses.A_REVERSE if i == self.missions_index else curses.color_pair(CP_HUD)
+            self._safe_addstr(4 + i, 4, m.describe(), attr)
+        row = 5 + len(board)
+        self._safe_addstr(row, 4, "-- Active contracts --", curses.color_pair(CP_HUD) | curses.A_BOLD)
+        for i, m in enumerate(self.missions):
+            self._safe_addstr(row + 1 + i, 4, m.describe(), curses.A_DIM)
+        self._safe_addstr(row + 2 + len(self.missions), 4, "Enter:accept  Esc:back", curses.color_pair(CP_HUD))
+        self._draw_bottombar(max_y, max_x)
+
+    def _draw_status(self, max_x, max_y):
+        self._draw_menu_frame(max_x, max_y, "Commander Status")
+        lines = [
+            f"Commander: {self.commander_name}",
+            f"Credits: {self.credits}cr",
+            f"Combat rating: {self.rank_name()} ({self.kills} kills)",
+            f"Legal status: {self.legal_status}",
+            f"Ship: {self.ship_type}  Hull {int(self.hull)}/{int(self.max_hull)}  "
+            f"Shield {int(self.shield)}/{int(self.full_max_shield())}",
+            f"Fuel: {self.fuel:.1f}/{self.max_fuel:.1f} LY   Laser: {self.laser}",
+            f"Missiles: {self.missiles}/{self.missile_mounts}",
+            "",
+            "Equipment:",
+        ]
+        for key in EQUIP_ORDER:
+            item = EQUIPMENT_CATALOG[key]
+            if item["kind"] == "bool" and self.equipment.get(key):
+                lines.append(f"  {item['name']}")
+            elif item["kind"] == "stack" and self.equipment.get(key, 0):
+                lines.append(f"  {item['name']} x{self.equipment[key]}")
+        lines.append("")
+        lines.append("Cargo hold:")
+        if self.cargo:
+            for name, qty in self.cargo.items():
+                lines.append(f"  {qty}t {name}")
+        else:
+            lines.append("  (empty)")
+        for i, line in enumerate(lines):
+            self._safe_addstr(4 + i, 4, line, curses.color_pair(CP_HUD))
+        self._safe_addstr(5 + len(lines), 4, "Any key: back", curses.color_pair(CP_HUD))
+
+    def _draw_pause(self, max_x, max_y):
+        w, h = 40, 6
+        x0 = (max_x - w) // 2
+        y0 = (max_y - h) // 2
+        for yy in range(h):
+            self._safe_addstr(y0 + yy, x0, " " * w, curses.color_pair(CP_HUD) | curses.A_REVERSE)
+        self._safe_addstr(y0 + 1, x0 + 2, "PAUSED", curses.color_pair(CP_HUD) | curses.A_REVERSE | curses.A_BOLD)
+        self._safe_addstr(y0 + 3, x0 + 2, "S: save commander log", curses.color_pair(CP_HUD) | curses.A_REVERSE)
+        self._safe_addstr(y0 + 4, x0 + 2, "Q: save & quit to title   Esc: resume",
+                            curses.color_pair(CP_HUD) | curses.A_REVERSE)
+
+    def _draw_help(self, max_x, max_y):
+        lines = __doc__.strip("\n").splitlines()
+        for i, line in enumerate(lines):
+            if 4 + i >= max_y - 1:
+                break
+            self._safe_addstr(i, 0, line, curses.color_pair(CP_HUD))
+        self._safe_addstr(max_y - 1, 0, "Any key to return", curses.color_pair(CP_WARN))
+
+
+# --------------------------------------------------------------------------
+# Splash / title
+# --------------------------------------------------------------------------
+
+SPLASH_ART = r"""
+    .          .                  .        L . E . E . T .
+        .   .          .   .
+  .              *              .    a terminal tribute to Elite
+       .    .           .
+"""
+
+
+def draw_splash(stdscr, save_exists):
+    stdscr.erase()
+    max_y, max_x = stdscr.getmaxyx()
+    lines = [
+        GAME_TITLE,
+        "",
+        "A terminal-based tribute to Elite.",
+        "",
+        "Trade, fight, and explore a procedurally generated galaxy.",
+        "Full 3D wireframe flight: roll and pitch, no yaw, just like the original.",
+        "Nothing autosaves except when you tell it to.",
+        "",
+        "Press N for a new commander" + ("  //  C to continue" if save_exists else ""),
+        "Q to quit",
+    ]
+    for i, line in enumerate(lines):
+        try:
+            stdscr.addstr(2 + i, max(0, (max_x - len(line)) // 2), line,
+                           curses.color_pair(CP_HUD) | (curses.A_BOLD if i == 0 else 0))
+        except curses.error:
+            pass
+    stdscr.refresh()
+
+
+def draw_name_entry(stdscr, buf):
+    stdscr.erase()
+    max_y, max_x = stdscr.getmaxyx()
+    prompt = "Enter commander name: " + buf + "_"
+    try:
+        stdscr.addstr(max_y // 2, max(0, (max_x - len(prompt)) // 2), prompt,
+                       curses.color_pair(CP_HUD) | curses.A_BOLD)
+        hint = "Enter to confirm, Esc to cancel"
+        stdscr.addstr(max_y // 2 + 2, max(0, (max_x - len(hint)) // 2), hint, curses.color_pair(CP_HUD))
+    except curses.error:
+        pass
+    stdscr.refresh()
+
+
+def draw_dead_screen(stdscr, game):
+    stdscr.erase()
+    max_y, max_x = stdscr.getmaxyx()
+    lines = [
+        "COMMANDER LOST",
+        "",
+        f"{game.commander_name} died in {game.current_system_name}.",
+        f"Final rank: {game.rank_name()} ({game.kills} kills)",
+        f"Credits at death: {game.credits}cr",
+        "",
+        "Press any key to return to the title screen.",
+    ]
+    for i, line in enumerate(lines):
+        try:
+            stdscr.addstr(max_y // 2 - 3 + i, max(0, (max_x - len(line)) // 2), line,
+                           curses.color_pair(CP_DANGER) | (curses.A_BOLD if i == 0 else 0))
+        except curses.error:
+            pass
+    stdscr.refresh()
+
+
+def draw_closed(stdscr):
+    stdscr.erase()
+    try:
+        stdscr.addstr(0, 0, "Session closed.", curses.color_pair(CP_HUD) | curses.A_BOLD)
+    except curses.error:
+        pass
+    stdscr.refresh()
+
+
+# --------------------------------------------------------------------------
+# App: splash -> name entry -> game -> dead -> title
+# --------------------------------------------------------------------------
+
+class App:
+    def __init__(self, stdscr):
+        self.stdscr = stdscr
+        self.phase = "splash"
+        self.name_buf = ""
+        self.game = None
+        self.done = False
+        stdscr.timeout(TICK_MS)
+
+    def _load_save(self):
+        if not os.path.exists(SAVE_PATH):
+            return None
+        try:
+            with open(SAVE_PATH) as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    def step(self):
+        if self.phase == "splash":
+            save_data = self._load_save()
+            draw_splash(self.stdscr, save_data is not None)
+            key = self.stdscr.getch()
+            if key in (ord('n'), ord('N')):
+                self.name_buf = ""
+                self.phase = "name_entry"
+            elif key in (ord('c'), ord('C')) and save_data is not None:
+                self.game = Game(self.stdscr, save_data.get("commander_name", "Commander"),
+                                   load_data=save_data)
+                self.phase = "game"
+            elif key in (ord('q'), ord('Q')):
+                self.phase = "closed"
+                self.done = True
+
+        elif self.phase == "name_entry":
+            draw_name_entry(self.stdscr, self.name_buf)
+            key = self.stdscr.getch()
+            if key in (10, 13, curses.KEY_ENTER):
+                name = self.name_buf.strip() or "Commander"
+                self.game = Game(self.stdscr, name)
+                self.phase = "game"
+            elif key == 27:
+                self.phase = "splash"
+            elif key in (curses.KEY_BACKSPACE, 127, 8):
+                self.name_buf = self.name_buf[:-1]
+            elif 32 <= key < 127 and len(self.name_buf) < 20:
+                self.name_buf += chr(key)
+
+        elif self.phase == "game":
+            self.game.tick_once()
+            if not self.game.running:
+                self.phase = "dead" if self.game.dead else "splash"
+
+        elif self.phase == "dead":
+            draw_dead_screen(self.stdscr, self.game)
+            if self.stdscr.getch() != -1:
+                self.phase = "splash"
+
+        elif self.phase == "closed":
+            draw_closed(self.stdscr)
+
+    def run_blocking(self):
+        while not self.done:
+            self.step()
+
+
+# --------------------------------------------------------------------------
+# Entry point
+# --------------------------------------------------------------------------
+
+def main(stdscr):
+    curses.curs_set(0)
+    stdscr.keypad(True)
+    curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+    curses.mouseinterval(0)
+    curses.start_color()
+    curses.use_default_colors()
+    curses.init_pair(CP_PLAYER, curses.COLOR_CYAN, -1)
+    curses.init_pair(CP_HOSTILE, curses.COLOR_RED, -1)
+    curses.init_pair(CP_NEUTRAL, curses.COLOR_WHITE, -1)
+    curses.init_pair(CP_HUD, curses.COLOR_GREEN, -1)
+    curses.init_pair(CP_DANGER, curses.COLOR_RED, -1)
+    curses.init_pair(CP_WARN, curses.COLOR_YELLOW, -1)
+    curses.init_pair(CP_POLICE, curses.COLOR_BLUE, -1)
+    curses.init_pair(CP_REVERSE, curses.COLOR_BLACK, curses.COLOR_WHITE)
+
+    App(stdscr).run_blocking()
+
+
+if __name__ == "__main__":
+    curses.wrapper(main)
