@@ -45,13 +45,15 @@
       padding: 0 28px 0 0;
       height: auto;
       display: flex;
-      align-items: center;
+      align-items: stretch;
       gap: 24px;
       border-bottom: 1px solid #e0e4ea;
       flex-wrap: nowrap;
     }
     .brand {
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
       font-family: "IBM Plex Sans", sans-serif;
       font-optical-sizing: auto;
       font-weight: 900;
@@ -68,6 +70,7 @@
       font-style: italic;
       text-decoration: none;
       display: inline-block;
+      line-height: 1;
     }
     .brand-date {
       font-family: 'JetBrains Mono', monospace;
@@ -75,6 +78,7 @@
       color: #6b6558;
       letter-spacing: 0.04em;
       margin-left: 28px;
+      align-self: center;
     }
 
     .breaking-banner {
@@ -551,7 +555,7 @@
 
 <div class="breaking-banner">
   <span class="break-tag">📍 Six Months In</span>
-  <span class="break-text"><strong>Strikes on Iranian soil paused ~31 days</strong> · Strait of Hormuz still effectively closed · Brent ~$88/bbl · Treasury launches "Economic Outcast" sanctions campaign · Iran–Oman revenue-sharing deal announced, strait not reopened · Mojtaba Khamenei ends week of public silence</span>
+  <span class="break-text"><strong>US strikes Iranian mine-launchers on Larak Island, ending the month-long pause</strong> · Iran retaliates: missiles on US bases in Jordan, strike on Al Minhad airbase, UAE · Trump posts AI-generated video falsely claiming Kharg Island destroyed · Brent surges above $90/bbl</span>
 </div>
 
 <nav class="nav-dots">
@@ -576,8 +580,8 @@
   <div class="status-inner">
     <div class="stat-item">
       <div class="stat-label">Conflict Status</div>
-      <div class="stat-val c-orange">Frozen Blockade</div>
-      <div class="stat-note">Strikes on Iran paused ~31 days · no active talks</div>
+      <div class="stat-val c-red">Re-Escalating</div>
+      <div class="stat-note">Month-long strike pause broken 30–31 Aug · Larak Island hit, Iran hits Jordan/UAE</div>
     </div>
     <div class="stat-item">
       <div class="stat-label">Strait of Hormuz</div>
@@ -596,20 +600,20 @@
     </div>
     <div class="stat-item">
       <div class="stat-label">Brent Crude</div>
-      <div class="stat-val c-orange">~$88/bbl</div>
-      <div class="stat-note">Up ~30% vs pre-war · peaked ~$119–140 in March</div>
+      <div class="stat-val c-red">&gt;$90/bbl</div>
+      <div class="stat-note">Jumped on Larak strikes · up ~35% vs pre-war</div>
     </div>
     <div class="stat-item">
       <div class="stat-label">US Strategy</div>
-      <div class="stat-val c-blue">Economic, Not Kinetic</div>
-      <div class="stat-note">"Operation Economic Outcast" launched 24 Aug</div>
+      <div class="stat-val c-orange">Economic + Renewed Strikes</div>
+      <div class="stat-note">Sanctions campaign now paired with first strikes in a month</div>
     </div>
   </div>
 </div>
 
 <div class="article-body">
 
-  <p style="margin-top:44px;">Six months ago, on Saturday 28 February 2026, the United States and Israel launched Operation Epic Fury against Iran, killing Supreme Leader Ali Khamenei within hours and igniting the most significant Middle East war since the 2003 Iraq invasion. Since then the conflict has moved through four distinct phases — a brutal five-week opening campaign, a fragile Pakistan-brokered ceasefire and naval blockade, a brief and genuine peace under a US–Iran memorandum in June, and a collapse back into strikes and a sanctions war in July and August. As of today, bombs have not fallen on Iranian soil for roughly a month. But the Strait of Hormuz remains effectively closed, oil is a third more expensive than before the war, and no one — not CSIS, not Crisis Group, not the belligerents themselves — believes this is over.</p>
+  <p style="margin-top:44px;">Six months ago, on Saturday 28 February 2026, the United States and Israel launched Operation Epic Fury against Iran, killing Supreme Leader Ali Khamenei within hours and igniting the most significant Middle East war since the 2003 Iraq invasion. Since then the conflict has moved through four distinct phases — a brutal five-week opening campaign, a fragile Pakistan-brokered ceasefire and naval blockade, a brief and genuine peace under a US–Iran memorandum in June, and a collapse back into strikes and a sanctions war in July and August. A month-long pause in strikes on Iranian territory ended in the last 24 hours: US forces hit Iranian mine-launchers on Larak Island, Iran retaliated against US bases in Jordan and an airbase in the UAE, and Trump — in a detail that says a lot about the information environment this war is fought in — posted an AI-generated video falsely claiming Iran's main oil hub, Kharg Island, had been destroyed. The Strait of Hormuz remains effectively closed, oil just jumped back above $90, and no one — not CSIS, not Crisis Group, not the belligerents themselves — believes this is over.</p>
 
   <p>This is not the raging, escalating war some feared in March, nor the negotiated peace that briefly seemed within reach in June. It is something more familiar from history and harder to write clean scenarios about: a frozen conflict, sustained by mutual exhaustion and a pivot from bombs to sanctions, that could restart at any provocation and shows no sign of genuinely ending.</p>
 
@@ -748,11 +752,21 @@
       <div class="tl-title">"Operation Economic Outcast"</div>
       <div class="tl-body">Treasury Secretary Bessent launches sweeping secondary sanctions targeting any entity — including Chinese banks — facilitating Iranian oil, shipping, gold or crypto trade, calling it an "economic D-Day." Iran vows a "seismic" response.</div>
     </div>
-    <div class="tl-item now">
-      <div class="tl-date">Aug 25–31, 2026 — Today</div>
+    <div class="tl-item">
+      <div class="tl-date">Aug 25–29, 2026</div>
       <div class="tl-title">Six Months In: A Fragile, Unresolved Freeze</div>
-      <div class="tl-body">Iran and Oman announce a Hormuz revenue-sharing arrangement, short of reopening the strait. Mojtaba Khamenei ends a week of public silence, urging Gulf states to name their "real enemy" and conceding domestic economic strain. Brent settles near $88. The IAEA still has no access to Iran's 440.9kg of 60%-enriched uranium.</div>
+      <div class="tl-body">Iran and Oman announce a Hormuz revenue-sharing arrangement, short of reopening the strait. Mojtaba Khamenei ends a week of public silence, urging Gulf states to name their "real enemy" and conceding domestic economic strain. The IAEA still has no access to Iran's 440.9kg of 60%-enriched uranium.</div>
     </div>
+    <div class="tl-item now">
+      <div class="tl-date">Aug 30–31, 2026 — Today</div>
+      <div class="tl-title">The Pause Ends: Larak Island Strikes and Jordan Retaliation</div>
+      <div class="tl-body">US forces strike two Iranian rocket-mine launchers on Larak Island near the Strait of Hormuz — Washington's first direct military action against Iran in over a month — after CENTCOM says IRGC units were observed preparing to fire sea mines into the strait. Iran's IRGC reports its own fighters and civilians killed and wounded in the strike and vows to "punish the aggressor." Iran retaliates within hours: at least eight ballistic missiles fired at US bases in Jordan (Jordanian air defenses intercept most) and a strike on the Al Minhad air base in the UAE. Trump posts an AI-generated video on Truth Social claiming Kharg Island — Iran's main oil-export hub, 400+ miles from Larak — is "being blown to smithereens"; Reuters confirms the footage is synthetic and no strike on Kharg occurred. Iran calls the claim "laughable." Brent crude jumps above $90 on the news, and the rial slides to a fresh historic low.</div>
+    </div>
+  </div>
+
+  <div class="callout callout-alert" style="margin-top:28px;">
+    <div class="callout-label">⚠ Breaking, As of Publication</div>
+    <p>This is a live, fast-moving development. The Larak strike and Jordan/UAE retaliation happened within the last 24 hours, and details — including casualty figures and whether further US action against Kharg Island itself follows — remain unconfirmed and likely to change. Treat the "renewed major strikes" scenario below as now partially realized rather than purely hypothetical.</p>
   </div>
 
   <hr class="section-rule" id="scenarios" />
@@ -764,16 +778,16 @@
     <div class="scenario-head" onclick="toggle(this)">
       <div class="sc-num">01</div>
       <div class="sc-meta">
-        <div class="sc-title">Continued Frozen Conflict / Sanctions War</div>
-        <div class="sc-tags"><span class="tag tag-a">Risk: Moderate, Sustained</span><span class="tag tag-n">~40–50%</span></div>
+        <div class="sc-title">Frozen Conflict Resumes After This Flare-Up</div>
+        <div class="sc-tags"><span class="tag tag-a">Risk: Moderate, Sustained</span><span class="tag tag-n">~30–40%</span><span class="tag tag-n">↓ from 45%</span></div>
       </div>
-      <div class="sc-prob"><div class="sc-prob-num">45%</div><div class="prob-bar"><div class="prob-fill" style="width:45%;background:var(--amber)"></div></div></div>
+      <div class="sc-prob"><div class="sc-prob-num">35%</div><div class="prob-bar"><div class="prob-fill" style="width:35%;background:var(--amber)"></div></div></div>
     </div>
     <div class="scenario-body">
-      <p>The most likely path is more of the current pattern: no major new strikes on Iranian soil, the Hormuz blockade easing marginally (via the Oman revenue-share arrangement) without fully reopening, and the US leaning on "Operation Economic Outcast" as its primary pressure tool through the November midterms. Oil stays elevated in the $80s–90s. Iran absorbs the economic pain rather than capitulating — as CFR's Middle East analysts note, Tehran has shown it is "prepared to endure a lot of hardship" rather than make the concessions Washington wants.</p>
+      <p>The base case a week ago — no major new strikes, a marginally eased blockade via the Oman deal, sanctions doing the work — now has to survive the Larak Island exchange first. It's still plausible: CENTCOM has framed the strike as narrow and preemptive, not the opening of a new campaign, and both sides may prefer to let this one exchange settle rather than escalate further. But the probability mass has shifted toward Scenario 2 below, precisely because a "quiet month" already proved fragile once this week.</p>
       <div class="uk-flag-box">
         <div class="uk-flag-label">🇬🇧 UK Exposure</div>
-        <p>Continued elevated fuel prices and a steady drain on mine-clearance and naval deployments in the Gulf, but no new acute crisis. This is the "manageable but expensive" scenario the UK has effectively been living in since April.</p>
+        <p>Continued elevated fuel prices and a steady drain on mine-clearance and naval deployments in the Gulf, assuming this week's exchange doesn't widen further. This is the "manageable but expensive" scenario the UK has effectively been living in since April.</p>
       </div>
     </div>
   </div>
@@ -782,16 +796,16 @@
     <div class="scenario-head" onclick="toggle(this)">
       <div class="sc-num">02</div>
       <div class="sc-meta">
-        <div class="sc-title">Renewed Major Strikes (Post-Midterm Window)</div>
-        <div class="sc-tags"><span class="tag tag-o">Risk: High</span><span class="tag tag-n">~25–30%</span></div>
+        <div class="sc-title">Renewed Major Strikes — Now Underway</div>
+        <div class="sc-tags"><span class="tag tag-r">Risk: High, Active</span><span class="tag tag-n">~35–45%</span><span class="tag tag-n">↑ from 28%</span></div>
       </div>
-      <div class="sc-prob"><div class="sc-prob-num">28%</div><div class="prob-bar"><div class="prob-fill" style="width:28%;background:var(--orange)"></div></div></div>
+      <div class="sc-prob"><div class="sc-prob-num">40%</div><div class="prob-bar"><div class="prob-fill" style="width:40%;background:var(--red)"></div></div></div>
     </div>
     <div class="scenario-body">
-      <p>US officials have signaled a new bombing campaign remains on the table, and several analysts expect the current pause to be politically timed around November's midterms rather than a genuine de-escalation. A trigger — a mass-casualty attack on US forces, a tanker sinking, or a confirmed Iranian move on enrichment — could restart strikes quickly, especially given how easily the July "final" deal collapsed after a single provocation.</p>
+      <p>This is no longer a purely forward-looking branch: the Larak Island strikes and Iranian retaliation against Jordan and the UAE, in the last 24 hours, are exactly the "renewed strikes" scenario materializing — a month ahead of the November-midterm window analysts had flagged as the likelier trigger point. Whether this stays a single limited exchange or escalates into a sustained campaign against Kharg Island itself (which Trump has now publicly, if falsely, claimed to have hit) is the open question. CENTCOM has framed the Larak strike as narrowly preemptive — targeting mine-laying activity, not oil infrastructure — which is the same distinction the US tried to hold in March before the war widened anyway.</p>
       <div class="uk-flag-box">
         <div class="uk-flag-label">🇬🇧 UK Exposure</div>
-        <p>Renewed pressure on the UK to expand base access beyond "defensive" use, and a fresh spike in fuel and shipping costs. The mine-clearance mission would likely be suspended again.</p>
+        <p>Renewed pressure on the UK to expand base access beyond "defensive" use, and a fresh spike in fuel and shipping costs that has already begun with Brent's jump above $90. The Anglo-French mine-clearance mission would likely be suspended again if the strait sees further mining activity.</p>
       </div>
     </div>
   </div>
@@ -884,16 +898,16 @@
       </thead>
       <tbody>
         <tr>
-          <td class="td-s">Continued frozen conflict / sanctions war</td>
-          <td class="td-p c-amber">40–50%</td>
+          <td class="td-s">Frozen conflict resumes after this flare-up</td>
+          <td class="td-p c-amber">30–40%</td>
           <td class="td-n">Economic / fuel prices</td>
-          <td class="td-n">Neither side blinks; "Economic Outcast" runs through midterms</td>
+          <td class="td-n">Larak exchange stays contained; sanctions remain main lever</td>
         </tr>
         <tr>
-          <td class="td-s">Renewed major strikes (post-midterm)</td>
-          <td class="td-p c-orange">25–30%</td>
+          <td class="td-s">Renewed major strikes — now underway</td>
+          <td class="td-p c-red">35–45%</td>
           <td class="td-n">Military / base-access pressure</td>
-          <td class="td-n">Mass-casualty attack on US forces or shipping</td>
+          <td class="td-n">Larak/Jordan exchange widens toward Kharg Island itself</td>
         </tr>
         <tr>
           <td class="td-s">Negotiated de-escalation / Hormuz reopening</td>
@@ -928,7 +942,12 @@
     <div class="wc-card">
       <div class="wc-icon">🌊</div>
       <h4>The Oman Corridor</h4>
-      <p>The late-August Iran–Oman revenue-sharing deal is the first structural sign of a path back to normal shipping. Watch whether it produces actual sustained transit-volume growth, or stays a diplomatic gesture without operational follow-through.</p>
+      <p>The late-August Iran–Oman revenue-sharing deal is the first structural sign of a path back to normal shipping — announced days before the Larak strikes reintroduced open conflict. Watch whether it survives this week's exchange at all.</p>
+    </div>
+    <div class="wc-card">
+      <div class="wc-icon">🎞️</div>
+      <h4>AI-Generated War Claims</h4>
+      <p>Trump's Truth Social post claiming Kharg Island was "blown to smithereens" was accompanied by a synthetic video Reuters confirmed was AI-generated — and Kharg wasn't struck at all. As both sides fight an information war alongside the shooting one, expect more fabricated or exaggerated footage to circulate as fact in the hours after any incident.</p>
     </div>
     <div class="wc-card">
       <div class="wc-icon">💻</div>
@@ -939,11 +958,6 @@
       <div class="wc-icon">🚢</div>
       <h4>A Second Strait</h4>
       <p>The Houthis' reopened Red Sea campaign against Saudi shipping raises the explicit fear — voiced by regional analysts — of Bab el-Mandeb becoming "a second Hormuz," which would compound rather than relieve the existing shipping crisis.</p>
-    </div>
-    <div class="wc-card">
-      <div class="wc-icon">🗳️</div>
-      <h4>The Midterm Calendar</h4>
-      <p>Multiple US officials and analysts read the current strike pause as politically timed rather than strategically final. November's midterms are widely seen as the real decision point for whether bombing resumes.</p>
     </div>
   </div>
 
